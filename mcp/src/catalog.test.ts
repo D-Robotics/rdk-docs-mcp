@@ -34,9 +34,11 @@ describe("catalog", () => {
     }
   });
 
-  it("marks docusaurus manuals searchable and OE-S manuals not", () => {
+  it("marks published manuals searchable, including Rspress OE-S / OE LLM", () => {
     expect(resolveManual("rdk-x")?.searchable).toBe(true);
-    expect(resolveManual("oe-s")?.searchable).toBe(false);
+    expect(resolveManual("oe-s")?.indexKind).toBe("rspress");
+    expect(resolveManual("oe-llm-s100")?.searchable).toBe(true);
+    expect(resolveManual("oe-llm-s600")?.searchable).toBe(true);
     expect(resolveManual("x5-sdk")?.searchable).toBe(true);
   });
 

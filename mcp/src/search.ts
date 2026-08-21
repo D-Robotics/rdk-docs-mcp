@@ -12,7 +12,7 @@ function tokens(query: string): string[] {
 function haystack(doc: IndexedDoc): { title: string; extra: string } {
   return {
     title: doc.title.toLowerCase(),
-    extra: [doc.snippet, ...(doc.breadcrumbs ?? [])].filter(Boolean).join(" ").toLowerCase(),
+    extra: [doc.snippet, doc.text, ...(doc.breadcrumbs ?? [])].filter(Boolean).join(" ").toLowerCase(),
   };
 }
 

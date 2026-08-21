@@ -28,7 +28,6 @@
 
 **不覆盖**
 
-- `oe-s` / `oe-llm-*` 没有公开搜索索引，只能打开首页再顺着链接读。
 - 旧版资料 `https://developer.d-robotics.cc/information` 不在索引里。
 - 不需要登录，也不写入文档站。
 
@@ -154,10 +153,15 @@ args:    [<REPO>/mcp/dist/index.js]
 cd mcp
 npm install
 npm test
+npm run eval:live
 npm run build
 ```
 
-索引缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），TTL 24 小时。
+`eval:live` 用真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。
+
+索引缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），默认 TTL 24 小时。官方改文档后，缓存过期会重新拉最新索引；要立刻跟上就删掉缓存目录，或设 `RDK_DOCS_CACHE_TTL_MS=0`。
+
+S 系列 OE / OE LLM 是 Rspress 站点：不写死 `search_index.*.json` 的哈希，每次从首页 JS 里发现当前文件名，所以站点发版后哈希变了也能搜。资料中心**新上架一本手册**时，还要在 `mcp/src/catalog.ts` 加一条（并补 `eval/cases.json`）。
 
 契约见 `SPEC-rdk-docs.md`。MCP / Plugin / Skill 三者关系见 `mcp-plugin-skill.md`。
 

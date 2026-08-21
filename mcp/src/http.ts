@@ -5,8 +5,16 @@ import { dirname, join } from "node:path";
 export type HttpGet = (url: string) => Promise<string>;
 
 const TIMEOUT_MS = 15_000;
-const TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const USER_AGENT = "rdk-docs-mcp/0.1 (+https://developer.d-robotics.cc/rdk_doc_center/)";
+
+export function cacheTtlMs(): number {
+  const raw = process.env.RDK_DOCS_CACHE_TTL_MS;
+  if (raw === undefined || raw === "") return DEFAULT_TTL_MS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_TTL_MS;
+  return parsed;
+}
 
 export function cacheDir(): string {
   return process.env.RDK_DOCS_CACHE_DIR ?? join(homedir(), ".cache", "rdk-docs-mcp");
@@ -44,7 +52,8 @@ async function readCache(url: string): Promise<string | undefined> {
     const path = cachePathFor(url);
     const metaPath = `${path}.meta`;
     const meta = JSON.parse(await readFile(metaPath, "utf8")) as { fetchedAt: number };
-    if (Date.now() - meta.fetchedAt > TTL_MS) return undefined;
+    const ttl = cacheTtlMs();
+    if (ttl === 0 || Date.now() - meta.fetchedAt > ttl) return undefined;
     return await readFile(path, "utf8");
   } catch {
     return undefined;

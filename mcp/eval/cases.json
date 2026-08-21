@@ -1,0 +1,122 @@
+[
+  {
+    "id": "x5-burn",
+    "question": "RDK X5 怎么把系统镜像烧到 SD 卡？",
+    "query": "烧录",
+    "manual": "x5",
+    "urlMustInclude": ["/system-burn/"],
+    "pageMustInclude": ["烧录"]
+  },
+  {
+    "id": "x5-poe",
+    "question": "RDK X5 能用 PoE 供电吗？要注意什么？",
+    "query": "PoE",
+    "manual": "x5",
+    "urlMustInclude": ["/POE"],
+    "pageMustInclude": ["PoE"]
+  },
+  {
+    "id": "x5-rdkos-info",
+    "question": "板上怎么查 RDK OS 版本？",
+    "query": "rdkos_info",
+    "manual": "rdk-x",
+    "urlMustInclude": ["cmd_rdkos_info"],
+    "pageMustInclude": ["rdkos_info"]
+  },
+  {
+    "id": "x5-gpio",
+    "question": "X 系列 40pin GPIO 怎么用？",
+    "query": "GPIO",
+    "manual": "rdk-x",
+    "urlMustInclude": ["/gpio"],
+    "pageMustInclude": ["GPIO"]
+  },
+  {
+    "id": "x5-miniboot",
+    "question": "RDK X5 怎么升级 miniboot？",
+    "query": "miniboot",
+    "manual": "x5",
+    "urlMustInclude": ["miniboot"],
+    "pageMustInclude": ["miniboot"]
+  },
+  {
+    "id": "xburn-overview",
+    "question": "XBurn 是什么，支持哪些板？",
+    "query": "XBurn",
+    "manual": "xburn",
+    "urlMustInclude": ["/xburn_doc/"],
+    "pageMustInclude": ["XBurn"]
+  },
+  {
+    "id": "tros-install",
+    "question": "TogetheROS.Bot 怎么安装？",
+    "query": "安装 tros",
+    "manual": "tros",
+    "urlMustInclude": ["/install_tros"],
+    "pageMustInclude": ["tros"]
+  },
+  {
+    "id": "stereo-overview",
+    "question": "双目摄像头模组怎么接、资料在哪？",
+    "query": "双目摄像头",
+    "manual": "stereo-camera",
+    "urlMustInclude": ["/accessories_stereo_camera_doc/"],
+    "pageMustInclude": ["双目"]
+  },
+  {
+    "id": "s600-cases",
+    "question": "S600 有哪些从外设到具身的应用案例？",
+    "query": "应用案例",
+    "manual": "case-s600",
+    "urlMustInclude": ["/case_doc/"],
+    "pageMustInclude": ["S600"]
+  },
+  {
+    "id": "oe-x5-quant",
+    "question": "X5 OE 工具链怎么做量化？",
+    "query": "量化",
+    "manual": "oe-x5",
+    "urlMustInclude": ["/oe_x5_doc/"],
+    "pageMustInclude": ["量化"]
+  },
+  {
+    "id": "en-flash-sd",
+    "question": "How do I flash an SD card on RDK X5?",
+    "query": "flash sd",
+    "manual": "x5",
+    "urlMustInclude": ["/system-burn/", "/burn-sd-card"],
+    "pageMustInclude": ["SD"]
+  },
+  {
+    "id": "oe-s-bev",
+    "question": "S 系列 OE 里 BEV 多任务模型怎么训练？",
+    "query": "BEV 多任务",
+    "manual": "oe-s",
+    "urlMustInclude": ["/oe_s_doc/"],
+    "pageMustInclude": ["BEV", "训练"]
+  },
+  {
+    "id": "oe-llm-s100-qwen",
+    "question": "S100 OE LLM 怎么跑 Qwen？",
+    "query": "Qwen",
+    "manual": "oe-llm-s100",
+    "urlMustInclude": ["/oe_llm_s100p_doc/"],
+    "pageMustInclude": ["Qwen", "qwen"]
+  },
+  {
+    "id": "oe-llm-s600-whisper",
+    "question": "S600 OE LLM 怎么用 Whisper？",
+    "query": "Whisper",
+    "manual": "oe-llm-s600",
+    "urlMustInclude": ["/oe_llm_s600_doc/"],
+    "pageMustInclude": ["Whisper", "whisper"]
+  },
+  {
+    "id": "wifi-config",
+    "question": "RDK X5 怎么连 Wi-Fi？",
+    "query": "WiFi",
+    "manual": "rdk-x",
+    "urlMustInclude": ["wifi", "WiFi", "Wi-Fi", "网络", "remote_login"],
+    "pageMustInclude": ["Wi", "网络", "wlan"]
+  }
+]

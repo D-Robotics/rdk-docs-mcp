@@ -24,7 +24,7 @@
 - 不镜像整站离线文档。
 - 不改资料中心网站本身。
 - 第一期不做英文站点专线（`/en`）；中文站为主，英文 URL 仍可用 `get_page` 打开。
-- 不为 OE S / LLM 手册伪造搜索索引；这些站没有 `search-index.json` 时，搜索返回明确说明，并仍可用 `get_page` + 首页 TOC。
+- 不镜像整本 Rspress 站点；只消费它自己生成的 `search_index.{lang}.{hash}.json`，哈希从首页 JS 发现，不写死。
 
 ## 外部事实（已核验，2026-08-21）
 
@@ -42,9 +42,9 @@
 | bmi088 | BMI088 IMU | `/accessories_bmi088_doc/introduction` | 同上 |
 | rdk-studio | RDK Studio | `/rdk_studio_doc/category/1-product-intro` | 同上 |
 | xburn | XBurn | `/xburn_doc/overview` | 同上 |
-| oe-s | S 系列 OE | `/oe_s_doc/index.html` | 无公开索引 |
-| oe-llm-s100 | S100 OE LLM | `/oe_llm_s100p_doc/index.html` | 无公开索引 |
-| oe-llm-s600 | S600 OE LLM | `/oe_llm_s600_doc/index.html` | 无公开索引 |
+| oe-s | S 系列 OE | `/oe_s_doc/index.html` | Rspress `static/search_index.{lang}.{hash}.json`（哈希从首页 JS 发现） |
+| oe-llm-s100 | S100 OE LLM | `/oe_llm_s100p_doc/index.html` | 同上（`search_index.latest.{lang}.{hash}.json`） |
+| oe-llm-s600 | S600 OE LLM | `/oe_llm_s600_doc/index.html` | 同上 |
 | oe-x5 | X5 OE | `/oe_x5_doc/cn/index.html` | Sphinx `cn/searchindex.js` |
 | oe-x3 | X3 OE | `/oe_x3_doc/cn/index.html` | Sphinx `cn/searchindex.js` |
 | x5-sdk | X5 芯片 SDK | `/x5_sdk_doc/` | Sphinx `searchindex.js` |
@@ -67,7 +67,7 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 | `manual` | string | 可选，手册 `id` 或别名（`x5`/`s100`/`tros`/`studio`…） |
 | `limit` | number | 可选，默认 8，最大 20 |
 
-返回命中：`title`, `url`, `manual`, `snippet`, `score`。同一 URL 去重。无索引的手册不进结果，并在 `warnings` 里点名。
+返回命中：`title`, `url`, `manual`, `snippet`, `score`。同一 URL 去重。无索引或索引加载失败时在 `warnings` 里点名。
 
 ### `get_page`
 
@@ -76,7 +76,7 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 | `url` | string | 必填，资料中心域名下的文档 URL 或站点内路径 |
 | `maxChars` | number | 可选，默认 16000 |
 
-返回 `title`, `url`, `markdown`。只接受 `developer.d-robotics.cc`。抽取 `.theme-doc-markdown` / `article` / `.document` / `main`。
+返回 `title`, `url`, `markdown`。只接受 `developer.d-robotics.cc`。抽取 `.theme-doc-markdown` / `article` / `.document` / `main`。Rspress CSR 页 HTML 是空壳时，改从该手册的 `search_index` 还原正文。
 
 ### `list_toc`
 
@@ -89,7 +89,7 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 
 ## 缓存与边界
 
-- 索引缓存到 `RDK_DOCS_CACHE_DIR` 或 `~/.cache/rdk-docs-mcp`，TTL 24h。
+- 索引缓存到 `RDK_DOCS_CACHE_DIR` 或 `~/.cache/rdk-docs-mcp`，TTL 默认 24h，可用 `RDK_DOCS_CACHE_TTL_MS` 覆盖（`0` 表示不读缓存）。
 - 网络失败返回结构化错误，不抛崩 MCP。
 - stdio 日志只写 stderr。
 - 超时：单次 HTTP 15s。

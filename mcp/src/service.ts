@@ -2,6 +2,7 @@ import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { htmlToMarkdown, resolveDocUrl } from "./fetch-page.js";
 import type { HttpGet } from "./http.js";
+import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
 import { rankHits } from "./search.js";
 import { compactSphinxIndex } from "./sphinx.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
@@ -41,7 +42,7 @@ function manualsForSearch(manual?: string): { targets: Manual[]; warnings: strin
     return { targets: searchable, warnings };
   }
   const target = requireManual(manual);
-  if (!target.searchable || !target.indexPath) {
+  if (!target.searchable) {
     return {
       targets: [],
       warnings: [
@@ -53,6 +54,9 @@ function manualsForSearch(manual?: string): { targets: Manual[]; warnings: strin
 }
 
 async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
+  if (manual.indexKind === "rspress") {
+    return loadRspressDocs(manual, http);
+  }
   if (!manual.indexPath) return [];
   const url = `${origin()}${manual.indexPath}`;
   const body = await http(url);
@@ -103,7 +107,7 @@ export async function listToc(
   http: HttpGet,
 ): Promise<{ manual: string; pages: Array<{ title: string; url: string; breadcrumbs?: string[] }> }> {
   const manual = requireManual(input.manual);
-  if (!manual.searchable || !manual.indexPath) {
+  if (!manual.searchable) {
     return {
       manual: manual.id,
       pages: [{ title: manual.title, url: manual.homeUrl }],
@@ -132,7 +136,11 @@ export async function getPage(
 ): Promise<{ title: string; url: string; markdown: string; truncated: boolean }> {
   const url = resolveDocUrl(input.url);
   const html = await http(url);
-  const page = htmlToMarkdown(html, url);
+  let page = htmlToMarkdown(html, url);
+  if (isRspressShell(html, page.markdown)) {
+    const fromIndex = await rspressPageFromIndex(url, http);
+    if (fromIndex) page = fromIndex;
+  }
   const maxChars = input.maxChars ?? 16_000;
   if (page.markdown.length <= maxChars) {
     return { ...page, truncated: false };
@@ -142,4 +150,39 @@ export async function getPage(
     markdown: `${page.markdown.slice(0, maxChars)}\n\n…[truncated]`,
     truncated: true,
   };
+}
+
+async function rspressPageFromIndex(
+  url: string,
+  http: HttpGet,
+): Promise<{ title: string; url: string; markdown: string } | undefined> {
+  const path = normalizeDocPath(url);
+  const manual = listManuals().find(
+    (item) => item.indexKind === "rspress" && path.startsWith(normalizeDocPath(`${origin()}${item.basePath}`)),
+  );
+  if (!manual) return undefined;
+
+  try {
+    const docs = await loadIndex(manual, http);
+    const match = findRspressPage(docs, url);
+    if (match?.text) {
+      const markdown = match.text.startsWith("#") ? match.text : `# ${match.title}\n\n${match.text}`;
+      return { title: match.title, url: match.url, markdown };
+    }
+
+    const homePath = normalizeDocPath(manual.homeUrl);
+    const enHome = `${normalizeDocPath(`${origin()}${manual.basePath}`)}/en`;
+    if (path === homePath || path === enHome || path === normalizeDocPath(`${origin()}${manual.basePath}`)) {
+      const pages = docs.filter((doc) => doc.kind === "page").slice(0, 80);
+      const markdown = [
+        `# ${manual.title}`,
+        "",
+        ...pages.map((doc) => `- [${doc.title}](${doc.url})`),
+      ].join("\n");
+      return { title: manual.title, url: manual.homeUrl, markdown };
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }

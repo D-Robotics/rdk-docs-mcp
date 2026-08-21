@@ -14,7 +14,7 @@ description: Retrieves D-Robotics RDK documentation from developer.d-robotics.cc
 | 1 | `list_manuals` | 不知道该查哪本手册时先看目录 |
 | 2 | `search_docs` | 按关键词检索。能确定手册就传 `manual` |
 | 3 | `get_page` | 打开命中 URL，读正文 |
-| 4 | `list_toc` | 搜索太散、或手册没有索引（`oe-s` / `oe-llm-*`）时列目录 |
+| 4 | `list_toc` | 搜索太散时列某一本手册的页面目录 |
 
 ## 流程
 
@@ -22,7 +22,7 @@ description: Retrieves D-Robotics RDK documentation from developer.d-robotics.cc
 2. 先 `search_docs`。查询词用用户的中文原词，必要时再补英文（flash / PoE / YOLO）。
 3. 打开 1–2 个最相关 URL 的 `get_page`，用手册原文回答。
 4. 回答必须带可点击的文档链接。写不清就说手册里没写，不要编版本号或命令。
-5. `oe-s`、`oe-llm-s100`、`oe-llm-s600` 没有公开搜索索引：`list_toc` 只会回到首页，接着 `get_page` 首页，再跟页内链接继续拉。
+5. S 系列 OE / S100·S600 OE LLM（`oe-s`、`oe-llm-s100`、`oe-llm-s600`）按普通手册搜即可。它们是 Rspress CSR，页面 HTML 是空壳，`get_page` 会从站点自带的 `search_index` 还原正文。
 
 ## 禁区
 

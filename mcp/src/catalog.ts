@@ -1,4 +1,4 @@
-export type IndexKind = "docusaurus" | "sphinx" | "none";
+export type IndexKind = "docusaurus" | "sphinx" | "rspress" | "none";
 
 export type Manual = {
   id: string;
@@ -144,8 +144,8 @@ export const MANUALS: Manual[] = [
     homeUrl: `${ORIGIN}/oe_s_doc/index.html`,
     basePath: "/oe_s_doc",
     aliases: ["oe", "s-oe"],
-    searchable: false,
-    indexKind: "none",
+    searchable: true,
+    indexKind: "rspress",
   },
   {
     id: "oe-llm-s100",
@@ -155,8 +155,8 @@ export const MANUALS: Manual[] = [
     homeUrl: `${ORIGIN}/oe_llm_s100p_doc/index.html`,
     basePath: "/oe_llm_s100p_doc",
     aliases: ["s100-llm", "oe-llm"],
-    searchable: false,
-    indexKind: "none",
+    searchable: true,
+    indexKind: "rspress",
   },
   {
     id: "oe-llm-s600",
@@ -166,8 +166,8 @@ export const MANUALS: Manual[] = [
     homeUrl: `${ORIGIN}/oe_llm_s600_doc/index.html`,
     basePath: "/oe_llm_s600_doc",
     aliases: ["s600-llm"],
-    searchable: false,
-    indexKind: "none",
+    searchable: true,
+    indexKind: "rspress",
   },
   {
     id: "oe-x5",

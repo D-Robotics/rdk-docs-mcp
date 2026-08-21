@@ -3,6 +3,7 @@ export type IndexedDoc = {
   title: string;
   url: string;
   snippet?: string;
+  text?: string;
   breadcrumbs?: string[];
   kind: "page" | "heading" | "snippet";
 };
