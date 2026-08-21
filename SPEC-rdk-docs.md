@@ -57,26 +57,27 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 
 ### `list_manuals`
 
-无参数。返回手册数组：`id`, `title`, `category`, `homeUrl`, `searchable`。
+无参数。返回手册数组：`id`, `title`, `category`, `homeUrl`, `searchable`，末尾带社区源 `forum`。
 
 ### `search_docs`
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `query` | string | 必填，中英文关键词 |
-| `manual` | string | 可选，手册 `id` 或别名（`x5`/`s100`/`tros`/`studio`…） |
+| `manual` | string | 可选，手册 `id` 或别名（`x5`/`s100`/`tros`/`studio`/`forum`…） |
+| `source` | string | 可选，`docs` / `forum` / `all`（默认）。`manual=forum` 等于只搜论坛 |
 | `limit` | number | 可选，默认 8，最大 20 |
 
-返回命中：`title`, `url`, `manual`, `snippet`, `score`。同一 URL 去重。无索引或索引加载失败时在 `warnings` 里点名。
+返回命中：`title`, `url`, `manual`, `snippet`, `score`, `source`（`docs` 或 `forum`）。默认两边都搜，手册约占 2/3 名额。同一 URL 去重。无索引或索引加载失败时在 `warnings` 里点名。论坛走 Discourse 公开 `search.json`，不镜像整站。
 
 ### `get_page`
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `url` | string | 必填，资料中心域名下的文档 URL 或站点内路径 |
+| `url` | string | 必填，资料中心文档 URL/路径，或论坛主题 URL |
 | `maxChars` | number | 可选，默认 16000 |
 
-返回 `title`, `url`, `markdown`。只接受 `developer.d-robotics.cc`。抽取 `.theme-doc-markdown` / `article` / `.document` / `main`。Rspress CSR 页 HTML 是空壳时，改从该手册的 `search_index` 还原正文。
+返回 `title`, `url`, `markdown`。只接受 `developer.d-robotics.cc` 和 `forum.d-robotics.cc`。手册页抽取 `.theme-doc-markdown` / `article` / `.document` / `main`；Rspress CSR 空壳改从 `search_index` 还原；论坛主题拉 `/t/{id}.json`，把 cooked HTML 收成 Markdown。
 
 ### `list_toc`
 
@@ -89,7 +90,8 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 
 ## 缓存与边界
 
-- 索引缓存到 `RDK_DOCS_CACHE_DIR` 或 `~/.cache/rdk-docs-mcp`，TTL 默认 24h，可用 `RDK_DOCS_CACHE_TTL_MS` 覆盖（`0` 表示不读缓存）。
+- 索引缓存到 `RDK_DOCS_CACHE_DIR` 或 `~/.cache/rdk-docs-mcp`，TTL 默认 24h，可用 `RDK_DOCS_CACHE_TTL_MS` 覆盖（`0` 表示不读缓存）。论坛 `search.json` 最长缓存 15 分钟，主题 JSON 最长 1 小时。
+- 论坛只消费 Discourse 公开 JSON，不镜像、不登录、不爬全站。
 - 网络失败返回结构化错误，不抛崩 MCP。
 - stdio 日志只写 stderr。
 - 超时：单次 HTTP 15s。

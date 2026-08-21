@@ -10,6 +10,11 @@ const docusaurusIndex = JSON.stringify([
         u: "/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE",
         b: ["7 进阶开发"],
       },
+      {
+        t: "WiFi 配置",
+        u: "/rdk_x_doc/Quick_start/wifi",
+        b: ["快速开始"],
+      },
     ],
   },
 ]);
@@ -48,7 +53,24 @@ const rspressZhIndex = JSON.stringify([
   },
 ]);
 
+const forumSearch = JSON.stringify({
+  topics: [{ id: 33210, title: "RDK S100没有wifi", slug: "topic", tags: ["rdx-s100"] }],
+  posts: [{ topic_id: 33210, username: "RiChouu", blurb: "rdk s100右上角设置无wifi图标，且搜索不到wifi设备。" }],
+});
+
+const forumTopic = JSON.stringify({
+  id: 33210,
+  title: "RDK S100没有wifi",
+  slug: "topic",
+  tags: ["rdx-s100"],
+  post_stream: {
+    posts: [{ post_number: 1, username: "RiChouu", cooked: "<p>右上角没有 wifi 图标。</p>" }],
+  },
+});
+
 const http: HttpGet = async (url: string) => {
+  if (url.includes("/search.json")) return forumSearch;
+  if (url.includes("/t/33210.json")) return forumTopic;
   if (url.endsWith("search-index.json")) return docusaurusIndex;
   if (url.includes("/POE")) return html;
   if (url.includes("/oe_s_doc/static/js/lib-react")) {
@@ -70,10 +92,23 @@ describe("searchDocs", () => {
   });
 
   it("discovers the Rspress search_index for S 系列 OE", async () => {
-    const result = await searchDocs({ query: "量化", manual: "oe-s" }, http);
+    const result = await searchDocs({ query: "量化", manual: "oe-s", source: "docs" }, http);
     expect(result.hits[0]?.title).toMatch(/BEV/);
     expect(result.hits[0]?.url).toContain("/oe_s_doc/guide/advanced_content/hat/examples/bev");
     expect(result.warnings).toEqual([]);
+  });
+
+  it("searches the official forum when asked", async () => {
+    const result = await searchDocs({ query: "S100 wifi", manual: "forum" }, http);
+    expect(result.hits[0]?.source).toBe("forum");
+    expect(result.hits[0]?.url).toBe("https://forum.d-robotics.cc/t/topic/33210");
+    expect(result.hits[0]?.title).toMatch(/wifi/i);
+  });
+
+  it("mixes official docs and forum hits by default", async () => {
+    const result = await searchDocs({ query: "wifi", limit: 5 }, http);
+    expect(result.hits.some((hit) => hit.source === "docs")).toBe(true);
+    expect(result.hits.some((hit) => hit.source === "forum")).toBe(true);
   });
 });
 
@@ -106,5 +141,12 @@ describe("getPage", () => {
     );
     expect(page.title).toBe("BEV多任务模型训练");
     expect(page.markdown).toContain("Horizon Torch");
+  });
+
+  it("renders a Discourse topic from the forum JSON API", async () => {
+    const page = await getPage({ url: "https://forum.d-robotics.cc/t/topic/33210" }, http);
+    expect(page.title).toBe("RDK S100没有wifi");
+    expect(page.markdown).toContain("@RiChouu");
+    expect(page.markdown).toContain("wifi");
   });
 });

@@ -1,15 +1,19 @@
 import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { htmlToMarkdown, resolveDocUrl } from "./fetch-page.js";
+import { FORUM_ID, forumListing, getForumTopic, isForumRef, searchForum } from "./forum.js";
 import type { HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
 import { rankHits } from "./search.js";
 import { compactSphinxIndex } from "./sphinx.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
 
+export type SearchSource = "docs" | "forum" | "all";
+
 export type SearchInput = {
   query: string;
   manual?: string;
+  source?: SearchSource;
   limit?: number;
 };
 
@@ -31,7 +35,34 @@ function requireManual(idOrAlias: string): Manual {
   return manual;
 }
 
+function resolveSource(manual?: string, source?: SearchSource): SearchSource {
+  if (manual && isForumRef(manual)) return "forum";
+  if (source === "docs" || source === "forum" || source === "all") return source;
+  return "all";
+}
+
+function mergeHits(docs: SearchHit[], forum: SearchHit[], limit: number): SearchHit[] {
+  const docSlots = forum.length === 0 ? limit : Math.max(1, Math.ceil(limit * 0.65));
+  const picked: SearchHit[] = [];
+  const seen = new Set<string>();
+  const take = (hits: SearchHit[], cap: number) => {
+    for (const hit of hits) {
+      if (picked.length >= cap) break;
+      if (seen.has(hit.url)) continue;
+      seen.add(hit.url);
+      picked.push(hit);
+    }
+  };
+  take(docs, docSlots);
+  take(forum, limit);
+  take(docs, limit);
+  return picked;
+}
+
 function manualsForSearch(manual?: string): { targets: Manual[]; warnings: string[] } {
+  if (manual && isForumRef(manual)) {
+    return { targets: [], warnings: [] };
+  }
   if (!manual) {
     const searchable = listManuals().filter((item) => item.searchable);
     const missing = listManuals().filter((item) => !item.searchable).map((item) => item.id);
@@ -78,27 +109,47 @@ export async function searchDocs(
     throw new Error("query is required");
   }
   const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
-  const { targets, warnings } = manualsForSearch(input.manual);
-  const loaded = await Promise.all(
-    targets.map(async (manual) => {
-      try {
-        return { docs: await loadIndex(manual, http), warning: undefined };
-      } catch (error) {
-        return {
-          docs: [] as IndexedDoc[],
-          warning: `Failed to load index for ${manual.id}: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-    }),
-  );
+  const source = resolveSource(input.manual, input.source);
+  const includeDocs = source === "docs" || source === "all";
+  const includeForum = source === "forum" || source === "all";
+  const warnings: string[] = [];
 
-  return {
-    hits: rankHits(
+  let docHits: SearchHit[] = [];
+  if (includeDocs) {
+    const { targets, warnings: catalogWarnings } = manualsForSearch(input.manual);
+    warnings.push(...catalogWarnings);
+    const loaded = await Promise.all(
+      targets.map(async (manual) => {
+        try {
+          return { docs: await loadIndex(manual, http), warning: undefined };
+        } catch (error) {
+          return {
+            docs: [] as IndexedDoc[],
+            warning: `Failed to load index for ${manual.id}: ${error instanceof Error ? error.message : String(error)}`,
+          };
+        }
+      }),
+    );
+    warnings.push(...loaded.map((item) => item.warning).filter((item): item is string => Boolean(item)));
+    docHits = rankHits(
       loaded.flatMap((item) => item.docs),
       query,
       limit,
-    ),
-    warnings: [...warnings, ...loaded.map((item) => item.warning).filter((item): item is string => Boolean(item))],
+    ).map((hit) => ({ ...hit, source: "docs" as const }));
+  }
+
+  let forumHits: SearchHit[] = [];
+  if (includeForum) {
+    try {
+      forumHits = await searchForum(query, http, limit);
+    } catch (error) {
+      warnings.push(`Failed to search forum: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  return {
+    hits: mergeHits(docHits, forumHits, limit),
+    warnings,
   };
 }
 
@@ -106,6 +157,13 @@ export async function listToc(
   input: TocInput,
   http: HttpGet,
 ): Promise<{ manual: string; pages: Array<{ title: string; url: string; breadcrumbs?: string[] }> }> {
+  if (isForumRef(input.manual)) {
+    const listing = forumListing();
+    return {
+      manual: FORUM_ID,
+      pages: [{ title: listing.title, url: listing.homeUrl }],
+    };
+  }
   const manual = requireManual(input.manual);
   if (!manual.searchable) {
     return {
@@ -135,6 +193,18 @@ export async function getPage(
   http: HttpGet,
 ): Promise<{ title: string; url: string; markdown: string; truncated: boolean }> {
   const url = resolveDocUrl(input.url);
+  if (new URL(url).hostname === "forum.d-robotics.cc") {
+    const page = await getForumTopic(url, http);
+    const maxChars = input.maxChars ?? 16_000;
+    if (page.markdown.length <= maxChars) {
+      return { ...page, truncated: false };
+    }
+    return {
+      ...page,
+      markdown: `${page.markdown.slice(0, maxChars)}\n\n…[truncated]`,
+      truncated: true,
+    };
+  }
   const html = await http(url);
   let page = htmlToMarkdown(html, url);
   if (isRspressShell(html, page.markdown)) {

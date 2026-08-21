@@ -1,18 +1,23 @@
 {
   "name": "rdk-docs-mcp",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "MCP server for D-Robotics RDK documentation center",
+  "description": "Search D-Robotics RDK official manuals and the community forum via MCP.",
   "bin": {
-    "rdk-docs-mcp": "./dist/index.js"
+    "rdk-docs-mcp": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval:live": "npm run build && node dist/eval-live.js"
+    "eval:live": "npm run build && node dist/eval-live.js",
+    "prepublishOnly": "npm test && npm run build"
   },
   "engines": {
     "node": ">=20"
@@ -26,5 +31,26 @@
     "@types/node": "^22.15.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QiaolongLi1201/rdk-docs.git"
+  },
+  "homepage": "https://github.com/QiaolongLi1201/rdk-docs#readme",
+  "bugs": {
+    "url": "https://github.com/QiaolongLi1201/rdk-docs/issues"
+  },
+  "keywords": [
+    "mcp",
+    "rdk",
+    "d-robotics",
+    "documentation",
+    "forum",
+    "modelscope",
+    "tros"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
   }
 }

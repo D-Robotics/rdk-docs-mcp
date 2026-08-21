@@ -47,6 +47,7 @@ export function rankHits(docs: IndexedDoc[], query: string, limit: number): Sear
       manual: doc.manualId,
       snippet: doc.snippet ?? doc.breadcrumbs?.join(" / ") ?? "",
       score,
+      source: doc.manualId === "forum" ? "forum" : "docs",
     };
     const prev = best.get(url);
     if (!prev || hit.score > prev.score) {

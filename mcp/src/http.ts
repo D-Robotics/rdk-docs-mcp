@@ -16,6 +16,14 @@ export function cacheTtlMs(): number {
   return parsed;
 }
 
+function ttlFor(url: string): number {
+  const configured = cacheTtlMs();
+  if (configured === 0) return 0;
+  if (url.includes("/search.json")) return Math.min(configured, 15 * 60 * 1000);
+  if (url.includes("forum.d-robotics.cc")) return Math.min(configured, 60 * 60 * 1000);
+  return configured;
+}
+
 export function cacheDir(): string {
   return process.env.RDK_DOCS_CACHE_DIR ?? join(homedir(), ".cache", "rdk-docs-mcp");
 }
@@ -52,7 +60,7 @@ async function readCache(url: string): Promise<string | undefined> {
     const path = cachePathFor(url);
     const metaPath = `${path}.meta`;
     const meta = JSON.parse(await readFile(metaPath, "utf8")) as { fetchedAt: number };
-    const ttl = cacheTtlMs();
+    const ttl = ttlFor(url);
     if (ttl === 0 || Date.now() - meta.fetchedAt > ttl) return undefined;
     return await readFile(path, "utf8");
   } catch {

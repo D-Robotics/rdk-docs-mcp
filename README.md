@@ -18,18 +18,43 @@
 | Tool | 做什么 |
 |------|--------|
 | `list_manuals` | 列出资料中心已上架手册（X/S 系列、TROS、Model Zoo、Studio、XBurn、OE、X5 SDK 等） |
-| `search_docs` | 中英文关键词检索。可限定手册：`x5` / `s100` / `tros` / `studio` / `xburn` … |
-| `get_page` | 把一页官方文档收成 Markdown |
+| `search_docs` | 中英文关键词检索。默认手册 + [社区论坛](https://forum.d-robotics.cc/) 一起搜。可限定手册：`x5` / `s100` / `tros` / `studio` / `xburn` / `forum` … |
+| `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown |
 | `list_toc` | 列出某一本手册的页面目录 |
 
 **Skill `rdk-docs`**
 
-规定 Agent：**先搜再打开页面**，用手册原文回答，必须附官方 URL；手册没写就说没写，不编命令和版本号。
+规定 Agent：**先搜再打开页面**，默认手册和论坛一起搜；手册是规范、论坛是经验，必须附可点击链接。
 
 **不覆盖**
 
 - 旧版资料 `https://developer.d-robotics.cc/information` 不在索引里。
-- 不需要登录，也不写入文档站。
+- 论坛只走公开搜索 API，不当官方规范。
+- 不需要登录，也不写入文档站或论坛。
+
+---
+
+## 魔搭 MCP 广场（推荐对外分发）
+
+国内用户走 [魔搭 MCP 广场](https://www.modelscope.cn/mcp) 安装。托管配置见 `modelscope/mcp-config.json`，介绍文案见 `modelscope/README.md`。
+
+客户端手动加：
+
+```json
+{
+  "mcpServers": {
+    "rdk-docs": {
+      "command": "npx",
+      "args": ["-y", "rdk-docs-mcp"]
+    }
+  }
+}
+```
+
+你更新 npm 包并在魔搭保存同一配置后，用户下次启动会拉到新版本（`npx -y`）。
+
+创建入口：https://modelscope.cn/mcp/servers/create?template=customize  
+选「可托管部署」，配置贴上面这段 JSON。
 
 ---
 
@@ -139,9 +164,9 @@ args:    [<REPO>/mcp/dist/index.js]
 
 用户问 RDK / TROS / 烧录 / 量化等问题时：
 
-1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`）
-2. 对 1–2 个命中 URL 调用 `get_page`
-3. 用原文回答，并附上 `https://developer.d-robotics.cc/...` 链接
+1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`；只要社区就 `manual=forum`）
+2. 对 1–2 个命中 URL 调用 `get_page`（手册或 `forum.d-robotics.cc` 主题）
+3. 用原文回答，并附上官方文档或论坛链接
 
 不要凭记忆编 `apt` 包名、镜像版本或管脚复用。
 
@@ -167,4 +192,4 @@ S 系列 OE / OE LLM 是 Rspress 站点：不写死 `search_index.*.json` 的哈
 
 ## 许可与来源
 
-文档内容版权归 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 原站。本仓库只提供检索与阅读适配，不镜像整站。
+MIT。文档与帖子版权归 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/) 原站。本仓库只提供检索与阅读适配，不镜像整站。

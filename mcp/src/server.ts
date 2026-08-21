@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { listManuals } from "./catalog.js";
+import { forumListing } from "./forum.js";
 import { fetchText } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
 
@@ -26,21 +27,24 @@ export function createServer(): McpServer {
     "list_manuals",
     {
       description:
-        "List D-Robotics RDK documentation manuals from the doc center portal. Use this first to pick a manual id.",
+        "List official RDK manuals plus the community forum (id: forum). Use this first to pick a manual id.",
       inputSchema: {},
     },
     async () => {
       try {
         return ok(
-          listManuals().map((manual) => ({
-            id: manual.id,
-            title: manual.title,
-            category: manual.category,
-            description: manual.description,
-            homeUrl: manual.homeUrl,
-            searchable: manual.searchable,
-            aliases: manual.aliases,
-          })),
+          [
+            ...listManuals().map((manual) => ({
+              id: manual.id,
+              title: manual.title,
+              category: manual.category,
+              description: manual.description,
+              homeUrl: manual.homeUrl,
+              searchable: manual.searchable,
+              aliases: manual.aliases,
+            })),
+            forumListing(),
+          ],
         );
       } catch (error) {
         return fail(error);
@@ -52,19 +56,23 @@ export function createServer(): McpServer {
     "search_docs",
     {
       description:
-        "Search RDK documentation by keyword. Prefer this before guessing. Optional manual id/alias such as x5, s100, tros, studio, xburn.",
+        "Search official RDK manuals and the D-Robotics forum. Prefer this before guessing. Use source=docs or manual=forum to narrow.",
       inputSchema: {
         query: z.string().describe("Chinese or English search keywords"),
         manual: z
           .string()
           .optional()
-          .describe("Manual id or alias, e.g. rdk-x, x5, tros, studio"),
+          .describe("Manual id or alias, e.g. rdk-x, x5, tros, studio, forum"),
+        source: z
+          .enum(["docs", "forum", "all"])
+          .optional()
+          .describe("docs = manuals only, forum = community only, all = both (default)"),
         limit: z.number().int().min(1).max(20).optional().describe("Max hits, default 8"),
       },
     },
-    async ({ query, manual, limit }) => {
-      try {
-        return ok(await searchDocs({ query, manual, limit }, fetchText));
+    async ({ query, manual, source, limit }) => {
+        try {
+          return ok(await searchDocs({ query, manual, source, limit }, fetchText));
       } catch (error) {
         return fail(error);
       }
@@ -75,11 +83,11 @@ export function createServer(): McpServer {
     "get_page",
     {
       description:
-        "Fetch one documentation page from developer.d-robotics.cc and return readable Markdown. Use after search_docs.",
+        "Fetch one official doc page or forum topic and return readable Markdown. Use after search_docs.",
       inputSchema: {
         url: z
           .string()
-          .describe("Absolute doc URL or site path such as /rdk_x_doc/RDK"),
+          .describe("developer.d-robotics.cc doc URL/path or forum.d-robotics.cc topic URL"),
         maxChars: z.number().int().min(1000).max(40000).optional(),
       },
     },

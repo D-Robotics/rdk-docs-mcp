@@ -11,8 +11,14 @@ describe("resolveDocUrl", () => {
     );
   });
 
-  it("rejects URLs outside the documentation host", () => {
+  it("rejects URLs outside the documentation and forum hosts", () => {
     expect(() => resolveDocUrl("https://example.com/secret")).toThrow(/developer\.d-robotics\.cc/);
+  });
+
+  it("accepts official forum topic URLs", () => {
+    expect(resolveDocUrl("https://forum.d-robotics.cc/t/topic/33210")).toBe(
+      "https://forum.d-robotics.cc/t/topic/33210",
+    );
   });
 });
 

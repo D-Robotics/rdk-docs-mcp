@@ -1,7 +1,7 @@
 import { parse, type HTMLElement, type Node, type TextNode } from "node-html-parser";
 import { origin } from "./catalog.js";
 
-const ALLOWED_HOST = "developer.d-robotics.cc";
+const ALLOWED_HOSTS = new Set(["developer.d-robotics.cc", "forum.d-robotics.cc"]);
 
 export function resolveDocUrl(urlOrPath: string): string {
   const trimmed = urlOrPath.trim();
@@ -15,8 +15,8 @@ export function resolveDocUrl(urlOrPath: string): string {
   } catch {
     throw new Error(`Invalid URL: ${urlOrPath}`);
   }
-  if (parsed.hostname !== ALLOWED_HOST) {
-    throw new Error(`Only ${ALLOWED_HOST} documentation URLs are allowed.`);
+  if (!ALLOWED_HOSTS.has(parsed.hostname)) {
+    throw new Error("Only developer.d-robotics.cc and forum.d-robotics.cc URLs are allowed.");
   }
   return parsed.toString();
 }

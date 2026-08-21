@@ -112,6 +112,14 @@
     "pageMustInclude": ["Whisper", "whisper"]
   },
   {
+    "id": "forum-s100-wifi",
+    "question": "RDK S100 没有 WiFi 图标，论坛里怎么说？",
+    "query": "S100 WiFi",
+    "manual": "forum",
+    "urlMustInclude": ["forum.d-robotics.cc"],
+    "pageMustInclude": ["wifi", "WiFi", "WIFI"]
+  },
+  {
     "id": "wifi-config",
     "question": "RDK X5 怎么连 Wi-Fi？",
     "query": "WiFi",

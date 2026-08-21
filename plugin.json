@@ -1,11 +1,12 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "rdk-docs",
-  "description": "Search and read D-Robotics RDK documentation from the official doc center.",
+  "description": "Search and read D-Robotics RDK manuals and the official community forum.",
   "version": "0.1.0",
   "author": {
     "name": "D-Robotics"
   },
   "homepage": "https://developer.d-robotics.cc/rdk_doc_center/",
-  "repository": "https://github.com/QiaolongLi1201/rdk-docs"
+  "repository": "https://github.com/QiaolongLi1201/rdk-docs",
+  "license": "MIT"
 }

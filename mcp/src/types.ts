@@ -14,4 +14,5 @@ export type SearchHit = {
   manual: string;
   snippet: string;
   score: number;
+  source: "docs" | "forum";
 };
