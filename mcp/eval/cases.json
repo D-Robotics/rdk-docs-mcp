@@ -5,6 +5,7 @@
     "query": "烧录",
     "manual": "x5",
     "urlMustInclude": ["/system-burn/"],
+    "firstHitMustInclude": ["/system-burn/"],
     "pageMustInclude": ["烧录"]
   },
   {
@@ -13,6 +14,7 @@
     "query": "PoE",
     "manual": "x5",
     "urlMustInclude": ["/POE"],
+    "firstHitMustInclude": ["/POE"],
     "pageMustInclude": ["PoE"]
   },
   {
@@ -21,6 +23,7 @@
     "query": "rdkos_info",
     "manual": "rdk-x",
     "urlMustInclude": ["cmd_rdkos_info"],
+    "firstHitMustInclude": ["cmd_rdkos_info"],
     "pageMustInclude": ["rdkos_info"]
   },
   {
@@ -29,6 +32,7 @@
     "query": "GPIO",
     "manual": "rdk-x",
     "urlMustInclude": ["/gpio"],
+    "firstHitMustInclude": ["/01_40pin_user_sample/gpio"],
     "pageMustInclude": ["GPIO"]
   },
   {
@@ -37,6 +41,7 @@
     "query": "miniboot",
     "manual": "x5",
     "urlMustInclude": ["miniboot"],
+    "firstHitMustInclude": ["/upgrade-miniboot"],
     "pageMustInclude": ["miniboot"]
   },
   {
@@ -45,6 +50,7 @@
     "query": "XBurn",
     "manual": "xburn",
     "urlMustInclude": ["/xburn_doc/"],
+    "firstHitMustInclude": ["/xburn_doc/overview", "/xburn_doc/install"],
     "pageMustInclude": ["XBurn"]
   },
   {
@@ -53,6 +59,7 @@
     "query": "安装 tros",
     "manual": "tros",
     "urlMustInclude": ["/install_tros"],
+    "firstHitMustInclude": ["/install_tros"],
     "pageMustInclude": ["tros"]
   },
   {
@@ -61,6 +68,7 @@
     "query": "双目摄像头",
     "manual": "stereo-camera",
     "urlMustInclude": ["/accessories_stereo_camera_doc/"],
+    "firstHitMustInclude": ["/accessories_stereo_camera_doc/overview"],
     "pageMustInclude": ["双目"]
   },
   {
@@ -69,6 +77,7 @@
     "query": "应用案例",
     "manual": "case-s600",
     "urlMustInclude": ["/case_doc/"],
+    "firstHitMustInclude": ["/case_doc/case"],
     "pageMustInclude": ["S600"]
   },
   {
@@ -77,6 +86,7 @@
     "query": "量化",
     "manual": "oe-x5",
     "urlMustInclude": ["/oe_x5_doc/"],
+    "firstHitMustInclude": ["ptq_qat_overview"],
     "pageMustInclude": ["量化"]
   },
   {
@@ -85,6 +95,7 @@
     "query": "flash sd",
     "manual": "x5",
     "urlMustInclude": ["/system-burn/", "/burn-sd-card"],
+    "firstHitMustInclude": ["/system-burn/", "/burn-sd-card"],
     "pageMustInclude": ["SD"]
   },
   {
@@ -93,6 +104,7 @@
     "query": "BEV 多任务",
     "manual": "oe-s",
     "urlMustInclude": ["/oe_s_doc/"],
+    "firstHitMustInclude": ["/hat/examples/bev"],
     "pageMustInclude": ["BEV", "训练"]
   },
   {
@@ -101,6 +113,7 @@
     "query": "Qwen",
     "manual": "oe-llm-s100",
     "urlMustInclude": ["/oe_llm_s100p_doc/"],
+    "firstHitMustInclude": ["deepseek_r1_distill_qwen"],
     "pageMustInclude": ["Qwen", "qwen"]
   },
   {
@@ -109,6 +122,7 @@
     "query": "Whisper",
     "manual": "oe-llm-s600",
     "urlMustInclude": ["/oe_llm_s600_doc/"],
+    "firstHitMustInclude": ["whisper"],
     "pageMustInclude": ["Whisper", "whisper"]
   },
   {
@@ -133,6 +147,150 @@
     "query": "WiFi",
     "manual": "rdk-x",
     "urlMustInclude": ["wifi", "WiFi", "Wi-Fi", "网络", "remote_login"],
+    "firstHitMustInclude": ["remote_login", "wifi", "WiFi", "wlan"],
     "pageMustInclude": ["Wi", "网络", "wlan"]
+  },
+  {
+    "id": "s100-power-on",
+    "question": "RDK S100 怎么开机上手？",
+    "query": "S100 开机上手",
+    "manual": "s100",
+    "urlMustInclude": ["/Quick_start/download"],
+    "firstHitMustInclude": ["/Quick_start/download"],
+    "pageMustInclude": ["资源", "下载", "镜像", "Studio"]
+  },
+  {
+    "id": "studio-moss",
+    "question": "RDK Studio 的 Moss 是做什么的？",
+    "query": "Moss",
+    "manual": "studio",
+    "urlMustInclude": ["/rdk_studio_doc/"],
+    "firstHitMustInclude": ["/product-intro/architecture"],
+    "pageMustInclude": ["Moss", "Studio"]
+  },
+  {
+    "id": "x5-sdk-env",
+    "question": "X5 芯片 SDK 怎么搭开发环境？",
+    "query": "开发环境",
+    "manual": "sdk",
+    "urlMustInclude": ["/x5_sdk_doc/"],
+    "firstHitMustInclude": ["bsp_develop"],
+    "pageMustInclude": ["环境", "SDK", "X5"]
+  },
+  {
+    "id": "bmi088-intro",
+    "question": "BMI088 IMU 模组资料在哪？",
+    "query": "BMI088",
+    "manual": "bmi088",
+    "urlMustInclude": ["/accessories_bmi088_doc/"],
+    "firstHitMustInclude": ["/introduction"],
+    "pageMustInclude": ["BMI088"]
+  },
+  {
+    "id": "magicbox-intro",
+    "question": "RDK Magicbox 是什么？",
+    "query": "Magicbox",
+    "manual": "magicbox",
+    "urlMustInclude": ["/magicbox_doc/"],
+    "firstHitMustInclude": ["/magicbox_doc/magicbox"],
+    "pageMustInclude": ["Magicbox", "MagicBox", "magicbox"]
+  },
+  {
+    "id": "oe-x3-quant",
+    "question": "X3 OE 怎么做量化？",
+    "query": "量化",
+    "manual": "oe-x3",
+    "urlMustInclude": ["/oe_x3_doc/"],
+    "firstHitMustInclude": ["/faststart/quickstart"],
+    "pageMustInclude": ["量化"]
+  },
+  {
+    "id": "real-rdk-cases",
+    "question": "看下RDK有哪些案例可以参考",
+    "query": "案例 示例 应用",
+    "manual": "case-s600",
+    "urlMustInclude": ["/case_doc/"],
+    "firstHitMustInclude": ["/case_doc/case"],
+    "pageMustInclude": ["案例"]
+  },
+  {
+    "id": "real-s100-burn",
+    "question": "S100如何烧录镜像？",
+    "query": "S100 烧录镜像",
+    "manual": "s100",
+    "urlMustInclude": ["/burn", "xburn", "s100-xburn"],
+    "firstHitMustInclude": ["s100-xburn"],
+    "pageMustInclude": ["XBurn", "烧录", "镜像"]
+  },
+  {
+    "id": "real-s100-burn-unscoped",
+    "question": "S100如何烧录镜像？",
+    "query": "S100 烧录镜像",
+    "urlMustInclude": ["s100-xburn"],
+    "firstHitMustInclude": ["s100-xburn"],
+    "pageMustInclude": ["XBurn", "烧录", "镜像"]
+  },
+  {
+    "id": "s600-burn",
+    "question": "S600 怎么烧录系统？",
+    "query": "S600 烧录",
+    "manual": "s600",
+    "urlMustInclude": ["/rdk_s600/burn"],
+    "firstHitMustInclude": ["/rdk_s600/burn"],
+    "pageMustInclude": ["烧录"]
+  },
+  {
+    "id": "s100-gpio",
+    "question": "S100 GPIO 怎么用？",
+    "query": "GPIO",
+    "manual": "s100",
+    "urlMustInclude": ["driver_gpio_dev"],
+    "firstHitMustInclude": ["driver_gpio_dev"],
+    "pageMustInclude": ["GPIO"]
+  },
+  {
+    "id": "s100-wifi",
+    "question": "RDK S100 怎么连网络？",
+    "query": "WiFi",
+    "manual": "s100",
+    "urlMustInclude": ["network_bluetooth"],
+    "firstHitMustInclude": ["network_bluetooth"],
+    "pageMustInclude": ["网络", "Wi-Fi", "WiFi", "蓝牙"]
+  },
+  {
+    "id": "tros-cross",
+    "question": "TROS 怎么交叉编译？",
+    "query": "交叉编译",
+    "manual": "tros",
+    "urlMustInclude": ["cross_compile"],
+    "firstHitMustInclude": ["cross_compile"],
+    "pageMustInclude": ["源码", "编译", "tros"]
+  },
+  {
+    "id": "model-zoo-intro",
+    "question": "YOLO 模型在 Model Zoo 哪里？",
+    "query": "YOLO",
+    "manual": "model-zoo",
+    "urlMustInclude": ["model_zoo_intro"],
+    "firstHitMustInclude": ["model_zoo_intro"],
+    "pageMustInclude": ["Model Zoo", "YOLO", "模型"]
+  },
+  {
+    "id": "x5-hdmi",
+    "question": "RDK X5 怎么接 HDMI 显示？",
+    "query": "HDMI",
+    "manual": "x5",
+    "urlMustInclude": ["display_rdkx5"],
+    "firstHitMustInclude": ["display_rdkx5"],
+    "pageMustInclude": ["HDMI"]
+  },
+  {
+    "id": "x5-fan",
+    "question": "RDK X5 风扇和温度怎么管？",
+    "query": "风扇",
+    "manual": "x5",
+    "urlMustInclude": ["frequency_management"],
+    "firstHitMustInclude": ["frequency_management"],
+    "pageMustInclude": ["Thermal", "温度", "风扇", "频率"]
   }
 ]

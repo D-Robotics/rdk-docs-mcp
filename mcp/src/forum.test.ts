@@ -4,6 +4,7 @@ import {
   compactDiscourseTopicList,
   forumHitsFromDocs,
   forumTopicJsonUrl,
+  parseForumCategoryId,
   parseForumTopicId,
   topicToMarkdown,
 } from "./forum.js";
@@ -66,6 +67,13 @@ describe("forum topic URLs", () => {
     expect(parseForumTopicId("https://forum.d-robotics.cc/t/topic/33210")).toBe(33210);
     expect(parseForumTopicId("https://forum.d-robotics.cc/t/rdk-s100/33210/2")).toBe(33210);
     expect(parseForumTopicId("https://developer.d-robotics.cc/rdk_x_doc/RDK")).toBeUndefined();
+  });
+
+  it("extracts Discourse category ids from board paths the agent actually opens", () => {
+    expect(parseForumCategoryId("https://forum.d-robotics.cc/c/39-category/yykf/7")).toBe(7);
+    expect(parseForumCategoryId("https://forum.d-robotics.cc/c/39-category/15-category/15")).toBe(15);
+    expect(parseForumCategoryId("https://forum.d-robotics.cc/c/7/l/latest.json")).toBe(7);
+    expect(parseForumCategoryId("https://forum.d-robotics.cc/t/topic/33210")).toBeUndefined();
   });
 
   it("maps a topic URL to its JSON endpoint", () => {

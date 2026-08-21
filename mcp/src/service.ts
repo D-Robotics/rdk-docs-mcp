@@ -4,6 +4,7 @@ import { htmlToMarkdown, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
 import type { HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
+import { applyOfficialPath, matchOfficialPath, searchGuidance } from "./routes.js";
 import { rankHits } from "./search.js";
 import { compactSphinxIndex } from "./sphinx.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
@@ -67,7 +68,15 @@ function mergeHits(docs: SearchHit[], forum: SearchHit[], limit: number): Search
   return picked;
 }
 
-function manualsForSearch(manual?: string): { targets: Manual[]; warnings: string[] } {
+function extraManualsForQuery(manual: Manual, query: string): Manual[] {
+  if (!/烧录|镜像|xburn/i.test(query)) return [];
+  if (manual.id !== "rdk-s") return [];
+  return ["xburn", "rdk-studio"]
+    .map((id) => resolveManual(id))
+    .filter((item): item is Manual => Boolean(item));
+}
+
+function manualsForSearch(manual?: string, query = ""): { targets: Manual[]; warnings: string[] } {
   if (manual && isForumRef(manual)) {
     return { targets: [], warnings: [] };
   }
@@ -89,7 +98,8 @@ function manualsForSearch(manual?: string): { targets: Manual[]; warnings: strin
       ],
     };
   }
-  return { targets: [target], warnings: [] };
+  const extras = extraManualsForQuery(target, query);
+  return { targets: [target, ...extras], warnings: [] };
 }
 
 async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
@@ -111,7 +121,7 @@ async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
 export async function searchDocs(
   input: SearchInput,
   http: HttpGet,
-): Promise<{ hits: SearchHit[]; warnings: string[] }> {
+): Promise<{ hits: SearchHit[]; warnings: string[]; guidance: string }> {
   const query = input.query.trim();
   if (!query) {
     throw new Error("query is required");
@@ -124,7 +134,7 @@ export async function searchDocs(
 
   let docHits: SearchHit[] = [];
   if (includeDocs) {
-    const { targets, warnings: catalogWarnings } = manualsForSearch(input.manual);
+    const { targets, warnings: catalogWarnings } = manualsForSearch(input.manual, query);
     warnings.push(...catalogWarnings);
     const loaded = await Promise.all(
       targets.map(async (manual) => {
@@ -155,9 +165,11 @@ export async function searchDocs(
     }
   }
 
+  const official = includeDocs ? matchOfficialPath(query, input.manual) : undefined;
   return {
-    hits: mergeHits(docHits, forumHits, limit),
+    hits: applyOfficialPath(mergeHits(docHits, forumHits, limit), official, limit),
     warnings,
+    guidance: searchGuidance(official),
   };
 }
 

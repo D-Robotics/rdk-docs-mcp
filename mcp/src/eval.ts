@@ -7,6 +7,7 @@ export type EvalCase = {
   manual?: string;
   urlMustInclude: string[];
   pageMustInclude: string[];
+  firstHitMustInclude?: string[];
 };
 
 export type CaseScore = {
@@ -37,8 +38,38 @@ export function scoreForumToc(pages: ForumTocPage[]): { pass: boolean; reason: s
   return { pass: true, reason: `${pages.length} topics from ${boards.join(" + ")}`, boards };
 }
 
+export function scoreDocsFirstMix(
+  hits: SearchHit[],
+  limit: number,
+): { pass: boolean; reason: string } {
+  if (hits.length === 0) {
+    return { pass: false, reason: "mixed search returned no hits" };
+  }
+  const docs = hits.filter((hit) => hit.source === "docs");
+  const forum = hits.filter((hit) => hit.source === "forum");
+  const forumCap = Math.max(1, Math.floor(limit * 0.25));
+  if (docs.length === 0) {
+    return { pass: false, reason: "mixed search returned only forum hits" };
+  }
+  if (hits[0]?.source !== "docs") {
+    return { pass: false, reason: `first hit was ${hits[0]?.source}: ${hits[0]?.title}` };
+  }
+  if (forum.length > forumCap) {
+    return { pass: false, reason: `forum took ${forum.length} slots, cap is ${forumCap}` };
+  }
+  if (docs.length <= forum.length) {
+    return { pass: false, reason: `docs ${docs.length} did not outnumber forum ${forum.length}` };
+  }
+  return { pass: true, reason: `docs ${docs.length} + forum ${forum.length}, docs first` };
+}
+
 export function pickRelevantHit(hits: SearchHit[], urlMustInclude: string[]): SearchHit | undefined {
   return hits.find((hit) => urlMustInclude.some((needle) => hit.url.includes(needle) || hit.title.includes(needle)));
+}
+
+function matchesNeedles(hit: SearchHit | undefined, needles: string[]): boolean {
+  if (!hit) return false;
+  return needles.some((needle) => hit.url.includes(needle) || hit.title.includes(needle));
 }
 
 export function scoreCase(
@@ -46,6 +77,22 @@ export function scoreCase(
   hits: SearchHit[],
   pageMarkdown?: string,
 ): CaseScore {
+  if (evalCase.firstHitMustInclude?.length) {
+    const first = hits[0];
+    if (!matchesNeedles(first, evalCase.firstHitMustInclude)) {
+      return {
+        id: evalCase.id,
+        question: evalCase.question,
+        searchPass: false,
+        pagePass: false,
+        pass: false,
+        hitUrl: first?.url,
+        hitTitle: first?.title,
+        reason: `first hit was ${first?.url ?? "(empty)"}, want ${evalCase.firstHitMustInclude.join(" | ")}`,
+      };
+    }
+  }
+
   const hit = pickRelevantHit(hits, evalCase.urlMustInclude);
   const searchPass = Boolean(hit);
   const pagePass =

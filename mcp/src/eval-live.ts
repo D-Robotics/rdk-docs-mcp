@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { fetchText } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
 import { scoreCase, scoreForumToc, type EvalCase } from "./eval.js";
+import { runUsabilityChecks } from "./eval-usability.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const casesPath = join(root, "..", "eval", "cases.json");
@@ -17,9 +18,11 @@ async function main() {
       { query: evalCase.query, manual: evalCase.manual, limit: 5 },
       fetchText,
     );
-    const hit = search.hits.find((item) =>
-      evalCase.urlMustInclude.some((needle) => item.url.includes(needle) || item.title.includes(needle)),
-    );
+    const hit = evalCase.firstHitMustInclude?.length
+      ? search.hits[0]
+      : search.hits.find((item) =>
+          evalCase.urlMustInclude.some((needle) => item.url.includes(needle) || item.title.includes(needle)),
+        );
     let markdown: string | undefined;
     if (hit) {
       const page = await getPage({ url: hit.url, maxChars: 8000 }, fetchText);
@@ -81,6 +84,19 @@ async function main() {
     pass: filterOk,
     reason: filterReason,
   });
+
+  const usability = await runUsabilityChecks(fetchText);
+  for (const item of usability) {
+    console.log(`${item.pass ? "PASS" : "FAIL"}  ${item.id}  ${item.reason}`);
+    results.push({
+      id: item.id,
+      question: item.id,
+      searchPass: item.pass,
+      pagePass: item.pass,
+      pass: item.pass,
+      reason: item.reason,
+    });
+  }
 
   const passed = results.filter((item) => item.pass).length;
   console.log(`\n${passed}/${results.length} cases can answer the developer question`);

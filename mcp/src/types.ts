@@ -8,6 +8,8 @@ export type IndexedDoc = {
   kind: "page" | "heading" | "snippet";
 };
 
+export type HitRole = "official-start" | "related" | "forum-supplement";
+
 export type SearchHit = {
   title: string;
   url: string;
@@ -15,4 +17,5 @@ export type SearchHit = {
   snippet: string;
   score: number;
   source: "docs" | "forum";
+  role?: HitRole;
 };

@@ -62,6 +62,16 @@ export function forumListing() {
   };
 }
 
+const FORUM_CATEGORY_NAMES: Record<number, string> = {
+  4: "通用",
+  7: "应用开发",
+  12: "硬件开发",
+  15: "Model Zoo",
+  21: "反馈建议",
+  39: "开发与问题",
+  40: "项目与案例",
+};
+
 export function parseForumTopicId(urlOrPath: string): number | undefined {
   try {
     const path = urlOrPath.startsWith("http") ? new URL(urlOrPath).pathname : urlOrPath;
@@ -86,8 +96,55 @@ export function forumTopicUrl(topic: { id: number; slug?: string }): string {
   return `${FORUM_ORIGIN}/t/${slug}/${topic.id}`;
 }
 
-export function boardLatestUrl(board: { id: number; slug: string }): string {
-  return `${FORUM_ORIGIN}/c/${board.slug}/${board.id}/l/latest.json`;
+export function boardLatestUrl(board: { id: number; slug?: string }): string {
+  if (board.slug) return `${FORUM_ORIGIN}/c/${board.slug}/${board.id}/l/latest.json`;
+  return `${FORUM_ORIGIN}/c/${board.id}/l/latest.json`;
+}
+
+export function parseForumCategoryId(urlOrPath: string): number | undefined {
+  try {
+    const path = urlOrPath.startsWith("http") ? new URL(urlOrPath).pathname : urlOrPath;
+    const parts = path.split("/").filter(Boolean);
+    if (parts[0] !== "c") return undefined;
+    for (const part of [...parts.slice(1)].reverse()) {
+      if (part === "l" || part === "latest" || part.endsWith(".json")) continue;
+      if (/^\d+$/.test(part)) return Number(part);
+      const tagged = part.match(/(\d+)$/);
+      if (tagged?.[1]) return Number(tagged[1]);
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+export function isForumHome(urlOrPath: string): boolean {
+  try {
+    const path = urlOrPath.startsWith("http") ? new URL(urlOrPath).pathname : urlOrPath;
+    return path === "/" || path === "";
+  } catch {
+    return false;
+  }
+}
+
+export function forumCategoryName(id: number): string {
+  return FORUM_CATEGORY_NAMES[id] ?? `板块 ${id}`;
+}
+
+export function categoryListToMarkdown(
+  raw: unknown,
+  url: string,
+  boardName: string,
+): { title: string; url: string; markdown: string } {
+  const docs = compactDiscourseTopicList(raw, boardName);
+  const lines = [`# ${boardName}`, "", `来源：${url}`, ""];
+  for (const doc of docs) {
+    lines.push(`- [${doc.title}](${doc.url})`);
+  }
+  if (docs.length === 0) {
+    lines.push("这个板块暂时没有公开帖子。");
+  }
+  return { title: boardName, url, markdown: lines.join("\n").trim() };
 }
 
 function isBoardIntro(title: string, pinned?: boolean): boolean {
@@ -235,7 +292,8 @@ export async function searchForum(
     if (raw) add(compactDiscourseTopicList(raw, board.name));
   });
 
-  return forumHitsFromDocs(docs, query, limit, searchDocs);
+  const fillFrom = /论坛|社区|经验|帖子|开发者/.test(query) ? docs : searchDocs;
+  return forumHitsFromDocs(docs, query, limit, fillFrom);
 }
 
 export async function listForumTopics(
@@ -273,9 +331,34 @@ export async function getForumTopic(
   url: string,
   http: HttpGet,
 ): Promise<{ title: string; url: string; markdown: string }> {
-  const jsonUrl = forumTopicJsonUrl(url);
-  if (!jsonUrl) {
-    throw new Error(`Not a forum topic URL: ${url}`);
+  return getForumPage(url, http);
+}
+
+export async function getForumPage(
+  url: string,
+  http: HttpGet,
+): Promise<{ title: string; url: string; markdown: string }> {
+  const topicJson = forumTopicJsonUrl(url);
+  if (topicJson) {
+    return topicToMarkdown(JSON.parse(await http(topicJson)), url);
   }
-  return topicToMarkdown(JSON.parse(await http(jsonUrl)), url);
+
+  if (isForumHome(url)) {
+    const pages = await listForumTopics(http);
+    const lines = ["# 地瓜机器人社区论坛", "", "手册为主。以下是「开发与问题」和「通用」最近帖，仅作补充。", ""];
+    for (const page of pages) {
+      const board = page.breadcrumbs?.[0] ?? "论坛";
+      lines.push(`- [${page.title}](${page.url})（${board}）`);
+    }
+    return { title: "地瓜机器人社区论坛", url: `${FORUM_ORIGIN}/`, markdown: lines.join("\n").trim() };
+  }
+
+  const categoryId = parseForumCategoryId(url);
+  if (categoryId) {
+    const name = forumCategoryName(categoryId);
+    const raw = JSON.parse(await http(boardLatestUrl({ id: categoryId })));
+    return categoryListToMarkdown(raw, url, name);
+  }
+
+  throw new Error(`Not a forum topic or category URL: ${url}`);
 }

@@ -68,7 +68,7 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 | `source` | string | 可选，`docs` / `forum` / `all`。未指定时：无手册 → `all`，指定手册 → `docs`，`manual=forum` → `forum` |
 | `limit` | number | 可选，默认 8，最大 20 |
 
-返回命中：`title`, `url`, `manual`, `snippet`, `score`, `source`（`docs` 或 `forum`）。手册是主体：指定手册只搜该手册；未指定时手册优先，论坛最多约占 1/4 名额（limit=8 时至多 2 条），且不因手册命中少而用论坛帖把结果填满。手册完全没有命中时才把名额给论坛。同一 URL 去重。无索引或索引加载失败时在 `warnings` 里点名。论坛走 Discourse 公开 JSON：`search.json`，外加「开发与问题」「通用」两个板块的 `/c/{slug}/{id}/l/latest.json` 作为检索语料。板块最新帖通过 `list_toc(manual=forum)` 列出。不镜像整站。
+返回命中：`title`, `url`, `manual`, `snippet`, `score`, `source`（`docs` 或 `forum`），以及 `role`（`official-start` / `related` / `forum-supplement`）。高置信官方路径（烧录、PoE、TROS 安装、案例手册等）会钉在第一条并标 `official-start`；没有把握的问题不捏造路径，只靠词面检索。另有 `guidance` 告诉 agent 先打开 official-start。手册是主体：指定手册只搜该手册；未指定时手册优先，论坛最多约占 1/4 名额（limit=8 时至多 2 条），且不因手册命中少而用论坛帖把结果填满。手册完全没有命中时才把名额给论坛。同一 URL 去重。无索引或索引加载失败时在 `warnings` 里点名。论坛走 Discourse 公开 JSON：`search.json`，外加「开发与问题」「通用」两个板块的 `/c/{slug}/{id}/l/latest.json` 作为检索语料。板块最新帖通过 `list_toc(manual=forum)` 列出。不镜像整站。
 
 ### `get_page`
 

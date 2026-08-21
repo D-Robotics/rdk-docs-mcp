@@ -56,7 +56,7 @@ export function createServer(): McpServer {
     "search_docs",
     {
       description:
-        "Search official RDK manuals first. A named manual searches that book only. With no manual, results are docs-majority and at most a few forum hits as supplement. Use source=forum or manual=forum only when official docs are missing.",
+        "Search official RDK manuals first. If a hit has role=official-start, open that URL with get_page before anything else — it is the documented best-practice page. Named manual searches that book only. With no manual, results are docs-majority and at most a few forum hits as supplement. Use source=forum or manual=forum only when official docs are missing.",
       inputSchema: {
         query: z.string().describe("Chinese or English search keywords"),
         manual: z
@@ -83,11 +83,13 @@ export function createServer(): McpServer {
     "get_page",
     {
       description:
-        "Fetch one official doc page (preferred) or a forum topic as Markdown. Prefer official URLs; treat forum as supplementary.",
+        "Fetch one official doc page (preferred) or a forum topic/category as Markdown. Forum category and homepage URLs return recent topic lists. Do not scrape forum HTML.",
       inputSchema: {
         url: z
           .string()
-          .describe("developer.d-robotics.cc doc URL/path or forum.d-robotics.cc topic URL"),
+          .describe(
+            "Official doc URL, or forum topic /t/{id}, category /c/.../{id}, or https://forum.d-robotics.cc/",
+          ),
         maxChars: z.number().int().min(1000).max(40000).optional(),
       },
     },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scoreCase, scoreForumToc } from "./eval.js";
+import { scoreCase, scoreDocsFirstMix, scoreForumToc } from "./eval.js";
 
 const evalCase = {
   id: "x5-poe",
@@ -17,6 +17,19 @@ describe("scoreCase", () => {
       "# PoE 供电使用\n电压与功率因标准而异",
     );
     expect(score.pass).toBe(true);
+  });
+
+  it("fails when the first hit is not the official how-to page", () => {
+    const score = scoreCase(
+      { ...evalCase, firstHitMustInclude: ["/POE"] },
+      [
+        { title: "配件清单", url: "https://developer.d-robotics.cc/rdk_x_doc/accessory", manual: "rdk-x", snippet: "", score: 3, source: "docs" },
+        { title: "PoE 供电使用", url: "https://developer.d-robotics.cc/rdk_x_doc/POE", manual: "rdk-x", snippet: "", score: 2, source: "docs" },
+      ],
+      "# PoE 供电使用",
+    );
+    expect(score.pass).toBe(false);
+    expect(score.reason).toMatch(/first hit/);
   });
 
   it("fails when search never lands on the expected page", () => {
@@ -49,5 +62,34 @@ describe("scoreForumToc", () => {
     const score = scoreForumToc(pages);
     expect(score.pass).toBe(true);
     expect(score.boards).toEqual(["开发与问题", "通用"]);
+  });
+});
+
+describe("scoreDocsFirstMix", () => {
+  const hit = (source: "docs" | "forum", title: string): Parameters<typeof scoreDocsFirstMix>[0][number] => ({
+    title,
+    url: `https://example.test/${title}`,
+    manual: source === "forum" ? "forum" : "rdk-x",
+    snippet: "",
+    score: 1,
+    source,
+  });
+
+  it("requires official docs first and in the majority", () => {
+    const score = scoreDocsFirstMix(
+      [hit("docs", "a"), hit("docs", "b"), hit("docs", "c"), hit("forum", "d")],
+      8,
+    );
+    expect(score.pass).toBe(true);
+  });
+
+  it("fails when forum crowds the first slot or takes too many", () => {
+    expect(scoreDocsFirstMix([hit("forum", "a"), hit("docs", "b")], 8).pass).toBe(false);
+    expect(
+      scoreDocsFirstMix(
+        [hit("docs", "a"), hit("forum", "b"), hit("forum", "c"), hit("forum", "d")],
+        8,
+      ).pass,
+    ).toBe(false);
   });
 });

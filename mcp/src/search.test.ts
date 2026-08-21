@@ -82,4 +82,138 @@ describe("rankHits", () => {
     const hits = rankHits(docs, "烧录", 5);
     expect(hits[0]?.title).toBe("系统烧录");
   });
+
+  it("puts the official how-to page first for S100 flashing", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "rdk-s",
+          title: "S100",
+          url: "https://developer.d-robotics.cc/rdk_s_doc/Basic_Application/audio/audio_board_super",
+          kind: "page",
+        },
+        {
+          manualId: "rdk-studio",
+          title: "3.7.4 S100 烧录",
+          url: "https://developer.d-robotics.cc/rdk_studio_doc/user-guide/system-flashing/s100-xburn",
+          kind: "page",
+        },
+      ],
+      "S100 烧录镜像",
+      5,
+    );
+    expect(hits[0]?.url).toContain("s100-xburn");
+  });
+
+  it("prefers the 40pin GPIO how-to over config_txt", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "rdk-x",
+          title: "gpio",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/System_configuration/config_txt",
+          kind: "page",
+        },
+        {
+          manualId: "rdk-x",
+          title: "GPIO 应用",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/gpio",
+          kind: "page",
+        },
+      ],
+      "GPIO",
+      5,
+    );
+    expect(hits[0]?.url).toContain("/01_40pin_user_sample/gpio");
+  });
+
+  it("prefers remote login over the accessory list for WiFi", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "rdk-x",
+          title: "1.8 配件清单",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/accessory",
+          kind: "page",
+          snippet: "WiFi 天线",
+        },
+        {
+          manualId: "rdk-x",
+          title: "1.4 远程登录",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/remote_login",
+          kind: "page",
+          snippet: "WiFi 连接",
+        },
+      ],
+      "WiFi",
+      5,
+    );
+    expect(hits[0]?.url).toContain("remote_login");
+  });
+
+  it("puts the case handbook first for a case survey", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "case-s600",
+          title: "示例应用",
+          url: "https://developer.d-robotics.cc/case_doc/getting_started/uart",
+          kind: "page",
+        },
+        {
+          manualId: "case-s600",
+          title: "RDK S600 应用案例",
+          url: "https://developer.d-robotics.cc/case_doc/case",
+          kind: "page",
+        },
+      ],
+      "案例 示例 应用",
+      5,
+    );
+    expect(hits[0]?.url).toMatch(/\/case$/);
+  });
+
+  it("does not treat XBurn as a generic burn query", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "xburn",
+          title: "烧录完成自动重启与启动检查",
+          url: "https://developer.d-robotics.cc/xburn_doc/basics/auto-reboot",
+          kind: "page",
+        },
+        {
+          manualId: "xburn",
+          title: "XBurn 概述",
+          url: "https://developer.d-robotics.cc/xburn_doc/overview",
+          kind: "page",
+        },
+      ],
+      "XBurn",
+      5,
+    );
+    expect(hits[0]?.url).toContain("/overview");
+  });
+
+  it("prefers install_tros over cross compile", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "tros",
+          title: "安装 tros.b",
+          url: "https://developer.d-robotics.cc/tros_doc/quick_start/cross_compile",
+          kind: "page",
+        },
+        {
+          manualId: "tros",
+          title: "安装 tros.b",
+          url: "https://developer.d-robotics.cc/tros_doc/quick_start/install_tros",
+          kind: "page",
+        },
+      ],
+      "安装 tros",
+      5,
+    );
+    expect(hits[0]?.url).toContain("/install_tros");
+  });
 });

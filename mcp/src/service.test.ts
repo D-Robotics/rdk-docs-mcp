@@ -100,6 +100,7 @@ const http: HttpGet = async (url: string) => {
   if (url.includes("/search.json")) return forumSearch;
   if (url.includes("/c/kai-fa-yu-wen-ti/39/l/latest.json")) return boardDev;
   if (url.includes("/c/general/4/l/latest.json")) return boardGeneral;
+  if (url.includes("/c/7/l/latest.json")) return boardDev;
   if (url.includes("/t/33210.json")) return forumTopic;
   if (url.endsWith("search-index.json")) return docusaurusIndex;
   if (url.includes("/POE")) return html;
@@ -118,7 +119,15 @@ describe("searchDocs", () => {
     const result = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
     expect(result.hits[0]?.title).toMatch(/PoE/);
     expect(result.hits[0]?.url).toContain("developer.d-robotics.cc");
+    expect(result.hits[0]?.role).toBe("official-start");
+    expect(result.guidance).toMatch(/official-start/);
     expect(result.warnings).toEqual([]);
+  });
+
+  it("pins the official S100 flashing page even when lexical search prefers another S100 page", async () => {
+    const result = await searchDocs({ query: "S100 烧录镜像", manual: "s100" }, http);
+    expect(result.hits[0]?.url).toContain("s100-xburn");
+    expect(result.hits[0]?.role).toBe("official-start");
   });
 
   it("discovers the Rspress search_index for S 系列 OE", async () => {
@@ -208,5 +217,15 @@ describe("getPage", () => {
     expect(page.title).toBe("RDK S100没有wifi");
     expect(page.markdown).toContain("@RiChouu");
     expect(page.markdown).toContain("wifi");
+  });
+
+  it("lists recent topics when given a forum category URL", async () => {
+    const page = await getPage(
+      { url: "https://forum.d-robotics.cc/c/39-category/yykf/7" },
+      http,
+    );
+    expect(page.title).toBe("应用开发");
+    expect(page.markdown).toContain("yolo模型量化精度问题");
+    expect(page.markdown).toContain("https://forum.d-robotics.cc/t/topic/35610");
   });
 });
