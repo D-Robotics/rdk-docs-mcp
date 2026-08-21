@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchText } from "./http.js";
-import { getPage, searchDocs } from "./service.js";
-import { scoreCase, type EvalCase } from "./eval.js";
+import { getPage, listToc, searchDocs } from "./service.js";
+import { scoreCase, scoreForumToc, type EvalCase } from "./eval.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const casesPath = join(root, "..", "eval", "cases.json");
@@ -33,6 +33,54 @@ async function main() {
     const mark = score.pass ? "PASS" : "FAIL";
     console.log(`${mark}  ${evalCase.id}  ${score.reason}${score.hitUrl ? `  ${score.hitUrl}` : ""}`);
   }
+
+  const toc = await listToc({ manual: "forum" }, fetchText);
+  const tocScore = scoreForumToc(toc.pages);
+  console.log(`${tocScore.pass ? "PASS" : "FAIL"}  forum-list-toc  ${tocScore.reason}`);
+  results.push({
+    id: "forum-list-toc",
+    question: "列出开发与问题和通用最近帖",
+    searchPass: tocScore.pass,
+    pagePass: tocScore.pass,
+    pass: tocScore.pass,
+    reason: tocScore.reason,
+  });
+
+  if (toc.pages[0]) {
+    const topic = await getPage({ url: toc.pages[0].url, maxChars: 4000 }, fetchText);
+    const pageOk = Boolean(topic.markdown.trim()) && topic.url.includes("forum.d-robotics.cc");
+    const reason = pageOk
+      ? `opened ${topic.title}`
+      : `empty or invalid topic page: ${toc.pages[0].url}`;
+    console.log(`${pageOk ? "PASS" : "FAIL"}  forum-list-toc-page  ${reason}  ${topic.url}`);
+    results.push({
+      id: "forum-list-toc-page",
+      question: "打开板块最近帖正文",
+      searchPass: true,
+      pagePass: pageOk,
+      pass: pageOk,
+      hitUrl: topic.url,
+      hitTitle: topic.title,
+      reason,
+    });
+  }
+
+  const filtered = await listToc({ manual: "forum", query: "开发与问题" }, fetchText);
+  const filterOk =
+    filtered.pages.length > 0 &&
+    filtered.pages.every((page) => page.breadcrumbs?.[0] === "开发与问题");
+  const filterReason = filterOk
+    ? `filtered to ${filtered.pages.length} topics on 开发与问题`
+    : "forum toc query=开发与问题 did not stay on that board";
+  console.log(`${filterOk ? "PASS" : "FAIL"}  forum-list-toc-filter  ${filterReason}`);
+  results.push({
+    id: "forum-list-toc-filter",
+    question: "按板块过滤论坛最近帖",
+    searchPass: filterOk,
+    pagePass: filterOk,
+    pass: filterOk,
+    reason: filterReason,
+  });
 
   const passed = results.filter((item) => item.pass).length;
   console.log(`\n${passed}/${results.length} cases can answer the developer question`);

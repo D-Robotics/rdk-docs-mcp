@@ -65,10 +65,10 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 |------|------|------|
 | `query` | string | 必填，中英文关键词 |
 | `manual` | string | 可选，手册 `id` 或别名（`x5`/`s100`/`tros`/`studio`/`forum`…） |
-| `source` | string | 可选，`docs` / `forum` / `all`（默认）。`manual=forum` 等于只搜论坛 |
+| `source` | string | 可选，`docs` / `forum` / `all`。未指定时：无手册 → `all`，指定手册 → `docs`，`manual=forum` → `forum` |
 | `limit` | number | 可选，默认 8，最大 20 |
 
-返回命中：`title`, `url`, `manual`, `snippet`, `score`, `source`（`docs` 或 `forum`）。默认两边都搜，手册约占 2/3 名额。同一 URL 去重。无索引或索引加载失败时在 `warnings` 里点名。论坛走 Discourse 公开 `search.json`，不镜像整站。
+返回命中：`title`, `url`, `manual`, `snippet`, `score`, `source`（`docs` 或 `forum`）。手册是主体：指定手册只搜该手册；未指定时手册优先，论坛最多约占 1/4 名额（limit=8 时至多 2 条），且不因手册命中少而用论坛帖把结果填满。手册完全没有命中时才把名额给论坛。同一 URL 去重。无索引或索引加载失败时在 `warnings` 里点名。论坛走 Discourse 公开 JSON：`search.json`，外加「开发与问题」「通用」两个板块的 `/c/{slug}/{id}/l/latest.json` 作为检索语料。板块最新帖通过 `list_toc(manual=forum)` 列出。不镜像整站。
 
 ### `get_page`
 
@@ -86,11 +86,11 @@ Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续
 | `manual` | string | 必填，手册 id 或别名 |
 | `query` | string | 可选，过滤标题 |
 
-返回该手册页面：`title`, `url`, `breadcrumbs?`。
+返回该手册页面：`title`, `url`, `breadcrumbs?`。`manual=forum` 时返回「开发与问题」和「通用」最近主题，可用 `query` 过滤标题。
 
 ## 缓存与边界
 
-- 索引缓存到 `RDK_DOCS_CACHE_DIR` 或 `~/.cache/rdk-docs-mcp`，TTL 默认 24h，可用 `RDK_DOCS_CACHE_TTL_MS` 覆盖（`0` 表示不读缓存）。论坛 `search.json` 最长缓存 15 分钟，主题 JSON 最长 1 小时。
+- 索引缓存到 `RDK_DOCS_CACHE_DIR` 或 `~/.cache/rdk-docs-mcp`，TTL 默认 24h，可用 `RDK_DOCS_CACHE_TTL_MS` 覆盖（`0` 表示不读缓存）。论坛 `search.json` 和板块 `latest.json` 最长缓存 15 分钟，主题 JSON 最长 1 小时。
 - 论坛只消费 Discourse 公开 JSON，不镜像、不登录、不爬全站。
 - 网络失败返回结构化错误，不抛崩 MCP。
 - stdio 日志只写 stderr。

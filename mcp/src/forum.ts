@@ -7,11 +7,18 @@ export const FORUM_ORIGIN = "https://forum.d-robotics.cc";
 export const FORUM_ID = "forum";
 export const FORUM_ALIASES = ["forum", "社区", "论坛", "discourse"];
 
+export const FORUM_BOARDS = [
+  { id: 39, slug: "kai-fa-yu-wen-ti", name: "开发与问题" },
+  { id: 4, slug: "general", name: "通用" },
+] as const;
+
 type DiscourseTopic = {
   id?: number;
   title?: string;
   slug?: string;
   tags?: string[];
+  pinned?: boolean;
+  excerpt?: string;
 };
 
 type DiscoursePostHit = {
@@ -48,7 +55,7 @@ export function forumListing() {
     id: FORUM_ID,
     title: "地瓜机器人社区论坛",
     category: "社区",
-    description: "官方社区问答与经验贴，补充手册未覆盖的实操问题。",
+    description: "社区经验补充，不是官方规范。手册未覆盖时再查；list_toc 列出「开发与问题」和「通用」最近帖。",
     homeUrl: `${FORUM_ORIGIN}/`,
     searchable: true,
     aliases: FORUM_ALIASES.filter((alias) => alias !== FORUM_ID),
@@ -77,6 +84,38 @@ export function forumTopicJsonUrl(urlOrPath: string): string | undefined {
 export function forumTopicUrl(topic: { id: number; slug?: string }): string {
   const slug = topic.slug?.trim() || "topic";
   return `${FORUM_ORIGIN}/t/${slug}/${topic.id}`;
+}
+
+export function boardLatestUrl(board: { id: number; slug: string }): string {
+  return `${FORUM_ORIGIN}/c/${board.slug}/${board.id}/l/latest.json`;
+}
+
+function isBoardIntro(title: string, pinned?: boolean): boolean {
+  return Boolean(pinned && /类别|欢迎来到|category/i.test(title));
+}
+
+export function compactDiscourseTopicList(raw: unknown, boardName: string): IndexedDoc[] {
+  if (!raw || typeof raw !== "object") return [];
+  const topics = (raw as { topic_list?: { topics?: DiscourseTopic[] } }).topic_list?.topics;
+  if (!Array.isArray(topics)) return [];
+
+  const docs: IndexedDoc[] = [];
+  for (const topic of topics) {
+    const title = topic.title?.trim();
+    if (!topic.id || !title) continue;
+    if (isBoardIntro(title, topic.pinned)) continue;
+    const excerpt = String(topic.excerpt ?? "").replace(/<[^>]+>/g, "").trim();
+    docs.push({
+      manualId: FORUM_ID,
+      title,
+      url: forumTopicUrl({ id: topic.id, slug: topic.slug }),
+      snippet: excerpt || undefined,
+      text: excerpt || undefined,
+      breadcrumbs: [boardName, ...(topic.tags ?? []).filter(Boolean)],
+      kind: "page",
+    });
+  }
+  return docs;
 }
 
 export function compactDiscourseSearch(raw: unknown): IndexedDoc[] {
@@ -131,14 +170,103 @@ export function topicToMarkdown(
   return { title, url: canonical, markdown: parts.join("\n").trim() };
 }
 
+export function forumHitsFromDocs(
+  docs: IndexedDoc[],
+  query: string,
+  limit: number,
+  fillFrom: IndexedDoc[] = [],
+): SearchHit[] {
+  const ranked = rankHits(docs, query, limit).map((hit) => ({ ...hit, source: "forum" as const }));
+  if (ranked.length >= limit) return ranked;
+
+  const seen = new Set(ranked.map((hit) => hit.url));
+  const filled = [...ranked];
+  for (const doc of fillFrom) {
+    if (filled.length >= limit) break;
+    if (seen.has(doc.url)) continue;
+    seen.add(doc.url);
+    filled.push({
+      title: doc.title,
+      url: doc.url,
+      manual: FORUM_ID,
+      snippet: doc.snippet ?? doc.breadcrumbs?.join(" / ") ?? "",
+      score: Math.max(1, 6 - filled.length),
+      source: "forum",
+    });
+  }
+  return filled;
+}
+
+function parseJson(body: string): unknown | undefined {
+  if (!body.trim()) return undefined;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function searchForum(
   query: string,
   http: HttpGet,
   limit: number,
 ): Promise<SearchHit[]> {
-  const url = `${FORUM_ORIGIN}/search.json?q=${encodeURIComponent(query)}`;
-  const docs = compactDiscourseSearch(JSON.parse(await http(url)));
-  return rankHits(docs, query, limit).map((hit) => ({ ...hit, source: "forum" as const }));
+  const searchUrl = `${FORUM_ORIGIN}/search.json?q=${encodeURIComponent(query)}`;
+  const bodies = await Promise.all([
+    http(searchUrl).catch(() => ""),
+    ...FORUM_BOARDS.map((board) => http(boardLatestUrl(board)).catch(() => "")),
+  ]);
+
+  const docs: IndexedDoc[] = [];
+  const seen = new Set<string>();
+  const add = (items: IndexedDoc[]) => {
+    for (const item of items) {
+      if (seen.has(item.url)) continue;
+      seen.add(item.url);
+      docs.push(item);
+    }
+  };
+
+  const searchRaw = parseJson(bodies[0] ?? "");
+  const searchDocs = searchRaw ? compactDiscourseSearch(searchRaw) : [];
+  add(searchDocs);
+  FORUM_BOARDS.forEach((board, index) => {
+    const raw = parseJson(bodies[index + 1] ?? "");
+    if (raw) add(compactDiscourseTopicList(raw, board.name));
+  });
+
+  return forumHitsFromDocs(docs, query, limit, searchDocs);
+}
+
+export async function listForumTopics(
+  http: HttpGet,
+  query?: string,
+): Promise<Array<{ title: string; url: string; breadcrumbs?: string[] }>> {
+  const loaded = await Promise.all(
+    FORUM_BOARDS.map(async (board) => {
+      try {
+        const raw = parseJson(await http(boardLatestUrl(board)));
+        return raw ? compactDiscourseTopicList(raw, board.name) : [];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  let pages = loaded.flat();
+  if (query?.trim()) {
+    const needle = query.trim().toLowerCase();
+    pages = pages.filter(
+      (page) =>
+        page.title.toLowerCase().includes(needle) ||
+        (page.snippet ?? "").toLowerCase().includes(needle) ||
+        (page.breadcrumbs ?? []).some((crumb) => crumb.toLowerCase().includes(needle)),
+    );
+  }
+  return pages.map((page) => ({
+    title: page.title,
+    url: page.url,
+    breadcrumbs: page.breadcrumbs,
+  }));
 }
 
 export async function getForumTopic(

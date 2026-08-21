@@ -15,6 +15,16 @@ const docusaurusIndex = JSON.stringify([
         u: "/rdk_x_doc/Quick_start/wifi",
         b: ["快速开始"],
       },
+      {
+        t: "WiFi 天线",
+        u: "/rdk_x_doc/Quick_start/wifi-antenna",
+        b: ["快速开始"],
+      },
+      {
+        t: "WiFi 排障",
+        u: "/rdk_x_doc/Quick_start/wifi-troubleshoot",
+        b: ["快速开始"],
+      },
     ],
   },
 ]);
@@ -68,8 +78,28 @@ const forumTopic = JSON.stringify({
   },
 });
 
+const boardDev = JSON.stringify({
+  topic_list: {
+    topics: [
+      { id: 1, title: "关于“开发与问题”类别", slug: "topic", pinned: true },
+      { id: 35610, title: "yolo模型量化精度问题", slug: "topic", tags: ["求助帖"] },
+    ],
+  },
+});
+
+const boardGeneral = JSON.stringify({
+  topic_list: {
+    topics: [
+      { id: 2, title: "欢迎来到地瓜机器人社区！", slug: "topic", pinned: true },
+      { id: 35500, title: "S100连接摄像头稳定掉线", slug: "topic", tags: ["rdx-s100"] },
+    ],
+  },
+});
+
 const http: HttpGet = async (url: string) => {
   if (url.includes("/search.json")) return forumSearch;
+  if (url.includes("/c/kai-fa-yu-wen-ti/39/l/latest.json")) return boardDev;
+  if (url.includes("/c/general/4/l/latest.json")) return boardGeneral;
   if (url.includes("/t/33210.json")) return forumTopic;
   if (url.endsWith("search-index.json")) return docusaurusIndex;
   if (url.includes("/POE")) return html;
@@ -105,10 +135,30 @@ describe("searchDocs", () => {
     expect(result.hits[0]?.title).toMatch(/wifi/i);
   });
 
-  it("mixes official docs and forum hits by default", async () => {
-    const result = await searchDocs({ query: "wifi", limit: 5 }, http);
-    expect(result.hits.some((hit) => hit.source === "docs")).toBe(true);
-    expect(result.hits.some((hit) => hit.source === "forum")).toBe(true);
+  it("mixes official docs and forum hits by default, with docs in the majority", async () => {
+    const result = await searchDocs({ query: "wifi", limit: 5, source: "all" }, http);
+    const docs = result.hits.filter((hit) => hit.source === "docs");
+    const forum = result.hits.filter((hit) => hit.source === "forum");
+    expect(result.hits[0]?.source).toBe("docs");
+    expect(docs.length).toBeGreaterThanOrEqual(3);
+    expect(forum.length).toBeGreaterThan(0);
+    expect(docs.length).toBeGreaterThan(forum.length);
+  });
+
+  it("stays inside one manual when the caller names it", async () => {
+    const result = await searchDocs({ query: "wifi", manual: "x5", limit: 5 }, http);
+    expect(result.hits.length).toBeGreaterThan(0);
+    expect(result.hits.every((hit) => hit.source === "docs")).toBe(true);
+    expect(result.hits.every((hit) => hit.manual === "rdk-x")).toBe(true);
+  });
+
+  it("still finds board latest topics when Discourse search is empty", async () => {
+    const emptySearch: HttpGet = async (url) => {
+      if (url.includes("/search.json")) return JSON.stringify({ topics: [], posts: [] });
+      return http(url);
+    };
+    const result = await searchDocs({ query: "量化", manual: "forum" }, emptySearch);
+    expect(result.hits[0]?.url).toBe("https://forum.d-robotics.cc/t/topic/35610");
   });
 });
 
@@ -121,6 +171,16 @@ describe("listToc", () => {
   it("lists Rspress OE-S pages from the discovered index", async () => {
     const toc = await listToc({ manual: "oe-s" }, http);
     expect(toc.pages.map((page) => page.title)).toContain("BEV多任务模型训练");
+  });
+
+  it("lists recent topics from 开发与问题 and 通用", async () => {
+    const toc = await listToc({ manual: "forum" }, http);
+    expect(toc.pages.map((page) => page.title)).toEqual([
+      "yolo模型量化精度问题",
+      "S100连接摄像头稳定掉线",
+    ]);
+    expect(toc.pages[0]?.breadcrumbs).toContain("开发与问题");
+    expect(toc.pages[1]?.breadcrumbs).toContain("通用");
   });
 });
 

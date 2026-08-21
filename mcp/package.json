@@ -1,6 +1,6 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Search D-Robotics RDK official manuals and the community forum via MCP.",
   "bin": {
@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "eval:live": "npm run build && node dist/eval-live.js",
+    "verify": "npm test && npm run eval:live",
     "prepublishOnly": "npm test && npm run build"
   },
   "engines": {

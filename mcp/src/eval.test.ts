@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scoreCase } from "./eval.js";
+import { scoreCase, scoreForumToc } from "./eval.js";
 
 const evalCase = {
   id: "x5-poe",
@@ -27,5 +27,27 @@ describe("scoreCase", () => {
     );
     expect(score.pass).toBe(false);
     expect(score.searchPass).toBe(false);
+  });
+});
+
+describe("scoreForumToc", () => {
+  it("requires recent topics from both primary boards", () => {
+    const score = scoreForumToc([
+      { title: "yolo模型量化精度问题", url: "https://forum.d-robotics.cc/t/topic/35610", breadcrumbs: ["开发与问题"] },
+      { title: "S100连接摄像头稳定掉线", url: "https://forum.d-robotics.cc/t/topic/35500", breadcrumbs: ["通用"] },
+    ]);
+    expect(score.pass).toBe(false);
+    expect(score.reason).toMatch(/too few/);
+  });
+
+  it("passes a two-board latest list of topic URLs", () => {
+    const pages = Array.from({ length: 12 }, (_, index) => ({
+      title: `topic ${index}`,
+      url: `https://forum.d-robotics.cc/t/topic/${100 + index}`,
+      breadcrumbs: [index < 6 ? "开发与问题" : "通用"],
+    }));
+    const score = scoreForumToc(pages);
+    expect(score.pass).toBe(true);
+    expect(score.boards).toEqual(["开发与问题", "通用"]);
   });
 });

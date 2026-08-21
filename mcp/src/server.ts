@@ -20,14 +20,14 @@ function fail(error: unknown) {
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "rdk-docs",
-    version: "0.1.0",
+    version: "0.1.1",
   });
 
   server.registerTool(
     "list_manuals",
     {
       description:
-        "List official RDK manuals plus the community forum (id: forum). Use this first to pick a manual id.",
+        "List official RDK manuals (primary). The community forum is appended as id=forum for supplementary lookup only.",
       inputSchema: {},
     },
     async () => {
@@ -56,7 +56,7 @@ export function createServer(): McpServer {
     "search_docs",
     {
       description:
-        "Search official RDK manuals and the D-Robotics forum. Prefer this before guessing. Use source=docs or manual=forum to narrow.",
+        "Search official RDK manuals first. A named manual searches that book only. With no manual, results are docs-majority and at most a few forum hits as supplement. Use source=forum or manual=forum only when official docs are missing.",
       inputSchema: {
         query: z.string().describe("Chinese or English search keywords"),
         manual: z
@@ -66,7 +66,7 @@ export function createServer(): McpServer {
         source: z
           .enum(["docs", "forum", "all"])
           .optional()
-          .describe("docs = manuals only, forum = community only, all = both (default)"),
+          .describe("docs = manuals only; forum = community only; all = docs first, forum as supplement"),
         limit: z.number().int().min(1).max(20).optional().describe("Max hits, default 8"),
       },
     },
@@ -83,7 +83,7 @@ export function createServer(): McpServer {
     "get_page",
     {
       description:
-        "Fetch one official doc page or forum topic and return readable Markdown. Use after search_docs.",
+        "Fetch one official doc page (preferred) or a forum topic as Markdown. Prefer official URLs; treat forum as supplementary.",
       inputSchema: {
         url: z
           .string()
@@ -104,9 +104,9 @@ export function createServer(): McpServer {
     "list_toc",
     {
       description:
-        "List pages in one RDK manual. Useful when search is too broad or a manual has no search index.",
+        "List pages in one official RDK manual. Use manual=forum only as a supplement to list recent 开发与问题 / 通用 topics.",
       inputSchema: {
-        manual: z.string().describe("Manual id or alias"),
+        manual: z.string().describe("Manual id or alias, or forum"),
         query: z.string().optional().describe("Optional title filter"),
       },
     },

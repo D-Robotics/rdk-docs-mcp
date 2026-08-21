@@ -2,16 +2,16 @@
 
 检索地瓜机器人（D-Robotics）官方手册和社区论坛，给 Agent 用的 MCP 服务。
 
-手册是规范，论坛是经验。默认两边一起搜，回答里带可点击原文链接。
+手册是规范，论坛只作补充参考。回答以官方文档为准，并带可点击原文链接。
 
 ## 能做什么
 
 | 工具 | 作用 |
 |------|------|
 | `list_manuals` | 列出资料中心全部手册 + 社区源 `forum` |
-| `search_docs` | 中英文检索。默认手册 + 论坛一起搜。`source` 可选 `docs` / `forum` / `all`；`manual` 可限定某本手册（如 `x5`、`s100`、`tros`） |
+| `search_docs` | 中英文检索。指定手册只搜那一本；不指定时手册为主、论坛为辅。`source` 可选 `docs` / `forum` / `all` |
 | `get_page` | 打开手册页或论坛主题，返回 Markdown |
-| `list_toc` | 列出某一本手册的页面目录 |
+| `list_toc` | 列手册目录；`manual=forum` 列出「开发与问题」和「通用」最近帖 |
 
 ## 覆盖范围
 
@@ -24,7 +24,7 @@
 - OE 工具链：S 系列（`oe-s`）/ S100 LLM / S600 LLM / X5（`oe-x5`）/ X3（`oe-x3`）
 - X5 芯片 SDK（`sdk`）
 
-**社区论坛**（`forum`）：Discourse 公开搜索 API，补充手册未覆盖的实操问题。
+**社区论坛**（`forum`）：Discourse 公开 JSON，补充手册未覆盖的实操问题。不是官方规范。
 
 ## 在客户端里怎么用
 
@@ -35,7 +35,7 @@ Cursor / Claude / 通义灵码 / Cherry Studio 等，把下面配置加到 MCP �
   "mcpServers": {
     "rdk-docs": {
       "command": "npx",
-      "args": ["-y", "rdk-docs-mcp"]
+      "args": ["-y", "rdk-docs-mcp@latest"]
     }
   }
 }
@@ -52,12 +52,12 @@ Cursor / Claude / 通义灵码 / Cherry Studio 等，把下面配置加到 MCP �
 - 双目摄像头怎么标定？
 - X5 芯片 SDK 怎么搭建开发环境？
 
-先 `search_docs`，再对 1–2 个命中调用 `get_page`。手册和论坛冲突时，以手册为准，论坛当经验并附帖子链接。
+先 `search_docs`，再对手册命中调用 `get_page`。手册已经能回答时不要展开论坛。手册和论坛冲突时只采用手册说法。
 
 ## 数据来源
 
 - 手册：https://developer.d-robotics.cc/rdk_doc_center/
-- 论坛：https://forum.d-robotics.cc/（Discourse 公开搜索 API）
+- 论坛：https://forum.d-robotics.cc/（Discourse 公开 JSON：全站搜索 + 开发与问题 / 通用最近帖）
 
 不镜像整站，不写入文档或论坛。旧版资料 `https://developer.d-robotics.cc/information` 不在索引里。
 

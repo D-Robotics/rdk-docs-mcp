@@ -20,6 +20,23 @@ export type CaseScore = {
   reason: string;
 };
 
+export type ForumTocPage = { title: string; url: string; breadcrumbs?: string[] };
+
+export function scoreForumToc(pages: ForumTocPage[]): { pass: boolean; reason: string; boards: string[] } {
+  const boards = [...new Set(pages.flatMap((page) => (page.breadcrumbs?.[0] ? [page.breadcrumbs[0]] : [])))];
+  if (pages.length < 10) {
+    return { pass: false, reason: `too few topics: ${pages.length}`, boards };
+  }
+  if (!boards.includes("开发与问题") || !boards.includes("通用")) {
+    return { pass: false, reason: `missing boards: ${boards.join(" + ") || "(none)"}`, boards };
+  }
+  const bad = pages.find((page) => !page.url.includes("forum.d-robotics.cc/t/"));
+  if (bad) {
+    return { pass: false, reason: `non-topic URL: ${bad.url}`, boards };
+  }
+  return { pass: true, reason: `${pages.length} topics from ${boards.join(" + ")}`, boards };
+}
+
 export function pickRelevantHit(hits: SearchHit[], urlMustInclude: string[]): SearchHit | undefined {
   return hits.find((hit) => urlMustInclude.some((needle) => hit.url.includes(needle) || hit.title.includes(needle)));
 }

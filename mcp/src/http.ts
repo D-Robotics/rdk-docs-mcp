@@ -19,7 +19,9 @@ export function cacheTtlMs(): number {
 function ttlFor(url: string): number {
   const configured = cacheTtlMs();
   if (configured === 0) return 0;
-  if (url.includes("/search.json")) return Math.min(configured, 15 * 60 * 1000);
+  if (url.includes("/search.json") || url.includes("/l/latest.json")) {
+    return Math.min(configured, 15 * 60 * 1000);
+  }
   if (url.includes("forum.d-robotics.cc")) return Math.min(configured, 60 * 60 * 1000);
   return configured;
 }

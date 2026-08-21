@@ -18,18 +18,18 @@
 | Tool | 做什么 |
 |------|--------|
 | `list_manuals` | 列出资料中心已上架手册（X/S 系列、TROS、Model Zoo、Studio、XBurn、OE、X5 SDK 等） |
-| `search_docs` | 中英文关键词检索。默认手册 + [社区论坛](https://forum.d-robotics.cc/) 一起搜。可限定手册：`x5` / `s100` / `tros` / `studio` / `xburn` / `forum` … |
+| `search_docs` | 中英文关键词检索。指定手册只搜那一本；不指定时手册为主、论坛至多作补充。`forum` 只搜社区。 |
 | `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown |
-| `list_toc` | 列出某一本手册的页面目录 |
+| `list_toc` | 列出某一本手册的页面目录；`forum` 列出「开发与问题」和「通用」最近帖 |
 
 **Skill `rdk-docs`**
 
-规定 Agent：**先搜再打开页面**，默认手册和论坛一起搜；手册是规范、论坛是经验，必须附可点击链接。
+规定 Agent：**先搜再打开页面**；手册是规范、答案主体，论坛只作补充参考，必须附可点击链接。
 
 **不覆盖**
 
 - 旧版资料 `https://developer.d-robotics.cc/information` 不在索引里。
-- 论坛只走公开搜索 API，不当官方规范。
+- 论坛走 Discourse 公开 JSON（全站搜索 + 两个主板块最近帖），不当官方规范。不要去爬论坛 HTML。
 - 不需要登录，也不写入文档站或论坛。
 
 ---
@@ -45,7 +45,7 @@
   "mcpServers": {
     "rdk-docs": {
       "command": "npx",
-      "args": ["-y", "rdk-docs-mcp"]
+      "args": ["-y", "rdk-docs-mcp@latest"]
     }
   }
 }

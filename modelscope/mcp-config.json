@@ -2,7 +2,7 @@
   "mcpServers": {
     "rdk-docs": {
       "command": "npx",
-      "args": ["-y", "rdk-docs-mcp"]
+      "args": ["-y", "rdk-docs-mcp@latest"]
     }
   }
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   compactDiscourseSearch,
+  compactDiscourseTopicList,
+  forumHitsFromDocs,
   forumTopicJsonUrl,
   parseForumTopicId,
   topicToMarkdown,
@@ -70,6 +72,51 @@ describe("forum topic URLs", () => {
     expect(forumTopicJsonUrl("https://forum.d-robotics.cc/t/topic/33210")).toBe(
       "https://forum.d-robotics.cc/t/33210.json",
     );
+  });
+});
+
+describe("compactDiscourseTopicList", () => {
+  it("reads a board latest.json and skips the category intro pin", () => {
+    const docs = compactDiscourseTopicList(
+      {
+        topic_list: {
+          topics: [
+            { id: 1, title: "关于“开发与问题”类别", slug: "topic", pinned: true },
+            {
+              id: 35610,
+              title: "yolo模型量化精度问题",
+              slug: "topic",
+              tags: ["求助帖"],
+              excerpt: "量化后精度掉了很多",
+            },
+          ],
+        },
+      },
+      "开发与问题",
+    );
+    expect(docs.map((doc) => doc.title)).toEqual(["yolo模型量化精度问题"]);
+    expect(docs[0]?.url).toBe("https://forum.d-robotics.cc/t/topic/35610");
+    expect(docs[0]?.breadcrumbs).toEqual(["开发与问题", "求助帖"]);
+  });
+});
+
+describe("forumHitsFromDocs", () => {
+  it("keeps Discourse search hits that our keyword ranker would drop", () => {
+    const searchHits = compactDiscourseSearch({
+      topics: [{ id: 9, title: "S100连接摄像头稳定掉线", slug: "topic" }],
+      posts: [{ topic_id: 9, blurb: "摄像头偶发断流" }],
+    });
+    const boards = compactDiscourseTopicList(
+      {
+        topic_list: {
+          topics: [{ id: 99, title: "欢迎试用新活动", slug: "topic" }],
+        },
+      },
+      "通用",
+    );
+    const hits = forumHitsFromDocs([...searchHits, ...boards], "帧率 FIFO", 5, searchHits);
+    expect(hits.map((hit) => hit.url)).toEqual(["https://forum.d-robotics.cc/t/topic/9"]);
+    expect(hits[0]?.source).toBe("forum");
   });
 });
 

@@ -1,7 +1,7 @@
 import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { htmlToMarkdown, resolveDocUrl } from "./fetch-page.js";
-import { FORUM_ID, forumListing, getForumTopic, isForumRef, searchForum } from "./forum.js";
+import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
 import type { HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
 import { rankHits } from "./search.js";
@@ -36,13 +36,13 @@ function requireManual(idOrAlias: string): Manual {
 }
 
 function resolveSource(manual?: string, source?: SearchSource): SearchSource {
-  if (manual && isForumRef(manual)) return "forum";
   if (source === "docs" || source === "forum" || source === "all") return source;
+  if (manual && isForumRef(manual)) return "forum";
+  if (manual) return "docs";
   return "all";
 }
 
 function mergeHits(docs: SearchHit[], forum: SearchHit[], limit: number): SearchHit[] {
-  const docSlots = forum.length === 0 ? limit : Math.max(1, Math.ceil(limit * 0.65));
   const picked: SearchHit[] = [];
   const seen = new Set<string>();
   const take = (hits: SearchHit[], cap: number) => {
@@ -53,8 +53,16 @@ function mergeHits(docs: SearchHit[], forum: SearchHit[], limit: number): Search
       picked.push(hit);
     }
   };
-  take(docs, docSlots);
-  take(forum, limit);
+
+  if (docs.length === 0) {
+    take(forum, limit);
+    return picked;
+  }
+
+  const forumCap =
+    forum.length === 0 ? 0 : Math.min(forum.length, Math.max(1, Math.floor(limit * 0.25)));
+  take(docs, limit - forumCap);
+  take(forum, picked.length + forumCap);
   take(docs, limit);
   return picked;
 }
@@ -158,10 +166,9 @@ export async function listToc(
   http: HttpGet,
 ): Promise<{ manual: string; pages: Array<{ title: string; url: string; breadcrumbs?: string[] }> }> {
   if (isForumRef(input.manual)) {
-    const listing = forumListing();
     return {
       manual: FORUM_ID,
-      pages: [{ title: listing.title, url: listing.homeUrl }],
+      pages: await listForumTopics(http, input.query),
     };
   }
   const manual = requireManual(input.manual);

@@ -120,6 +120,14 @@
     "pageMustInclude": ["wifi", "WiFi", "WIFI"]
   },
   {
+    "id": "forum-yolo-quant",
+    "question": "论坛里 yolo 量化精度掉了怎么说？",
+    "query": "yolo 量化精度",
+    "manual": "forum",
+    "urlMustInclude": ["forum.d-robotics.cc"],
+    "pageMustInclude": ["量化", "yolo", "YOLO"]
+  },
+  {
     "id": "wifi-config",
     "question": "RDK X5 怎么连 Wi-Fi？",
     "query": "WiFi",
