@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rdk-docs": {
+      "type": "stdio",
+      "command": "./mcp/bin/run.sh"
+    }
+  }
+}

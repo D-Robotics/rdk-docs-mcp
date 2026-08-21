@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "rdk-docs": {
+      "type": "stdio",
+      "command": "/ABS/PATH/TO/rdk-docs/mcp/bin/run.sh"
+    }
+  }
+}

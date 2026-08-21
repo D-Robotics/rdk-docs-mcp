@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "rdk-docs": {
+      "command": "${workspaceFolder}/mcp/bin/run.sh"
+    }
+  }
+}
