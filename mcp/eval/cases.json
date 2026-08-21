@@ -292,5 +292,53 @@
     "urlMustInclude": ["frequency_management"],
     "firstHitMustInclude": ["frequency_management"],
     "pageMustInclude": ["Thermal", "温度", "风扇", "频率"]
+  },
+  {
+    "id": "nat-pt-to-bin",
+    "question": "怎么把pt模型转成bin模型",
+    "query": "怎么把pt模型转成bin模型",
+    "urlMustInclude": ["ptq_quickstart", "model_convert", "quantize_compile", "hat_faq", "oe_package_sample"],
+    "pageMustInclude": ["模型", "转换", "编译"]
+  },
+  {
+    "id": "nat-swap",
+    "question": "怎么扩大swap内存",
+    "query": "怎么扩大swap内存",
+    "manual": "x5",
+    "urlMustInclude": ["FAQ", "memory"],
+    "pageMustInclude": ["swap", "内存"]
+  },
+  {
+    "id": "nat-wifi-sentence",
+    "question": "怎么给板子连WiFi上网",
+    "query": "怎么给板子连WiFi上网",
+    "manual": "x5",
+    "urlMustInclude": ["remote_login", "network_blueteeth", "configuration_wizard"],
+    "firstHitMustInclude": ["remote_login"],
+    "pageMustInclude": ["Wi-Fi", "WiFi", "无线", "wifi"]
+  },
+  {
+    "id": "nat-ip-address",
+    "question": "怎么查看板子的IP地址",
+    "query": "怎么查看板子的IP地址",
+    "manual": "x5",
+    "urlMustInclude": ["cmd_ip", "cmd_ifconfig", "network_blueteeth", "FAQ"],
+    "pageMustInclude": ["IP", "ip"]
+  },
+  {
+    "id": "nat-mipi-no-image",
+    "question": "MIPI摄像头接上去没图像",
+    "query": "MIPI摄像头接上去没图像",
+    "manual": "x5",
+    "urlMustInclude": ["mipi_camera", "FAQ"],
+    "pageMustInclude": ["MIPI", "摄像头"]
+  },
+  {
+    "id": "nat-audio",
+    "question": "怎么录音和播放声音",
+    "query": "怎么录音和播放声音",
+    "manual": "x5",
+    "urlMustInclude": ["/audio/"],
+    "pageMustInclude": ["录音", "播放"]
   }
 ]

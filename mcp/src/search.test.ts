@@ -78,6 +78,97 @@ describe("rankHits", () => {
     expect(hits.filter((h) => h.url.includes("/POE")).length).toBe(1);
   });
 
+  it("understands a full Chinese sentence without spaces", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "rdk-x",
+          title: "示例概述",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/overview",
+          kind: "page",
+        },
+        {
+          manualId: "rdk-x",
+          title: "Q40: 如何扩展 swap 交换内存？",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system",
+          kind: "heading",
+          text: "通过 swapfile 扩大交换内存",
+        },
+      ],
+      "怎么扩大swap内存",
+      5,
+    );
+    expect(hits[0]?.url).toContain("FAQ/hardware_and_system");
+  });
+
+  it("does not let short ascii tokens match inside longer words", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "rdk-x",
+          title: "zip",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/Appendix/linux-command-manual/cmd_zip",
+          kind: "page",
+        },
+        {
+          manualId: "rdk-x",
+          title: "ip",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/Appendix/linux-command-manual/cmd_ip",
+          kind: "page",
+        },
+      ],
+      "怎么查看板子的IP地址",
+      5,
+    );
+    expect(hits[0]?.url).toContain("cmd_ip");
+    expect(hits.some((h) => h.url.includes("cmd_zip"))).toBe(false);
+  });
+
+  it("does not match bin inside Binocular", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "oe-s",
+          title: "Binocular depth estimation",
+          url: "https://developer.d-robotics.cc/oe_s_doc/en/guide/model_zoo",
+          kind: "page",
+        },
+        {
+          manualId: "oe-x5",
+          title: "模型转换：编译生成 bin 模型",
+          url: "https://developer.d-robotics.cc/oe_x5_doc/cn/ptq/quantize_compile.html",
+          kind: "page",
+        },
+      ],
+      "怎么把pt模型转成bin模型",
+      5,
+    );
+    expect(hits[0]?.url).toContain("quantize_compile");
+    expect(hits.some((h) => h.url.includes("model_zoo"))).toBe(false);
+  });
+
+  it("ignores question filler words like 怎么 / 如何", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "rdk-x",
+          title: "Q1: 怎么办？如何处理常见问题",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/FAQ/misc",
+          kind: "page",
+        },
+        {
+          manualId: "rdk-x",
+          title: "温度与散热",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/System_configuration/thermal",
+          kind: "page",
+        },
+      ],
+      "板子温度太高怎么办",
+      5,
+    );
+    expect(hits[0]?.url).toContain("thermal");
+  });
+
   it("finds Chinese queries such as 烧录", () => {
     const hits = rankHits(docs, "烧录", 5);
     expect(hits[0]?.title).toBe("系统烧录");

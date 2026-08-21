@@ -1,27 +1,25 @@
 import type { IndexedDoc, SearchHit } from "./types.js";
 
-const CJK_TERMS = [
-  "烧录",
-  "镜像",
-  "安装",
-  "量化",
-  "开机",
-  "上手",
-  "案例",
-  "示例",
-  "应用",
-  "供电",
-  "调试",
-  "概述",
-  "快速",
-  "指南",
-  "配置",
-  "登录",
-  "无线",
-  "交叉",
-  "编译",
-  "散热",
+/** Question filler that carries no retrieval signal in Chinese queries. */
+const CJK_STOPWORDS = [
+  "怎么样",
+  "怎么",
+  "怎样",
+  "如何",
+  "什么",
+  "哪些",
+  "哪里",
+  "是否",
+  "多少",
+  "请问",
+  "帮我",
+  "一下",
+  "可不可以",
+  "能不能",
+  "有没有",
 ];
+
+const CJK_STOP_CHARS = new Set(["的", "了", "吗", "呢", "啊", "吧", "把", "是", "有", "个", "和", "或", "在", "给", "去", "到", "太", "很"]);
 
 const SYNONYMS: Record<string, string[]> = {
   flash: ["烧录", "burn"],
@@ -30,23 +28,62 @@ const SYNONYMS: Record<string, string[]> = {
   install: ["安装"],
 };
 
-function tokens(query: string): string[] {
-  const seen = new Set<string>();
-  for (const part of query.trim().toLowerCase().split(/\s+/).filter(Boolean)) {
-    seen.add(part);
-    for (const match of part.matchAll(/[a-z][a-z0-9_-]*|\d+/g)) {
-      seen.add(match[0]);
+const CJK_RUN = /[\u4e00-\u9fff]+/g;
+
+function cjkBigrams(query: string): string[] {
+  const grams: string[] = [];
+  for (const match of query.matchAll(CJK_RUN)) {
+    let run = match[0];
+    for (const stop of CJK_STOPWORDS) {
+      run = run.replaceAll(stop, "\u0000");
     }
-    for (const term of CJK_TERMS) {
-      if (part.includes(term)) seen.add(term);
-    }
-    for (const [key, extras] of Object.entries(SYNONYMS)) {
-      if (part === key) {
-        extras.forEach((item) => seen.add(item));
+    run = [...run].map((ch) => (CJK_STOP_CHARS.has(ch) ? "\u0000" : ch)).join("");
+    for (const segment of run.split("\u0000")) {
+      if (segment.length < 2) continue;
+      for (let i = 0; i + 2 <= segment.length; i += 1) {
+        grams.push(segment.slice(i, i + 2));
       }
     }
   }
+  return grams;
+}
+
+export function tokens(query: string): string[] {
+  const seen = new Set<string>();
+  const lowered = query.trim().toLowerCase();
+  for (const match of lowered.matchAll(/[a-z][a-z0-9_.-]*|\d+/g)) {
+    seen.add(match[0]);
+  }
+  for (const gram of cjkBigrams(lowered)) {
+    seen.add(gram);
+  }
+  for (const [key, extras] of Object.entries(SYNONYMS)) {
+    if (seen.has(key)) {
+      extras.forEach((item) => seen.add(item));
+    }
+  }
+  if (seen.size === 0) {
+    for (const part of lowered.split(/\s+/).filter(Boolean)) {
+      seen.add(part);
+    }
+  }
   return [...seen];
+}
+
+type Matcher = { token: string; test: (text: string) => boolean };
+
+function buildMatcher(token: string): Matcher {
+  if (!/^[a-z0-9][a-z0-9_.-]*$/.test(token)) {
+    return { token, test: (text) => text.includes(token) };
+  }
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Short ascii tokens must stand alone ("ip" must not match "zip" or "chip");
+  // longer ones may extend to the right ("yolo" matches "yolov5", "swap" matches "swapfile").
+  const pattern =
+    token.length <= 3
+      ? new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`)
+      : new RegExp(`(?<![a-z0-9])${escaped}`);
+  return { token, test: (text) => pattern.test(text) };
 }
 
 function haystack(doc: IndexedDoc): { title: string; extra: string; url: string } {
@@ -57,32 +94,40 @@ function haystack(doc: IndexedDoc): { title: string; extra: string; url: string 
   };
 }
 
-function scoreDoc(doc: IndexedDoc, queryTokens: string[]): number {
+function scoreDoc(doc: IndexedDoc, matchers: Matcher[]): number {
   const { title, extra, url } = haystack(doc);
+  const queryTokens = matchers.map((m) => m.token);
   let score = 0;
   let matched = 0;
-  for (const token of queryTokens) {
+  let titleMatched = 0;
+  for (const { token, test } of matchers) {
     let hit = false;
     if (title === token) {
       score += 14;
       hit = true;
-    } else if (title.includes(token)) {
+      titleMatched += 1;
+    } else if (test(title)) {
       score += 10;
       hit = true;
+      titleMatched += 1;
     }
-    if (extra.includes(token)) {
+    if (test(extra)) {
       score += 3;
       hit = true;
     }
-    if (url.includes(token)) {
+    if (test(url)) {
       score += 4;
       hit = true;
     }
-    if (doc.kind === "page" && title.includes(token)) score += 2;
+    if (doc.kind === "page" && test(title)) score += 2;
     if (hit) matched += 1;
   }
-  if (queryTokens.length > 1) {
-    score += Math.round((matched / queryTokens.length) * 12);
+  if (matchers.length > 1) {
+    score += Math.round((matched / matchers.length) * 12);
+    // A single incidental body/url match out of many tokens is noise, not an answer.
+    if (matched === 1 && matchers.length >= 4 && titleMatched === 0) {
+      score = Math.min(score, 4);
+    }
   }
 
   const wantsBurn = queryTokens.some((token) => ["烧录", "flash", "burn", "镜像"].includes(token));
@@ -97,7 +142,8 @@ function scoreDoc(doc: IndexedDoc, queryTokens: string[]): number {
   if (wantsWifi && /wifi|remote_login|wlan/.test(url)) score += 10;
   if (wantsGpio && /40pin|user_sample/.test(url) && /gpio/.test(url)) score += 8;
   if (wantsCases && (/\/case\/?$/.test(url) || title.includes("应用案例"))) score += 10;
-  if (/\/overview(?:\.html)?$/.test(url) || title.includes("概述")) score += 4;
+  // Prefer the overview entry only among pages that already match the topic.
+  if (titleMatched > 0 && (/\/overview(?:\.html)?$/.test(url) || title.includes("概述"))) score += 4;
   if (/\/faq\/|accessory|release_note|changelog|config_txt/.test(url)) score -= 6;
 
   return score;
@@ -110,10 +156,11 @@ function canonicalUrl(url: string): string {
 export function rankHits(docs: IndexedDoc[], query: string, limit: number): SearchHit[] {
   const queryTokens = tokens(query);
   if (queryTokens.length === 0) return [];
+  const matchers = queryTokens.map(buildMatcher);
 
   const best = new Map<string, SearchHit>();
   for (const doc of docs) {
-    const score = scoreDoc(doc, queryTokens);
+    const score = scoreDoc(doc, matchers);
     if (score <= 0) continue;
     const url = canonicalUrl(doc.url);
     const hit: SearchHit = {
