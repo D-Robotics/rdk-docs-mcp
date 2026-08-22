@@ -58,7 +58,9 @@ export function forumListing() {
     description: "社区经验补充，不是官方规范。手册未覆盖时再查；list_toc 列出「开发与问题」和「通用」最近帖。",
     homeUrl: `${FORUM_ORIGIN}/`,
     searchable: true,
+    indexKind: "discourse" as const,
     aliases: FORUM_ALIASES.filter((alias) => alias !== FORUM_ID),
+    note: "forum 不是手册 search-index，没有未知索引。MCP 已走 Discourse JSON。不要暂停这个入口，不要自己请求论坛 HTML 或 /search.json。",
   };
 }
 

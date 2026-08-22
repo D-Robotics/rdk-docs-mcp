@@ -31,10 +31,11 @@ description: Retrieves official D-Robotics RDK documentation from developer.d-ro
 - **手册是规范**：步骤、接口、版本以 `developer.d-robotics.cc` 为准。答案主体必须来自手册。
 - **论坛是补充**：报错、兼容性、别人踩过的坑。引用时标明「社区经验，非正式文档」，不要把个别回复写成官方规定。
 - 两者冲突时只采用手册说法；论坛最多作为「有人这样处理过」附在后面。
+- `list_manuals` 里的 `forum` **没有**手册 `search-index.json`，这是正常的，`indexKind=discourse`。不要说「社区目录未加载 / forum 返回未知索引」，不要暂停论坛入口。
 
 ## 禁区
 
 - 不要用 `get_page` 打开除 `developer.d-robotics.cc` / `forum.d-robotics.cc` 以外的地址。
-- 不要 WebFetch / 爬论坛 HTML。论坛有 Discourse JSON：`search_docs`、`list_toc(manual=forum)`、`get_page(帖子 URL)`。
+- 不要 WebFetch、不要爬论坛 HTML，也不要自己请求 `forum.d-robotics.cc` 的 `/search.json` 或 `/t/{id}.json`。论坛检索只走 MCP：`search_docs`（`source=forum` / `manual=forum`）、`list_toc(manual=forum)`、`get_page(帖子或板块 URL)`。
 - 不要一次拉超过 3 篇长文；先搜再精读。
 - 旧版资料在 `https://developer.d-robotics.cc/information`，不在这套索引里。需要时用 `get_page` 打开该页，不要假装已索引。

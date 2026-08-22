@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   compactDiscourseSearch,
   compactDiscourseTopicList,
   forumHitsFromDocs,
+  forumListing,
   forumTopicJsonUrl,
   parseForumCategoryId,
   parseForumTopicId,
@@ -49,6 +53,30 @@ const topicFixture = {
     ],
   },
 };
+
+describe("forumListing", () => {
+  it("marks forum as Discourse-backed, not a missing docs index", () => {
+    const listing = forumListing();
+    expect(listing.id).toBe("forum");
+    expect(listing.indexKind).toBe("discourse");
+    expect(listing.searchable).toBe(true);
+    expect(listing.note).toMatch(/不是手册 search-index/);
+    expect(listing.note).toMatch(/不要暂停/);
+    expect(listing.note).toMatch(/不要自己请求/);
+  });
+});
+
+describe("rdk-docs skill", () => {
+  it("forbids pausing forum or calling Discourse outside MCP", () => {
+    const skill = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills", "rdk-docs", "SKILL.md"),
+      "utf8",
+    );
+    expect(skill).toContain("不要说「社区目录未加载");
+    expect(skill).toContain("也不要自己请求 `forum.d-robotics.cc`");
+    expect(skill).not.toMatch(/论坛有 Discourse JSON：/);
+  });
+});
 
 describe("compactDiscourseSearch", () => {
   it("turns Discourse search topics into official forum URLs", () => {

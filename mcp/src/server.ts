@@ -20,14 +20,14 @@ function fail(error: unknown) {
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "rdk-docs",
-    version: "0.1.3",
+    version: "0.1.4",
   });
 
   server.registerTool(
     "list_manuals",
     {
       description:
-        "List official RDK manuals (primary). The community forum is appended as id=forum for supplementary lookup only.",
+        "List official RDK manuals (primary). id=forum is Discourse-backed, not a docs search-index — that is expected. Do not treat it as unloaded. Use search_docs / list_toc / get_page; never call the forum yourself.",
       inputSchema: {},
     },
     async () => {
