@@ -86,4 +86,10 @@ curl -fsSL https://cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/SKILL.md \
 
 ## 五、更新
 
-用户以后仍给**同一句话、同一个 URL**。再执行第二节那条 `--install` 会覆盖 Skill；MCP 配置保持 `@latest`，重启后用新工具。不要让用户改 JSON。
+用户以后仍给**同一句话、同一个 URL**。
+
+- MCP 配置保持 `@latest`，**下次启动 MCP** 会拉新工具。
+- 已经装过的 `rdk-docs/SKILL.md` 也会在 **MCP 启动时** 用当前包里的 Skill 覆盖。你发新版本后，用户只要重启 Agent / 重载 MCP，工具和用法说明一起更新。
+- 第一次安装、或某客户端还没有 Skill 时，仍跑第二节的 `--install`。启动时不会往没装过的客户端里新建 Skill。
+
+不要让用户改 JSON。

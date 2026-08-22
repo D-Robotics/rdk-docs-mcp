@@ -20,7 +20,7 @@ function fail(error: unknown) {
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "rdk-docs",
-    version: "0.1.1",
+    version: "0.1.2",
   });
 
   server.registerTool(

@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { installRdkDocs, MCP_SERVER } from "./install.js";
+import { installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
 
 const skillBody = `---
 name: rdk-docs
@@ -51,6 +51,29 @@ describe("installRdkDocs", () => {
   });
 });
 
+describe("refreshInstalledSkills", () => {
+  it("overwrites an already installed Skill and leaves clients without one alone", () => {
+    const root = home();
+    mkdirSync(join(root, ".cursor", "skills", "rdk-docs"), { recursive: true });
+    mkdirSync(join(root, ".claude"), { recursive: true });
+    writeFileSync(join(root, ".cursor", "skills", "rdk-docs", "SKILL.md"), "# stale\n");
+
+    const updated = refreshInstalledSkills({ home: root, skillSource: "# fresh\n" });
+
+    expect(updated).toEqual([join(root, ".cursor", "skills", "rdk-docs", "SKILL.md")]);
+    expect(readFileSync(join(root, ".cursor", "skills", "rdk-docs", "SKILL.md"), "utf8")).toBe("# fresh\n");
+    expect(existsSync(join(root, ".claude", "skills", "rdk-docs", "SKILL.md"))).toBe(false);
+  });
+
+  it("does not write MCP config", () => {
+    const root = home();
+    mkdirSync(join(root, ".cursor", "skills", "rdk-docs"), { recursive: true });
+    writeFileSync(join(root, ".cursor", "skills", "rdk-docs", "SKILL.md"), "# stale\n");
+    refreshInstalledSkills({ home: root, skillSource: "# fresh\n" });
+    expect(existsSync(join(root, ".cursor", "mcp.json"))).toBe(false);
+  });
+});
+
 describe("install.md", () => {
   it("tells the agent to run the one-line installer and not clone a repo", () => {
     const path = join(dirname(fileURLToPath(import.meta.url)), "..", "install.md");
@@ -59,5 +82,6 @@ describe("install.md", () => {
     expect(body).toContain("不要 `git clone`");
     expect(body).toContain("cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/SKILL.md");
     expect(body).toContain("~/.zcode/cli/config.json");
+    expect(body).toContain("MCP 启动时");
   });
 });

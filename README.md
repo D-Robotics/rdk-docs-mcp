@@ -16,7 +16,7 @@
 
 Agent 会拉到安装剧本，执行 `npx -y rdk-docs-mcp@latest --install`，写入 MCP + Skill。不要把 JSON 或仓库地址发给用户。源码仓库可以 private；安装物是 npm 包。
 
-装完后重载 MCP / 重启会话。之后发新版本：同一句话再执行一次会覆盖 Skill；MCP 保持 `@latest`，下次启动跟新工具。
+装完后重载 MCP / 重启会话。之后发新版本：MCP 是 `@latest`，已安装的 Skill 会在 **下次 MCP 启动时** 被当前包装盖。用户不用再跑安装，也不用改那一行字。
 
 jsDelivr 不可用时，同一文件在：
 

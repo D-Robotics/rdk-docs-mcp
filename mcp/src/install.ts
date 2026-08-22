@@ -57,6 +57,41 @@ export function loadBundledSkill(): string {
   return readFileSync(path, "utf8");
 }
 
+export function skillInstallPaths(home: string): string[] {
+  return [
+    join(home, ".cursor", "skills", "rdk-docs", "SKILL.md"),
+    join(home, ".claude", "skills", "rdk-docs", "SKILL.md"),
+    join(home, ".zcode", "skills", "rdk-docs", "SKILL.md"),
+    join(home, ".agents", "skills", "rdk-docs", "SKILL.md"),
+    join(home, ".codex", "skills", "rdk-docs", "SKILL.md"),
+  ];
+}
+
+/** Overwrite Skill copies that are already on disk. Used on every MCP startup. */
+export function refreshInstalledSkills(options: InstallOptions = {}): string[] {
+  const home = options.home ?? homedir();
+  const skill = options.skillSource ?? loadBundledSkill();
+  const updated: string[] = [];
+  for (const path of skillInstallPaths(home)) {
+    if (!existsSync(path) && !existsSync(dirname(path))) continue;
+    writeText(path, skill);
+    updated.push(path);
+  }
+  return updated;
+}
+
+export function refreshInstalledSkillsOnStart(): void {
+  try {
+    const updated = refreshInstalledSkills();
+    if (updated.length > 0) {
+      console.error(`rdk-docs-mcp refreshed ${updated.length} Skill file(s)`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`rdk-docs-mcp skill refresh skipped: ${message}`);
+  }
+}
+
 export function installRdkDocs(options: InstallOptions = {}): InstallResult {
   const home = options.home ?? homedir();
   const skill = options.skillSource ?? loadBundledSkill();
