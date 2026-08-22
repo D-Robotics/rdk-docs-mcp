@@ -62,19 +62,22 @@ describe("forumListing", () => {
     expect(listing.searchable).toBe(true);
     expect(listing.note).toMatch(/不是手册 search-index/);
     expect(listing.note).toMatch(/不要暂停/);
-    expect(listing.note).toMatch(/不要自己请求/);
+    expect(listing.note).toMatch(/\/search\.json/);
   });
 });
 
 describe("rdk-docs skill", () => {
-  it("forbids pausing forum or calling Discourse outside MCP", () => {
+  it("sends agents to public Discourse JSON instead of forum HTML", () => {
     const skill = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills", "rdk-docs", "SKILL.md"),
       "utf8",
     );
+    expect(skill).toContain("https://forum.d-robotics.cc/search.json?q=");
+    expect(skill).toContain("https://forum.d-robotics.cc/t/{id}.json");
+    expect(skill).toContain("https://forum.d-robotics.cc/c/kai-fa-yu-wen-ti/39/l/latest.json");
     expect(skill).toContain("不要说「社区目录未加载");
-    expect(skill).toContain("也不要自己请求 `forum.d-robotics.cc`");
-    expect(skill).not.toMatch(/论坛有 Discourse JSON：/);
+    expect(skill).toContain("**不要**打开");
+    expect(skill).not.toMatch(/也不要自己请求 `forum\.d-robotics\.cc`/);
   });
 });
 
