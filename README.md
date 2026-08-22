@@ -4,7 +4,7 @@
 
 模型自己记不住板端手册里的烧录步骤、接口名和版本号。这个仓库把官方文档变成 **MCP 工具 + Skill**：Agent 先搜手册，再打开原文回答，并带上可点击链接。
 
-适用于 Cursor、ZCode、Claude Code、Claude Desktop、VS Code Copilot，以及任何支持 [MCP](https://modelcontextprotocol.io/) 的 Agent。
+适用于 Cursor、ZCode、DeepSeek Harness、Claude Code、Claude Desktop、VS Code Copilot，以及任何支持 [MCP](https://modelcontextprotocol.io/) 的 Agent。
 
 ## 给 Agent 的安装句（对外只留这一行）
 

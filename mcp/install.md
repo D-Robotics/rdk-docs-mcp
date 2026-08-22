@@ -32,6 +32,7 @@ npx -y rdk-docs-mcp@latest --install
 | ZCode | `~/.zcode/cli/config.json` 的 `mcp.servers.rdk-docs` | `~/.zcode/skills/rdk-docs/SKILL.md` 和 `~/.agents/skills/rdk-docs/SKILL.md` |
 | Claude Code | （Skill） | `~/.claude/skills/rdk-docs/SKILL.md` |
 | Codex | （Skill） | `~/.codex/skills/rdk-docs/SKILL.md` |
+| DeepSeek Harness | `~/.dsh/cordis.patch.yml` 挂 `@deepseek-ai/dsh-mcp-client` | `~/.dsh/skills/rdk-docs/SKILL.md` 和 `~/.agents/skills/rdk-docs/SKILL.md` |
 
 已有其它 MCP / Skill 会保留，只覆盖 `rdk-docs` 这一项。MCP 指向 `npx -y rdk-docs-mcp@latest`，之后发新版本，**下次启动 MCP** 会跟到 latest。
 
@@ -59,6 +60,20 @@ npx -y rdk-docs-mcp@latest --install
 - Claude Code：`claude mcp add --scope user --transport stdio rdk-docs -- npx -y rdk-docs-mcp@latest`
 - VS Code / Copilot：用户 `mcp.json` 的 `servers` 字段，内容同上（`command` / `args`）
 - Claude Desktop：`~/Library/Application Support/Claude/claude_desktop_config.json` 的 `mcpServers`
+- DeepSeek Harness：合并进 `~/.dsh/cordis.patch.yml`（机器级，对所有 profile 生效）：
+
+```yaml
+- insert:
+    - id: mcp-rdk-docs
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: rdk-docs
+        transport: stdio
+        command: npx
+        args: ['-y', 'rdk-docs-mcp@latest']
+```
+
+然后重启 Harness。工具名是 `mcp__rdk-docs__search_docs` 这类带前缀的名字。
 
 Skill 从同一包拉取后写入对应目录（覆盖同名文件）：
 

@@ -42,6 +42,28 @@ describe("installRdkDocs", () => {
     expect(readFileSync(join(root, ".zcode", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
   });
 
+  it("mounts DeepSeek Harness via cordis.patch.yml and user skills", () => {
+    const root = home();
+    mkdirSync(join(root, ".dsh"));
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+    const patch = readFileSync(join(root, ".dsh", "cordis.patch.yml"), "utf8");
+    expect(patch).toContain("id: mcp-rdk-docs");
+    expect(patch).toContain("@deepseek-ai/dsh-mcp-client");
+    expect(patch).toContain("rdk-docs-mcp@latest");
+    expect(result.mcp).toContain(join(root, ".dsh", "cordis.patch.yml"));
+    expect(readFileSync(join(root, ".dsh", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
+    expect(readFileSync(join(root, ".agents", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
+  });
+
+  it("does not duplicate the DeepSeek Harness MCP insert", () => {
+    const root = home();
+    mkdirSync(join(root, ".dsh"));
+    writeFileSync(join(root, ".dsh", "cordis.patch.yml"), "- insert:\n    - id: mcp-rdk-docs\n      name: keep\n");
+    installRdkDocs({ home: root, skillSource: skillBody });
+    const patch = readFileSync(join(root, ".dsh", "cordis.patch.yml"), "utf8");
+    expect(patch.match(/id:\s*mcp-rdk-docs/g)?.length).toBe(1);
+  });
+
   it("does nothing when no supported client directory exists", () => {
     const root = home();
     const result = installRdkDocs({ home: root, skillSource: skillBody });
@@ -82,6 +104,7 @@ describe("install.md", () => {
     expect(body).toContain("不要 `git clone`");
     expect(body).toContain("cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/SKILL.md");
     expect(body).toContain("~/.zcode/cli/config.json");
+    expect(body).toContain("~/.dsh/cordis.patch.yml");
     expect(body).toContain("MCP 启动时");
   });
 });

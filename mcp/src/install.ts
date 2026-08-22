@@ -8,6 +8,17 @@ export const MCP_SERVER = {
   args: ["-y", "rdk-docs-mcp@latest"],
 } as const;
 
+/** Home-level DSH patch so every profile picks up the MCP client bridge. */
+export const DSH_MCP_PATCH = `- insert:
+    - id: mcp-rdk-docs
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: rdk-docs
+        transport: stdio
+        command: npx
+        args: ['-y', 'rdk-docs-mcp@latest']
+`;
+
 export type InstallResult = {
   mcp: string[];
   skills: string[];
@@ -64,7 +75,16 @@ export function skillInstallPaths(home: string): string[] {
     join(home, ".zcode", "skills", "rdk-docs", "SKILL.md"),
     join(home, ".agents", "skills", "rdk-docs", "SKILL.md"),
     join(home, ".codex", "skills", "rdk-docs", "SKILL.md"),
+    join(home, ".dsh", "skills", "rdk-docs", "SKILL.md"),
   ];
+}
+
+export function ensureDshMcpPatch(path: string): boolean {
+  const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
+  if (/id:\s*mcp-rdk-docs\b/.test(existing)) return false;
+  const prefix = existing.length === 0 ? "" : existing.endsWith("\n") ? existing : `${existing}\n`;
+  writeText(path, `${prefix}${prefix ? "\n" : ""}${DSH_MCP_PATCH}`);
+  return true;
 }
 
 /** Overwrite Skill copies that are already on disk. Used on every MCP startup. */
@@ -144,9 +164,22 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
     result.skills.push(skillPath);
   }
 
+  const dsh = join(home, ".dsh");
+  if (existsSync(dsh)) {
+    const patchPath = join(dsh, "cordis.patch.yml");
+    ensureDshMcpPatch(patchPath);
+    result.mcp.push(patchPath);
+    const dshSkill = join(dsh, "skills", "rdk-docs", "SKILL.md");
+    writeText(dshSkill, skill);
+    result.skills.push(dshSkill);
+    const agentsSkill = join(home, ".agents", "skills", "rdk-docs", "SKILL.md");
+    writeText(agentsSkill, skill);
+    if (!result.skills.includes(agentsSkill)) result.skills.push(agentsSkill);
+  }
+
   if (result.mcp.length === 0 && result.skills.length === 0) {
     result.warnings.push(
-      "No Cursor / Claude / ZCode / Codex directory found. Create one, or merge the MCP snippet from install.md yourself.",
+      "No Cursor / Claude / ZCode / Codex / DeepSeek Harness directory found. Create one, or merge the MCP snippet from install.md yourself.",
     );
   }
 
