@@ -1,7 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { listManuals } from "./catalog.js";
-import { forumListing } from "./forum.js";
 import { fetchText } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
 
@@ -20,31 +19,28 @@ function fail(error: unknown) {
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "rdk-docs",
-    version: "0.1.5",
+    version: "0.1.6",
   });
 
   server.registerTool(
     "list_manuals",
     {
       description:
-        "List official RDK manuals (primary). id=forum is Discourse-backed, not a docs search-index. Community search is the public JSON at forum.d-robotics.cc/search.json (see the Skill). MCP forum tools wrap the same endpoints.",
+        "List official RDK manuals only. Community posts are not in this catalog — GET https://forum.d-robotics.cc/search.json as described in the Skill.",
       inputSchema: {},
     },
     async () => {
       try {
         return ok(
-          [
-            ...listManuals().map((manual) => ({
-              id: manual.id,
-              title: manual.title,
-              category: manual.category,
-              description: manual.description,
-              homeUrl: manual.homeUrl,
-              searchable: manual.searchable,
-              aliases: manual.aliases,
-            })),
-            forumListing(),
-          ],
+          listManuals().map((manual) => ({
+            id: manual.id,
+            title: manual.title,
+            category: manual.category,
+            description: manual.description,
+            homeUrl: manual.homeUrl,
+            searchable: manual.searchable,
+            aliases: manual.aliases,
+          })),
         );
       } catch (error) {
         return fail(error);
@@ -56,13 +52,13 @@ export function createServer(): McpServer {
     "search_docs",
     {
       description:
-        "Search official RDK manuals first. If a hit has role=official-start, open that URL with get_page before anything else — it is the documented best-practice page. Named manual searches that book only. With no manual, results are docs-majority and at most a few forum hits as supplement. Use source=forum or manual=forum only when official docs are missing.",
+        "Search official RDK manuals. If a hit has role=official-start, open that URL with get_page first. Named manual searches that book only. Default is manuals only. Do not use this tool for community experience — GET https://forum.d-robotics.cc/search.json instead.",
       inputSchema: {
         query: z.string().describe("Chinese or English search keywords"),
         manual: z
           .string()
           .optional()
-          .describe("Manual id or alias, e.g. rdk-x, x5, tros, studio, forum"),
+          .describe("Manual id or alias, e.g. rdk-x, x5, tros, studio"),
         source: z
           .enum(["docs", "forum", "all"])
           .optional()
@@ -83,12 +79,12 @@ export function createServer(): McpServer {
     "get_page",
     {
       description:
-        "Fetch one official doc page (preferred) or a forum topic/category as Markdown. Forum category and homepage URLs return recent topic lists. Do not scrape forum HTML.",
+        "Fetch one official doc page as Markdown. Prefer developer.d-robotics.cc URLs from search_docs.",
       inputSchema: {
         url: z
           .string()
           .describe(
-            "Official doc URL, or forum topic /t/{id}, category /c/.../{id}, or https://forum.d-robotics.cc/",
+            "Official documentation URL on developer.d-robotics.cc",
           ),
         maxChars: z.number().int().min(1000).max(40000).optional(),
       },
@@ -106,9 +102,9 @@ export function createServer(): McpServer {
     "list_toc",
     {
       description:
-        "List pages in one official RDK manual. Use manual=forum only as a supplement to list recent 开发与问题 / 通用 topics.",
+        "List pages in one official RDK manual.",
       inputSchema: {
-        manual: z.string().describe("Manual id or alias, or forum"),
+        manual: z.string().describe("Manual id or alias, e.g. rdk-x, rdk-s, tros"),
         query: z.string().optional().describe("Optional title filter"),
       },
     },

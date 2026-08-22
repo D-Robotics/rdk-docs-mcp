@@ -8,10 +8,12 @@
 
 | 工具 | 作用 |
 |------|------|
-| `list_manuals` | 列出资料中心全部手册 + 社区源 `forum` |
-| `search_docs` | 中英文检索。指定手册只搜那一本；不指定时手册为主、论坛为辅。`source` 可选 `docs` / `forum` / `all` |
-| `get_page` | 打开手册页或论坛主题，返回 Markdown |
-| `list_toc` | 列手册目录；`manual=forum` 列出「开发与问题」和「通用」最近帖 |
+| `list_manuals` | 列出资料中心全部手册 |
+| `search_docs` | 只搜官方手册。指定手册只搜那一本 |
+| `get_page` | 打开手册页，返回 Markdown |
+| `list_toc` | 列一本手册的目录 |
+
+社区经验不走上述工具，直接 GET `https://forum.d-robotics.cc/search.json?q=`。
 
 ## 覆盖范围
 

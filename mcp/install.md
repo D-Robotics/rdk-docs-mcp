@@ -89,7 +89,7 @@ curl -fsSL https://cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/SKILL.md \
 
 ## 四、装完自检
 
-能调 MCP 的话，跑一次 `list_manuals`，确认返回里有 `rdk-x` / `rdk-s` / `forum`。
+能调 MCP 的话，跑一次 `list_manuals`，确认返回里有 `rdk-x` / `rdk-s`。社区经验不在这个目录里，查 `https://forum.d-robotics.cc/search.json`。
 
 然后告诉用户可以这样问：
 

@@ -5,80 +5,57 @@ description: Retrieves official D-Robotics RDK documentation from developer.d-ro
 
 # RDK 资料中心 + 社区论坛
 
-查阅官方手册时走 MCP，不要用训练记忆代替原文。论坛只作补充，走站点公开的 Discourse JSON，不要抓网页 HTML。
+手册走 MCP。社区经验走论坛公开的 Discourse JSON。两件事分开，不要混成「文档连接器的论坛索引」。
 
-## 工具（手册）
+不要向用户汇报「论坛索引不可用 / 社区目录未加载 / 未知索引」。论坛本来就不在 MCP 手册目录里。也不要改用通用网页搜索。
 
-| 顺序 | Tool | 用途 |
-|------|------|------|
-| 1 | `list_manuals` | 不知道该查哪本手册时先看目录 |
-| 2 | `search_docs` | 搜手册。指定手册只搜那一本 |
-| 3 | `get_page` | 打开手册页。Rspress 空壳会从站点 `search_index` 还原 |
-| 4 | `list_toc` | 列一本手册的目录 |
+## 手册（MCP）
 
-`list_manuals` 里的 `forum` 没有手册 `search-index.json`，这是正常的（`indexKind=discourse`）。不要说「社区目录未加载 / 未知索引」，不要暂停。社区检索用下面的 JSON，或等价的 MCP 论坛工具。
+| Tool | 用途 |
+|------|------|
+| `list_manuals` | 手册目录。只有官方手册，没有 forum |
+| `search_docs` | 只搜手册。指定手册 id 更准 |
+| `get_page` | 打开手册 URL |
+| `list_toc` | 一本手册的目录 |
 
-## 流程
+1. 识别产品：X3/X5 → `rdk-x` / `x5`；S100/S600 → `rdk-s`；TROS → `tros`；烧录 → `xburn`；Studio → `studio`。
+2. `search_docs`，查询词用用户中文原词，必要时再补英文。
+3. 有 `role=official-start` 就先 `get_page` 打开它。
+4. 手册能回答的部分以手册为准，带可点击链接。
+5. S 系列 OE / OE LLM 是 Rspress 空壳，`get_page` 会从站点 `search_index` 还原正文。
 
-1. 从问题里识别产品：X3/X5 → `rdk-x` 或别名 `x5`；S100/S600 → `rdk-s`；TROS → `tros`；烧录工具 → `xburn`；Studio → `studio`。
-2. 先 `search_docs` 搜手册，优先带上手册 id。查询词用用户的中文原词，必要时再补英文（flash / PoE / YOLO）。
-3. 返回里若有 `role=official-start`，先 `get_page` 打开这一条。不要先开 related 或论坛。
-4. 手册已经能回答时，不要再开论坛、也不要在答案里并列一篇社区帖。
-5. 只有手册没写、对不上版本，或用户明确问社区怎么说时，再查论坛（下一节）。不要为了论坛去 `search_docs` 全库，那会先拉齐手册索引。
-6. 回答必须带可点击链接。以手册步骤、接口、版本为准。手册没写、论坛也没写，就说没写，不要编。
-7. S 系列 OE / S100·S600 OE LLM（`oe-s`、`oe-llm-s100`、`oe-llm-s600`）按普通手册搜即可。它们是 Rspress CSR，页面 HTML 是空壳，`get_page` 会从站点自带的 `search_index` 还原正文。
+## 社区经验（Discourse JSON）
 
-## 论坛：公开 Discourse JSON
+用户问「有没有开发者经验 / 社区怎么说」或手册没写时，直接 GET 下面的 JSON。无需 Token。只打 `.json`，不要打开论坛 HTML，不要用 Web Search。
 
-无需 Token、无需登录。只 GET 带 `.json` 的地址，或给同一路径加 `Accept: application/json`。**不要**打开 `/t/...`、`/c/...`、首页的 HTML，也不要 WebFetch 论坛网页。
-
-引用链接一律写成可点的主题页：`https://forum.d-robotics.cc/t/{slug}/{id}`（slug 缺省时用 `topic`）。最多打开 3 个主题。引用时标明「社区经验，非正式文档」。
-
-### 1. 搜索
+### 搜索
 
 ```
 GET https://forum.d-robotics.cc/search.json?q=<URL 编码后的用户原词>
 ```
 
-读：
+读 `topics[]` 的 `id`、`title`、`slug`；用 `posts[]` 里相同 `topic_id` 的 `blurb` 当摘要。不要把 `users` / `categories` 当结果。
 
-- `topics[]`：`id`、`title`、`slug`、`tags`
-- `posts[]`：`topic_id`、`username`、`blurb`（摘要，按 `topic_id` 对齐到主题）
-
-先看 `topics` 标题，再用对应 `posts.blurb` 判断是否相关。不要把 `users` / `categories` 当结果。
-
-### 2. 读帖
+### 读帖（最多 3 篇）
 
 ```
 GET https://forum.d-robotics.cc/t/{id}.json
 ```
 
-读 `title`、`tags`、`post_stream.posts[]` 的 `username` 与 `cooked`。`cooked` 是 HTML 片段：剥标签当正文即可，不要再请求同 id 的网页。
+读 `title`、`post_stream.posts[].username` 和 `cooked`。`cooked` 剥标签当正文。引用写成 `https://forum.d-robotics.cc/t/{slug}/{id}`（slug 缺了用 `topic`），并标明「社区经验，非正式文档」。
 
-### 3. 板块最近帖
+### 看板块最近帖（可选）
 
-| 板块 | JSON |
-|------|------|
-| 开发与问题 | `https://forum.d-robotics.cc/c/kai-fa-yu-wen-ti/39/l/latest.json` |
-| 通用 | `https://forum.d-robotics.cc/c/general/4/l/latest.json` |
+- 开发与问题：`https://forum.d-robotics.cc/c/kai-fa-yu-wen-ti/39/l/latest.json`
+- 通用：`https://forum.d-robotics.cc/c/general/4/l/latest.json`
 
-读 `topic_list.topics[]` 的 `id`、`title`、`slug`、`excerpt`。跳过置顶且标题像「关于…类别 / 欢迎来到」的介绍帖。
+读 `topic_list.topics[]`。跳过置顶介绍帖。
 
-其它板块：从用户给的 `/c/.../{id}` 取出最后那个数字，请求 `https://forum.d-robotics.cc/c/{id}/l/latest.json`。
-
-### 和 MCP 的关系
-
-`search_docs(source=forum)` / `list_toc(manual=forum)` / `get_page(论坛 URL)` 封装的就是上面三个 JSON。MCP 在且你已经在用它时，两者等效，不必重复打。MCP 不在、或你只想补社区帖时，直接打 JSON 更快。
-
-## 手册 vs 论坛
-
-- **手册是规范**：步骤、接口、版本以 `developer.d-robotics.cc` 为准。答案主体必须来自手册。
-- **论坛是补充**：报错、兼容性、别人踩过的坑。不要把个别回复写成官方规定。
-- 两者冲突时只采用手册说法；论坛最多作为「有人这样处理过」附在后面。
+手册和论坛冲突时只采用手册。论坛不要和手册步骤并列成官方规定。
 
 ## 禁区
 
-- 手册只用 MCP 打开 `developer.d-robotics.cc`。不要用 `get_page` 打开这两个站以外的地址。
-- 论坛只打上面的 JSON。不要爬论坛 HTML，不要假装 `forum` 是一本带 `search-index.json` 的手册。
-- 不要一次拉超过 3 篇长文；先搜再精读。
-- 旧版资料在 `https://developer.d-robotics.cc/information`，不在手册索引里。需要时用 `get_page` 打开该页，不要假装已索引。
+- 不要用 `get_page` / `search_docs` / `list_toc` 去找论坛，也不要在 `list_manuals` 里找 `forum`。
+- 不要网页搜索、不要爬 `forum.d-robotics.cc` 的 HTML。
+- 不要一次读超过 3 篇帖。
+- 旧版资料：`https://developer.d-robotics.cc/information`，用 `get_page` 打开，不要假装已索引。

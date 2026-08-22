@@ -60,7 +60,7 @@ export function forumListing() {
     searchable: true,
     indexKind: "discourse" as const,
     aliases: FORUM_ALIASES.filter((alias) => alias !== FORUM_ID),
-    note: "forum 不是手册 search-index。社区检索直接 GET 公开 Discourse JSON：/search.json、/t/{id}.json、板块 /l/latest.json。不要抓 HTML，不要暂停。",
+    note: "Community lookup is GET https://forum.d-robotics.cc/search.json — not a handbook search-index and not a web search.",
   };
 }
 

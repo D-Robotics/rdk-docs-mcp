@@ -40,7 +40,7 @@ function resolveSource(manual?: string, source?: SearchSource): SearchSource {
   if (source === "docs" || source === "forum" || source === "all") return source;
   if (manual && isForumRef(manual)) return "forum";
   if (manual) return "docs";
-  return "all";
+  return "docs";
 }
 
 function mergeHits(docs: SearchHit[], forum: SearchHit[], limit: number): SearchHit[] {

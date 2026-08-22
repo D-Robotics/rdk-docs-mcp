@@ -1,5 +1,4 @@
 import { listManuals, resolveManual } from "./catalog.js";
-import { forumListing } from "./forum.js";
 import { scoreDocsFirstMix } from "./eval.js";
 import type { HttpGet } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
@@ -38,10 +37,7 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
       if (missing.length > 0) {
         return { pass: false, reason: `missing manuals: ${missing.join(", ")}` };
       }
-      if (forumListing().id !== "forum") {
-        return { pass: false, reason: "forum listing missing" };
-      }
-      return { pass: true, reason: `${manuals.length} manuals + forum` };
+      return { pass: true, reason: `${manuals.length} manuals` };
     }),
   );
 

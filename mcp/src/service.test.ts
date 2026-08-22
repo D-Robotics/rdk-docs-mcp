@@ -144,7 +144,13 @@ describe("searchDocs", () => {
     expect(result.hits[0]?.title).toMatch(/wifi/i);
   });
 
-  it("mixes official docs and forum hits by default, with docs in the majority", async () => {
+  it("keeps ordinary search on manuals only", async () => {
+    const result = await searchDocs({ query: "wifi", limit: 5 }, http);
+    expect(result.hits.length).toBeGreaterThan(0);
+    expect(result.hits.every((hit) => hit.source === "docs")).toBe(true);
+  });
+
+  it("mixes official docs and forum hits only when source=all", async () => {
     const result = await searchDocs({ query: "wifi", limit: 5, source: "all" }, http);
     const docs = result.hits.filter((hit) => hit.source === "docs");
     const forum = result.hits.filter((hit) => hit.source === "forum");
