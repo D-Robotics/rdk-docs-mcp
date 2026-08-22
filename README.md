@@ -4,7 +4,23 @@
 
 模型自己记不住板端手册里的烧录步骤、接口名和版本号。这个仓库把官方文档变成 **MCP 工具 + Skill**：Agent 先搜手册，再打开原文回答，并带上可点击链接。
 
-适用于 Cursor、Claude Code、Claude Desktop、VS Code Copilot，以及任何支持 [MCP](https://modelcontextprotocol.io/) 的 Agent。
+适用于 Cursor、ZCode、Claude Code、Claude Desktop、VS Code Copilot，以及任何支持 [MCP](https://modelcontextprotocol.io/) 的 Agent。
+
+## 给 Agent 的安装句（对外只留这一行）
+
+把下面这句话复制给当前 AI：
+
+```text
+根据 https://cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/install.md 安装 RDK 文档检索。
+```
+
+Agent 会拉到安装剧本，执行 `npx -y rdk-docs-mcp@latest --install`，写入 MCP + Skill。不要把 JSON 或仓库地址发给用户。源码仓库可以 private；安装物是 npm 包。
+
+装完后重载 MCP / 重启会话。之后发新版本：同一句话再执行一次会覆盖 Skill；MCP 保持 `@latest`，下次启动跟新工具。
+
+jsDelivr 不可用时，同一文件在：
+
+`https://unpkg.com/rdk-docs-mcp@latest/install.md`
 
 ## 价值和功能
 
@@ -58,105 +74,22 @@
 
 ---
 
-## 其他 Agent 怎么用
+## 开发者本机（不对外）
 
-核心就两件事，按你的 Agent 选一条路即可：
-
-1. **装 MCP Server**（让 Agent 真的能搜、能拉页）
-2. **装 Skill**（让 Agent 知道何时搜、按什么顺序用工具）
-
-两条都装，效果最好。只装 MCP 也能搜；只装 Skill 没有工具，等于只有说明书。
-
-先 clone 一次，后面所有 Agent 共用这一份：
+对外安装走上面的 URL，不要让用户 clone。本机改代码时：
 
 ```bash
-git clone https://github.com/QiaolongLi1201/rdk-docs.git
-cd rdk-docs/mcp && npm install && npm run build
+cd mcp && npm install && npm test && npm run build
 ```
 
-`mcp/bin/run.sh` 在缺依赖或缺构建产物时会自动 `npm install` / `npm run build`。需要 Node.js 20+。
-
-把下面的 `<REPO>` 换成你本机的绝对路径，例如 `/Users/you/rdk-docs`。
-
-### Cursor
-
-**方式 A：当本地 Plugin 装（MCP + Skill 一次到位）**
-
-本仓库符合 [Agent Plugins](https://agent-plugins.org/)：根目录有 `plugin.json`、`mcp.json`、`skills/`。
+本地 Plugin symlink（开发调试）：
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
-ln -sfn <REPO> ~/.cursor/plugins/local/rdk-docs
+ln -sfn "$(pwd)" ~/.cursor/plugins/local/rdk-docs
 ```
 
-然后 **Developer: Reload Window**。Customize 里应出现 `rdk-docs` 的 MCP 和 Skill。
-
-**方式 B：只挂 MCP**
-
-把 `examples/cursor.mcp.json` 里的路径改成你的 `<REPO>`，合并进：
-
-- 用户级：`~/.cursor/mcp.json`
-- 或某个项目：`.cursor/mcp.json`
-
-**方式 C：只挂 Skill**
-
-```bash
-mkdir -p ~/.cursor/skills
-ln -sfn <REPO>/skills/rdk-docs ~/.cursor/skills/rdk-docs
-```
-
-项目内也可以放 `.cursor/skills/rdk-docs`。Cursor 还会读 `~/.claude/skills/` 和 `~/.codex/skills/`。
-
-团队若有 Cursor Team Marketplace，可以把本 Git 仓库导入为团队插件，同事一键安装。
-
-### Claude Code
-
-**MCP（推荐，装到当前用户，所有项目可用）**
-
-```bash
-claude mcp add --scope user --transport stdio rdk-docs -- <REPO>/mcp/bin/run.sh
-claude mcp list
-```
-
-或把 `examples/claude.mcp.json` 合并进项目根的 `.mcp.json`（`--scope project`），和仓库一起提交，同事打开项目即可用。
-
-**Skill**
-
-```bash
-mkdir -p ~/.claude/skills
-ln -sfn <REPO>/skills/rdk-docs ~/.claude/skills/rdk-docs
-```
-
-### Claude Desktop
-
-编辑 Claude Desktop 的 MCP 配置（macOS 一般是 `~/Library/Application Support/Claude/claude_desktop_config.json`），合并 `examples/claude-desktop.json`，把路径换成 `<REPO>`，然后重启 Desktop。
-
-Skill：同样 symlink 到 `~/.claude/skills/rdk-docs`。
-
-### VS Code / GitHub Copilot
-
-在用户或工作区 `mcp.json` 里加入 `examples/vscode.mcp.json` 那一段（VS Code 用 `servers` 字段）。需要已开启 Copilot Agent / MCP。
-
-Skill 不是 VS Code 的一等概念；把 `skills/rdk-docs/SKILL.md` 写进项目的 `.github/copilot-instructions.md` 或仓库 `AGENTS.md` 即可。
-
-### 任意 MCP Client
-
-只要能拉起本地 stdio 进程：
-
-```text
-command: <REPO>/mcp/bin/run.sh
-```
-
-或：
-
-```text
-command: node
-args:    [<REPO>/mcp/dist/index.js]
-```
-
-第二种需要先 `cd mcp && npm install && npm run build`。
-
-然后再把 `skills/rdk-docs/SKILL.md` 拷到该 Agent 的 skills 目录（Cursor / Claude / Codex 都认 `SKILL.md` 开放标准）。
+手动合并 MCP 片段见 `examples/*.mcp.json`（均已是 `npx -y rdk-docs-mcp@latest`）。
 
 ---
 

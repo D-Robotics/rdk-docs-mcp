@@ -28,7 +28,13 @@
 
 ## 在客户端里怎么用
 
-Cursor / Claude / 通义灵码 / Cherry Studio 等，把下面配置加到 MCP 设置：
+给 Agent 复制这一句即可（MCP + Skill 一起装）：
+
+```text
+根据 https://cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/install.md 安装 RDK 文档检索。
+```
+
+或在客户端 MCP 设置里加：
 
 ```json
 {

@@ -1,6 +1,7 @@
 mcp/node_modules/
 mcp/dist/
 mcp/*.tsbuildinfo
+mcp/SKILL.md
 .DS_Store
 .env
 .env.*

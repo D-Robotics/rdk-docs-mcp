@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "rdk-docs": {
-      "command": "/ABS/PATH/TO/rdk-docs/mcp/bin/run.sh"
+      "command": "npx",
+      "args": ["-y", "rdk-docs-mcp@latest"]
     }
   }
 }
