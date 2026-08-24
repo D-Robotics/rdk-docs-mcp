@@ -174,6 +174,11 @@ describe("rankHits", () => {
     expect(hits[0]?.title).toBe("系统烧录");
   });
 
+  it("maps glossary alias 刷机 to canonical 烧录", () => {
+    const hits = rankHits(docs, "刷机", 5);
+    expect(hits[0]?.title).toBe("系统烧录");
+  });
+
   it("puts the official how-to page first for S100 flashing", () => {
     const hits = rankHits(
       [

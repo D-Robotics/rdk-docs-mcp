@@ -1,3 +1,4 @@
+import { GLOSSARY_ALIASES } from "./glossary-aliases.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
 
 /** Question filler that carries no retrieval signal in Chinese queries. */
@@ -28,6 +29,20 @@ const SYNONYMS: Record<string, string[]> = {
   install: ["安装"],
 };
 
+/** 并集合并多份同义词表:key 冲突时数组取并集,而非后者覆盖前者。 */
+function mergeSynonyms(...maps: Array<Record<string, string[]>>): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const map of maps) {
+    for (const [key, extras] of Object.entries(map)) {
+      out[key] = [...new Set([...(out[key] ?? []), ...extras])];
+    }
+  }
+  return out;
+}
+
+// 手写语义同义(SYNONYMS)+ glossary 派生的写法归范别名(GLOSSARY_ALIASES),单点并集合并。
+const ALL_SYNONYMS = mergeSynonyms(SYNONYMS, GLOSSARY_ALIASES);
+
 const CJK_RUN = /[\u4e00-\u9fff]+/g;
 
 function cjkBigrams(query: string): string[] {
@@ -57,7 +72,7 @@ export function tokens(query: string): string[] {
   for (const gram of cjkBigrams(lowered)) {
     seen.add(gram);
   }
-  for (const [key, extras] of Object.entries(SYNONYMS)) {
+  for (const [key, extras] of Object.entries(ALL_SYNONYMS)) {
     if (seen.has(key)) {
       extras.forEach((item) => seen.add(item));
     }
