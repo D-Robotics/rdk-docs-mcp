@@ -36,9 +36,6 @@ export const GLOSSARY_ALIASES: Record<string, string[]> = {
   "rdk-x5": [
     "rdk x5"
   ],
-  "rdk_miniboot_update": [
-    "rdk-miniboot-update"
-  ],
   "rdks100": [
     "rdk s100"
   ],
@@ -99,8 +96,5 @@ export const GLOSSARY_ALIASES: Record<string, string[]> = {
   ],
   "登陆": [
     "登录"
-  ],
-  "裸板": [
-    "空板"
   ]
 };
