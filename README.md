@@ -50,30 +50,6 @@ jsDelivr 不可用时，同一文件在：
 
 ---
 
-## 魔搭 MCP 广场（推荐对外分发）
-
-国内用户走 [魔搭 MCP 广场](https://www.modelscope.cn/mcp) 安装。托管配置见 `modelscope/mcp-config.json`，介绍文案见 `modelscope/README.md`。
-
-客户端手动加：
-
-```json
-{
-  "mcpServers": {
-    "rdk-docs": {
-      "command": "npx",
-      "args": ["-y", "rdk-docs-mcp@latest"]
-    }
-  }
-}
-```
-
-你更新 npm 包并在魔搭保存同一配置后，用户下次启动会拉到新版本（`npx -y`）。
-
-创建入口：https://modelscope.cn/mcp/servers/create?template=customize  
-选「可托管部署」，配置贴上面这段 JSON。
-
----
-
 ## 开发者本机（不对外）
 
 对外安装走上面的 URL，不要让用户 clone。本机改代码时：
