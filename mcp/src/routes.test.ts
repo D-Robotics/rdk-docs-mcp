@@ -48,6 +48,17 @@ describe("matchOfficialPath", () => {
     expect(matchOfficialPath("看下RDK有哪些案例可以参考")?.url).toMatch(/\/case$/);
     expect(matchOfficialPath("应用案例", "case-s600")?.url).toMatch(/\/case$/);
   });
+
+  it("does not pin X5 how-to pages onto an X3-only question", () => {
+    expect(matchOfficialPath("RDK X3 是否支持 PoE", "rdk-x")?.url ?? "").not.toMatch(/\/POE$/i);
+    expect(matchOfficialPath("RDK X3 的 HDMI 最高分辨率", "rdk-x")?.url ?? "").not.toMatch(/display_rdkx5/);
+    expect(matchOfficialPath("RDK X3 Micro SD 卡推荐容量", "rdk-x")?.url ?? "").not.toMatch(/burn-sd-card/);
+  });
+
+  it("still pins X5 PoE / HDMI when the question is about X5", () => {
+    expect(matchOfficialPath("RDK X5 PoE", "rdk-x")?.url).toMatch(/\/POE$/i);
+    expect(matchOfficialPath("RDK X5 HDMI", "rdk-x")?.url).toMatch(/display_rdkx5/);
+  });
 });
 
 describe("applyOfficialPath", () => {

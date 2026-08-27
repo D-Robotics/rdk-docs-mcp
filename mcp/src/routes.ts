@@ -1,5 +1,6 @@
 import { resolveManual } from "./catalog.js";
 import { isForumRef } from "./forum.js";
+import { soleBoard, type BoardId } from "./products.js";
 import type { SearchHit } from "./types.js";
 
 export type OfficialPath = {
@@ -12,6 +13,7 @@ export type OfficialPath = {
   manuals: string[];
   scope: "named-manual" | "product" | "global";
   product?: RegExp;
+  boards?: BoardId[];
 };
 
 const ORIGIN = "https://developer.d-robotics.cc";
@@ -32,6 +34,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s", "rdk-studio", "xburn"],
     scope: "product",
     product: /s100|s100p/i,
+    boards: ["s100"],
   },
   {
     id: "x5-sd-flash",
@@ -39,9 +42,10 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     url: `${ORIGIN}/rdk_x_doc/Quick_start/system-burn/burn-sd-card`,
     manual: "rdk-x",
     why: "X 系列 SD 卡烧录的官方步骤页。",
-    query: /flash\s*sd|sd\s*卡|burn-sd/i,
+    query: /flash\s*sd|(?:烧录|镜像).{0,12}sd|sd.{0,12}(?:烧录|镜像)/i,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-burn",
@@ -62,7 +66,9 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     why: "X5 PoE 的官方硬件说明。",
     query: /poe/i,
     manuals: ["rdk-x"],
-    scope: "global",
+    scope: "product",
+    product: /x5/i,
+    boards: ["x5"],
   },
   {
     id: "tros-install",
@@ -137,6 +143,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s", "rdk-studio"],
     scope: "product",
     product: /s600/i,
+    boards: ["s600"],
   },
   {
     id: "studio-flash",
@@ -187,6 +194,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     query: /hdmi/i,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-usb-camera",
@@ -197,6 +205,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     query: /usb\s*摄像头|usb\s*camera/i,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-can",
@@ -207,6 +216,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     query: /\bcan\b|CAN/,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-i2c",
@@ -238,6 +248,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s"],
     scope: "product",
     product: /s100|s100p/i,
+    boards: ["s100"],
   },
   {
     id: "s600-gpio",
@@ -249,6 +260,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s"],
     scope: "product",
     product: /s600/i,
+    boards: ["s600"],
   },
   {
     id: "s-network",
@@ -401,6 +413,12 @@ function mentionsProduct(path: OfficialPath, query: string, manual?: string): bo
   return path.product.test(query) || Boolean(manual && path.product.test(manual));
 }
 
+function boardConflict(path: OfficialPath, query: string): boolean {
+  const sole = soleBoard(query);
+  if (!sole || !path.boards?.length) return false;
+  return !path.boards.includes(sole);
+}
+
 export function matchOfficialPath(query: string, manual?: string): OfficialPath | undefined {
   if (manual && isForumRef(manual)) return undefined;
   const resolved = manual ? resolveManual(manual)?.id : undefined;
@@ -409,10 +427,12 @@ export function matchOfficialPath(query: string, manual?: string): OfficialPath 
     if (resolved) {
       if (!path.manuals.includes(resolved)) continue;
       if (path.scope === "product" && !mentionsProduct(path, query, manual)) continue;
+      if (boardConflict(path, query)) continue;
       return path;
     }
     if (path.scope === "named-manual") continue;
     if (path.scope === "product" && !mentionsProduct(path, query, manual)) continue;
+    if (boardConflict(path, query)) continue;
     return path;
   }
   return undefined;
