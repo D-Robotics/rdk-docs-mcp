@@ -20,9 +20,11 @@ description: Retrieves official D-Robotics RDK documentation from developer.d-ro
 
 1. 识别产品：X3/X5 → `rdk-x` / `x5`；S100/S600 → `rdk-s`；TROS → `tros`；烧录 → `xburn`；Studio → `studio`。
 2. `search_docs`，查询词用用户中文原词，必要时再补英文。
-3. 有 `role=official-start` 就先 `get_page` 打开它。
-4. 手册能回答的部分以手册为准，带可点击链接。
-5. S 系列 OE / OE LLM 是 Rspress 空壳，`get_page` 会从站点 `search_index` 还原正文。
+3. 有 `role=official-start` 就先 `get_page` 打开它。若正文以「空壳页」开头，立刻改开下一条 `related`，不要对用户说「手册没写」。
+4. 问句点名 X3 / X5 / S100 / S600 时，不要用另一型号的专题页当答案。
+5. 规格（几路 USB、供电、算力、接口编号）优先硬件简介或手册首页，不要先开烧录 / 网络配置 / 驱动指南。
+6. 手册能回答的部分以手册为准，带可点击链接。
+7. S 系列 OE / OE LLM 是 Rspress 空壳，`get_page` 会从站点 `search_index` 还原正文。
 
 ## 社区经验（Discourse JSON）
 

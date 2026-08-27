@@ -1,6 +1,7 @@
 import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
-import { htmlToMarkdown, resolveDocUrl } from "./fetch-page.js";
+import { canonicalizeDocUrl } from "./doc-urls.js";
+import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
 import type { HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
@@ -211,7 +212,7 @@ export async function getPage(
   input: PageInput,
   http: HttpGet,
 ): Promise<{ title: string; url: string; markdown: string; truncated: boolean }> {
-  const url = resolveDocUrl(input.url);
+  const url = canonicalizeDocUrl(resolveDocUrl(input.url));
   if (new URL(url).hostname === "forum.d-robotics.cc") {
     const page = await getForumTopic(url, http);
     const maxChars = input.maxChars ?? 16_000;
@@ -230,6 +231,21 @@ export async function getPage(
     const fromIndex = await rspressPageFromIndex(url, http);
     if (fromIndex) page = fromIndex;
   }
+  if (isDocusaurusShell(html, page.markdown)) {
+    const fromIndex = await docusaurusPageFromIndex(url, http);
+    page = fromIndex ?? {
+      ...page,
+      title: page.title || url,
+      markdown: emptyShellNotice(url),
+    };
+  }
+  if (!page.markdown.trim()) {
+    page = {
+      ...page,
+      title: page.title || url,
+      markdown: emptyShellNotice(url),
+    };
+  }
   const maxChars = input.maxChars ?? 16_000;
   if (page.markdown.length <= maxChars) {
     return { ...page, truncated: false };
@@ -238,6 +254,76 @@ export async function getPage(
     ...page,
     markdown: `${page.markdown.slice(0, maxChars)}\n\n…[truncated]`,
     truncated: true,
+  };
+}
+
+function emptyShellNotice(url: string): string {
+  return [
+    `这是现网空壳页：${url}`,
+    "",
+    "现网该页没有正文。请改开 search_docs 返回的下一条 related 命中，或打开对应手册首页。",
+  ].join("\n");
+}
+
+async function docusaurusPageFromIndex(
+  url: string,
+  http: HttpGet,
+): Promise<{ title: string; url: string; markdown: string } | undefined> {
+  const path = normalizeDocPath(url);
+  const manuals = listManuals().filter(
+    (item) => item.indexKind === "docusaurus" && (item.id === "rdk-x" || item.id === "rdk-s"),
+  );
+  const matching = manuals.filter((item) =>
+    path.startsWith(normalizeDocPath(`${origin()}${item.basePath}`)),
+  );
+  const targets = matching.length > 0 ? matching : manuals;
+
+  for (const manual of targets) {
+    try {
+      const recovered = recoverDocusaurusMarkdown(await loadIndex(manual, http), path);
+      if (recovered) {
+        return { title: recovered.title, url, markdown: recovered.markdown };
+      }
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
+function recoverDocusaurusMarkdown(
+  docs: IndexedDoc[],
+  path: string,
+): { title: string; markdown: string } | undefined {
+  const matches = docs.filter((doc) => normalizeDocPath(doc.url) === path);
+  if (matches.length === 0) return undefined;
+
+  const pageDoc = matches.find((doc) => doc.kind === "page");
+  const title = (pageDoc?.title || matches.find((doc) => doc.title)?.title || "").trim();
+  const chunks: string[] = [];
+  const seen = new Set<string>();
+  const push = (value?: string) => {
+    const text = value?.trim();
+    if (!text || seen.has(text)) return;
+    seen.add(text);
+    chunks.push(text);
+  };
+
+  if (pageDoc?.text?.trim()) {
+    push(pageDoc.text);
+  } else {
+    for (const doc of matches) {
+      push(doc.text);
+      push(doc.snippet);
+    }
+  }
+  if (chunks.length === 0) return undefined;
+
+  const body = chunks.join("\n\n");
+  const markdown = body.startsWith("#") ? body : `# ${title}\n\n${body}`;
+  return {
+    title: title || path.split("/").filter(Boolean).at(-1) || path,
+    markdown,
   };
 }
 

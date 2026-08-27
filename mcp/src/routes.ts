@@ -1,5 +1,6 @@
 import { resolveManual } from "./catalog.js";
 import { isForumRef } from "./forum.js";
+import { mentionedBoards, type BoardId } from "./products.js";
 import type { SearchHit } from "./types.js";
 
 export type OfficialPath = {
@@ -12,9 +13,14 @@ export type OfficialPath = {
   manuals: string[];
   scope: "named-manual" | "product" | "global";
   product?: RegExp;
+  boards?: BoardId[];
 };
 
 const ORIGIN = "https://developer.d-robotics.cc";
+
+/** Spec questions only — must not steal USB-camera / how-to pins. */
+const SPEC_QUERY =
+  /硬件简介|接口总览|几路|多少路|供电电压|默认静态\s*ip|type-a 接口|算力|tops|有哪些.{0,16}usb\s*接口/i;
 
 /**
  * High-confidence official start pages. First match wins.
@@ -22,6 +28,54 @@ const ORIGIN = "https://developer.d-robotics.cc";
  * Do not add a row when the official page is still ambiguous.
  */
 export const OFFICIAL_PATHS: OfficialPath[] = [
+  {
+    id: "x5-hardware-intro",
+    title: "硬件简介",
+    url: `${ORIGIN}/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5`,
+    manual: "rdk-x",
+    why: "X5 规格（接口路数、供电、算力）看现网有正文的硬件简介，不要空壳页。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-x"],
+    scope: "product",
+    product: /x5/i,
+    boards: ["x5"],
+  },
+  {
+    id: "s600-hardware-kit",
+    title: "RDK S600 开发者套件",
+    url: `${ORIGIN}/rdk_s_doc/01_Quick_start/01_hardware_introduction/02_rdk_s600/01_rdk_s600_kit`,
+    manual: "rdk-s",
+    why: "S600 规格看现网有正文的开发者套件页。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-s"],
+    scope: "product",
+    product: /s600/i,
+    boards: ["s600"],
+  },
+  {
+    id: "x3-hardware-home",
+    title: "RDK X 系列手册",
+    url: `${ORIGIN}/rdk_x_doc/RDK`,
+    manual: "rdk-x",
+    why: "X3 硬件简介现网是空壳，规格题钉到手册首页，不要空壳 URL。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-x"],
+    scope: "product",
+    product: /x3/i,
+    boards: ["x3"],
+  },
+  {
+    id: "s100-hardware-home",
+    title: "RDK S 系列手册",
+    url: `${ORIGIN}/rdk_s_doc/RDK`,
+    manual: "rdk-s",
+    why: "S100 kit 页现网是空壳，规格题钉到手册首页。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-s"],
+    scope: "product",
+    product: /s100|s100p/i,
+    boards: ["s100"],
+  },
   {
     id: "s100-burn",
     title: "3.7.4 S100 烧录",
@@ -32,6 +86,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s", "rdk-studio", "xburn"],
     scope: "product",
     product: /s100|s100p/i,
+    boards: ["s100"],
   },
   {
     id: "x5-sd-flash",
@@ -39,9 +94,10 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     url: `${ORIGIN}/rdk_x_doc/Quick_start/system-burn/burn-sd-card`,
     manual: "rdk-x",
     why: "X 系列 SD 卡烧录的官方步骤页。",
-    query: /flash\s*sd|sd\s*卡|burn-sd/i,
+    query: /flash\s*sd|(?:烧录|镜像).{0,12}sd|sd.{0,12}(?:烧录|镜像)/i,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-burn",
@@ -62,7 +118,9 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     why: "X5 PoE 的官方硬件说明。",
     query: /poe/i,
     manuals: ["rdk-x"],
-    scope: "global",
+    scope: "product",
+    product: /x5/i,
+    boards: ["x5"],
   },
   {
     id: "tros-install",
@@ -137,6 +195,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s", "rdk-studio"],
     scope: "product",
     product: /s600/i,
+    boards: ["s600"],
   },
   {
     id: "studio-flash",
@@ -187,6 +246,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     query: /hdmi/i,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-usb-camera",
@@ -194,9 +254,10 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     url: `${ORIGIN}/rdk_x_doc/Basic_Application/vision/RDK_X5/usb_camera`,
     manual: "rdk-x",
     why: "X5 USB 摄像头用法，不是底层 multimedia demo。",
-    query: /usb\s*摄像头|usb\s*camera/i,
+    query: /usb.{0,12}摄像头|usb\s*camera/i,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-can",
@@ -207,6 +268,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     query: /\bcan\b|CAN/,
     manuals: ["rdk-x"],
     scope: "named-manual",
+    boards: ["x5"],
   },
   {
     id: "x5-i2c",
@@ -238,6 +300,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s"],
     scope: "product",
     product: /s100|s100p/i,
+    boards: ["s100"],
   },
   {
     id: "s600-gpio",
@@ -249,6 +312,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     manuals: ["rdk-s"],
     scope: "product",
     product: /s600/i,
+    boards: ["s600"],
   },
   {
     id: "s-network",
@@ -401,6 +465,14 @@ function mentionsProduct(path: OfficialPath, query: string, manual?: string): bo
   return path.product.test(query) || Boolean(manual && path.product.test(manual));
 }
 
+function boardConflict(path: OfficialPath, query: string): boolean {
+  if (!path.boards?.length) return false;
+  const mentioned = mentionedBoards(query);
+  if (mentioned.length === 0) return false;
+  if (mentioned.length > 1) return true;
+  return !path.boards.includes(mentioned[0]!);
+}
+
 export function matchOfficialPath(query: string, manual?: string): OfficialPath | undefined {
   if (manual && isForumRef(manual)) return undefined;
   const resolved = manual ? resolveManual(manual)?.id : undefined;
@@ -409,10 +481,12 @@ export function matchOfficialPath(query: string, manual?: string): OfficialPath 
     if (resolved) {
       if (!path.manuals.includes(resolved)) continue;
       if (path.scope === "product" && !mentionsProduct(path, query, manual)) continue;
+      if (boardConflict(path, query)) continue;
       return path;
     }
     if (path.scope === "named-manual") continue;
     if (path.scope === "product" && !mentionsProduct(path, query, manual)) continue;
+    if (boardConflict(path, query)) continue;
     return path;
   }
   return undefined;

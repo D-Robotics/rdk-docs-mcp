@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlToMarkdown, resolveDocUrl } from "./fetch-page.js";
+import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 
 describe("resolveDocUrl", () => {
   it("accepts absolute and site-relative d-robotics URLs", () => {
@@ -45,3 +45,66 @@ describe("htmlToMarkdown", () => {
     expect(page.markdown).not.toContain("导航应被丢掉");
   });
 });
+
+describe("isDocusaurusShell", () => {
+  it("flags an empty theme-doc-markdown article as a shell", () => {
+    const html = `
+      <html>
+        <head><title>RDK X3/X5 DOC</title></head>
+        <body><article class="theme-doc-markdown"></article></body>
+      </html>
+    `;
+    const { markdown } = htmlToMarkdown(
+      html,
+      "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+    );
+    expect(markdown.replace(/\s+/g, " ").trim().length).toBeLessThan(20);
+    expect(isDocusaurusShell(html, markdown)).toBe(true);
+  });
+
+  it("flags a heading-only article as a shell", () => {
+    const html = `
+      <html>
+        <head><title>RDK X3/X5 DOC</title></head>
+        <body><article class="theme-doc-markdown"><h1>rdk_x3</h1></article></body>
+      </html>
+    `;
+    const { markdown } = htmlToMarkdown(
+      html,
+      "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+    );
+    expect(isDocusaurusShell(html, markdown)).toBe(true);
+  });
+
+  it("flags an empty S-series site title as a shell even without theme-doc-markdown", () => {
+    const html = `
+      <html>
+        <head><title>RDK S100/S600 DOC</title></head>
+        <body><div id="__docusaurus"></div></body>
+      </html>
+    `;
+    const { markdown } = htmlToMarkdown(
+      html,
+      "https://developer.d-robotics.cc/rdk_s_doc/01_Quick_start/01_hardware_introduction/01_rdk_s100/01_rdk_s100_kit",
+    );
+    expect(isDocusaurusShell(html, markdown)).toBe(true);
+  });
+
+  it("does not flag a real article with heading and paragraph", () => {
+    const html = `
+      <html>
+        <body>
+          <nav>导航应被丢掉</nav>
+          <article class="theme-doc-markdown">
+            <h1>PoE 供电使用</h1>
+            <p>目前查阅到 PoE 有多种标准。</p>
+            <pre><code>sudo ip link</code></pre>
+          </article>
+        </body>
+      </html>
+    `;
+    const { markdown } = htmlToMarkdown(html, "https://developer.d-robotics.cc/rdk_x_doc/poe");
+    expect(isDocusaurusShell(html, markdown)).toBe(false);
+  });
+});
+

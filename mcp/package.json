@@ -1,6 +1,6 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "type": "module",
   "description": "Search D-Robotics RDK official manuals and the community forum via MCP.",
   "bin": {

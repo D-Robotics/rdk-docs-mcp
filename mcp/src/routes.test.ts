@@ -48,6 +48,47 @@ describe("matchOfficialPath", () => {
     expect(matchOfficialPath("看下RDK有哪些案例可以参考")?.url).toMatch(/\/case$/);
     expect(matchOfficialPath("应用案例", "case-s600")?.url).toMatch(/\/case$/);
   });
+
+  it("does not pin X5 how-to pages onto an X3-only question", () => {
+    expect(matchOfficialPath("RDK X3 是否支持 PoE", "rdk-x")?.url ?? "").not.toMatch(/\/POE$/i);
+    expect(matchOfficialPath("RDK X3 的 HDMI 最高分辨率", "rdk-x")?.url ?? "").not.toMatch(/display_rdkx5/);
+    expect(matchOfficialPath("RDK X3 Micro SD 卡推荐容量", "rdk-x")?.url ?? "").not.toMatch(/burn-sd-card/);
+  });
+
+  it("still pins X5 PoE / HDMI when the question is about X5", () => {
+    expect(matchOfficialPath("RDK X5 PoE", "rdk-x")?.url).toMatch(/\/POE$/i);
+    expect(matchOfficialPath("RDK X5 HDMI", "rdk-x")?.url).toMatch(/display_rdkx5/);
+  });
+
+  it("pins hardware-spec questions to a live page, not an empty shell", () => {
+    expect(matchOfficialPath("RDK X5 几路 USB 3.0 Type-A", "rdk-x")?.url)
+      .toContain("/hardware_introduction/rdk_x5");
+    expect(matchOfficialPath("RDK S600 供电电压范围", "rdk-s")?.url)
+      .toContain("01_rdk_s600_kit");
+    expect(matchOfficialPath("RDK X3 几路 USB 3.0", "rdk-x")?.url)
+      .toMatch(/\/rdk_x_doc\/RDK$/);
+    expect(matchOfficialPath("RDK S100 有哪些 USB 接口", "rdk-s")?.url)
+      .toMatch(/\/rdk_s_doc\/RDK$/);
+  });
+
+  it("does not steal how-tos that already have a better pin", () => {
+    expect(matchOfficialPath("RDK X5 USB 摄像头", "rdk-x")?.id).toBe("x5-usb-camera");
+    expect(matchOfficialPath("电源", "x5")).toBeUndefined();
+  });
+
+  it("does not steal USB-camera how-tos that mention 接口 or 有哪些", () => {
+    expect(matchOfficialPath("RDK X5 USB 接口怎么接摄像头", "rdk-x")?.id).toBe("x5-usb-camera");
+    expect(matchOfficialPath("RDK X5 有哪些 USB 摄像头", "rdk-x")?.id).toBe("x5-usb-camera");
+  });
+
+  it("does not pin a single-board spec page onto a comparison question", () => {
+    expect(matchOfficialPath("X3 和 X5 几路 USB 有何不同", "rdk-x")?.id).not.toBe(
+      "x5-hardware-intro",
+    );
+    expect(matchOfficialPath("X3 和 X5 几路 USB 有何不同", "rdk-x")?.id).not.toBe(
+      "x3-hardware-home",
+    );
+  });
 });
 
 describe("applyOfficialPath", () => {
