@@ -1,0 +1,29 @@
+export type BoardId = "x3" | "x5" | "s100" | "s600";
+
+const RULES: Array<{ id: BoardId; re: RegExp }> = [
+  { id: "x5", re: /x5|x\s*5/i },
+  { id: "x3", re: /x3|x\s*3|旭日\s*x3/i },
+  { id: "s600", re: /s600/i },
+  { id: "s100", re: /s100p?|s100\s*p/i },
+];
+
+export function mentionedBoards(query: string): BoardId[] {
+  const found = new Set<BoardId>();
+  for (const rule of RULES) {
+    if (rule.re.test(query)) found.add(rule.id);
+  }
+  return [...found];
+}
+
+export function soleBoard(query: string): BoardId | undefined {
+  const boards = mentionedBoards(query);
+  return boards.length === 1 ? boards[0] : undefined;
+}
+
+export function urlLooksLikeBoard(url: string, board: BoardId): boolean {
+  const u = url.toLowerCase();
+  if (board === "x3") return /rdk_x3|\/x3(?:_|\/|$)|hardware_introduction\/rdk_x3/.test(u);
+  if (board === "x5") return /rdk_x5|\/x5(?:_|\/|$)|hardware_introduction\/rdk_x5|display_rdkx5/.test(u);
+  if (board === "s100") return /s100/.test(u) && !/s600/.test(u);
+  return /s600/.test(u);
+}
