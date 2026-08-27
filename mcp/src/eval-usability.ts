@@ -247,5 +247,29 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
     }),
   );
 
+  results.push(
+    await check("x3-poe-not-x5-poe-start", async () => {
+      const search = await searchDocs({ query: "RDK X3 是否支持 PoE", manual: "rdk-x", limit: 5 }, http);
+      const first = search.hits[0];
+      if (first?.url.toLowerCase().includes("/poe")) {
+        return { pass: false, reason: "X3 PoE question pinned X5 PoE page" };
+      }
+      return { pass: true, reason: first ? `${first.role ?? "none"} · ${first.url}` : "no hits" };
+    }),
+  );
+
+  results.push(
+    await check("x3-hardware-get-page-not-blank", async () => {
+      const page = await getPage(
+        { url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3", maxChars: 4000 },
+        http,
+      );
+      if (!page.markdown.trim()) {
+        return { pass: false, reason: "X3 hardware intro still returns empty markdown" };
+      }
+      return { pass: true, reason: `${page.title} · ${page.markdown.trim().slice(0, 80)}` };
+    }),
+  );
+
   return results;
 }
