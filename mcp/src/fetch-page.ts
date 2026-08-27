@@ -21,6 +21,16 @@ export function resolveDocUrl(urlOrPath: string): string {
   return parsed.toString();
 }
 
+export function isDocusaurusShell(html: string, markdown: string): boolean {
+  const docusaurusMarker =
+    html.includes("theme-doc-markdown") || /RDK X3\/X5 DOC/i.test(html);
+  if (!docusaurusMarker) return false;
+  const compact = markdown.replace(/\s+/g, " ").trim();
+  const body = markdown.replace(/^\s*#\s+[^\n]+\s*/, "").replace(/\s+/g, " ").trim();
+  if (body.length > 0 && /^#\s+\S/.test(compact)) return false;
+  return compact.length < 200;
+}
+
 export function htmlToMarkdown(html: string, url: string): { title: string; url: string; markdown: string } {
   const root = parse(html);
   const article =

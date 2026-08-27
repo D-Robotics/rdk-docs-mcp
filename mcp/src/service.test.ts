@@ -234,4 +234,76 @@ describe("getPage", () => {
     expect(page.markdown).toContain("yolo模型量化精度问题");
     expect(page.markdown).toContain("https://forum.d-robotics.cc/t/topic/35610");
   });
+
+  const x3HardwareUrl =
+    "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3";
+  const retiredX3HardwareUrl =
+    "https://developer.d-robotics.cc/rdk_doc/Quick_start/hardware_introduction/rdk_x3";
+  const x3ShellHtml = `
+    <html>
+      <head><title>RDK X3/X5 DOC</title></head>
+      <body><article class="theme-doc-markdown"></article></body>
+    </html>
+  `;
+  const x3IndexWithSnippet = JSON.stringify([
+    { documents: [{ u: "/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3" }] },
+    {
+      documents: [
+        {
+          t: "开发板提供一路 USB 3.0 Type A 接口。",
+          s: "USB 接口",
+          u: "/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+        },
+      ],
+    },
+  ]);
+  const x3IndexWithoutSnippet = JSON.stringify([
+    {
+      documents: [
+        {
+          t: "PoE 供电使用",
+          u: "/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE",
+        },
+      ],
+    },
+  ]);
+
+  it("restores X3 hardware intro text from the search index when the live page is a shell", async () => {
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/rdk_x_doc/search-index.json")) return x3IndexWithSnippet;
+      if (url === x3HardwareUrl || url === `${x3HardwareUrl}/`) return x3ShellHtml;
+      throw new Error(`unexpected url ${url}`);
+    };
+    const page = await getPage({ url: x3HardwareUrl }, mock);
+    expect(page.markdown).toContain("开发板提供一路 USB 3.0 Type A 接口。");
+    expect(page.title.length).toBeGreaterThan(0);
+  });
+
+  it("labels a Docusaurus shell when the index has no snippet for that URL", async () => {
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/rdk_x_doc/search-index.json")) return x3IndexWithoutSnippet;
+      if (url === x3HardwareUrl || url === `${x3HardwareUrl}/`) return x3ShellHtml;
+      throw new Error(`unexpected url ${url}`);
+    };
+    const page = await getPage({ url: x3HardwareUrl }, mock);
+    expect(page.markdown.startsWith("这是现网空壳页")).toBe(true);
+    expect(page.markdown).toContain(x3HardwareUrl);
+    expect(page.markdown.length).toBeGreaterThan(0);
+  });
+
+  it("rewrites retired /rdk_doc/ urls onto /rdk_x_doc/ before fetching", async () => {
+    const requested: string[] = [];
+    const mock: HttpGet = async (url) => {
+      requested.push(url);
+      if (url.endsWith("/rdk_x_doc/search-index.json")) return x3IndexWithSnippet;
+      if (url.includes("/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3")) return x3ShellHtml;
+      throw new Error(`unexpected url ${url}`);
+    };
+    await getPage({ url: retiredX3HardwareUrl }, mock);
+    expect(requested.some((url) => url.includes("/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3"))).toBe(
+      true,
+    );
+    expect(requested.some((url) => url.includes("/rdk_doc/"))).toBe(false);
+  });
 });
+
