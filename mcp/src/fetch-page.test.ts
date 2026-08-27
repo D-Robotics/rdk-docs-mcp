@@ -76,6 +76,20 @@ describe("isDocusaurusShell", () => {
     expect(isDocusaurusShell(html, markdown)).toBe(true);
   });
 
+  it("flags an empty S-series site title as a shell even without theme-doc-markdown", () => {
+    const html = `
+      <html>
+        <head><title>RDK S100/S600 DOC</title></head>
+        <body><div id="__docusaurus"></div></body>
+      </html>
+    `;
+    const { markdown } = htmlToMarkdown(
+      html,
+      "https://developer.d-robotics.cc/rdk_s_doc/01_Quick_start/01_hardware_introduction/01_rdk_s100/01_rdk_s100_kit",
+    );
+    expect(isDocusaurusShell(html, markdown)).toBe(true);
+  });
+
   it("does not flag a real article with heading and paragraph", () => {
     const html = `
       <html>

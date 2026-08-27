@@ -1,6 +1,6 @@
 import { resolveManual } from "./catalog.js";
 import { isForumRef } from "./forum.js";
-import { soleBoard, type BoardId } from "./products.js";
+import { mentionedBoards, type BoardId } from "./products.js";
 import type { SearchHit } from "./types.js";
 
 export type OfficialPath = {
@@ -20,7 +20,7 @@ const ORIGIN = "https://developer.d-robotics.cc";
 
 /** Spec questions only — must not steal USB-camera / how-to pins. */
 const SPEC_QUERY =
-  /硬件简介|接口总览|几路|多少路|供电电压|默认静态\s*ip|type-a 接口|算力|tops|有哪些.{0,12}(?:usb|接口)|usb\s*接口/i;
+  /硬件简介|接口总览|几路|多少路|供电电压|默认静态\s*ip|type-a 接口|算力|tops|有哪些.{0,16}usb\s*接口/i;
 
 /**
  * High-confidence official start pages. First match wins.
@@ -254,7 +254,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
     url: `${ORIGIN}/rdk_x_doc/Basic_Application/vision/RDK_X5/usb_camera`,
     manual: "rdk-x",
     why: "X5 USB 摄像头用法，不是底层 multimedia demo。",
-    query: /usb\s*摄像头|usb\s*camera/i,
+    query: /usb.{0,12}摄像头|usb\s*camera/i,
     manuals: ["rdk-x"],
     scope: "named-manual",
     boards: ["x5"],
@@ -466,9 +466,11 @@ function mentionsProduct(path: OfficialPath, query: string, manual?: string): bo
 }
 
 function boardConflict(path: OfficialPath, query: string): boolean {
-  const sole = soleBoard(query);
-  if (!sole || !path.boards?.length) return false;
-  return !path.boards.includes(sole);
+  if (!path.boards?.length) return false;
+  const mentioned = mentionedBoards(query);
+  if (mentioned.length === 0) return false;
+  if (mentioned.length > 1) return true;
+  return !path.boards.includes(mentioned[0]!);
 }
 
 export function matchOfficialPath(query: string, manual?: string): OfficialPath | undefined {

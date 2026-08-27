@@ -23,7 +23,7 @@ export function resolveDocUrl(urlOrPath: string): string {
 
 export function isDocusaurusShell(html: string, markdown: string): boolean {
   const docusaurusMarker =
-    html.includes("theme-doc-markdown") || /RDK X3\/X5 DOC/i.test(html);
+    html.includes("theme-doc-markdown") || /RDK (?:X3\/X5|S100\/S600) DOC/i.test(html);
   if (!docusaurusMarker) return false;
   const compact = markdown.replace(/\s+/g, " ").trim();
   const body = markdown.replace(/^\s*#\s+[^\n]+\s*/, "").replace(/\s+/g, " ").trim();

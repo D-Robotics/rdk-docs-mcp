@@ -291,6 +291,37 @@ describe("getPage", () => {
     expect(page.markdown.length).toBeGreaterThan(0);
   });
 
+  it("restores S100 kit text from the search index when the live page is an S-series shell", async () => {
+    const s100KitUrl =
+      "https://developer.d-robotics.cc/rdk_s_doc/01_Quick_start/01_hardware_introduction/01_rdk_s100/01_rdk_s100_kit";
+    const s100ShellHtml = `
+      <html>
+        <head><title>RDK S100/S600 DOC</title></head>
+        <body><div id="__docusaurus"></div></body>
+      </html>
+    `;
+    const s100Index = JSON.stringify([
+      { documents: [{ u: "/rdk_s_doc/01_Quick_start/01_hardware_introduction/01_rdk_s100/01_rdk_s100_kit" }] },
+      {
+        documents: [
+          {
+            t: "S100 提供 80 TOPS 算力和 4 个 USB 3.0 接口。",
+            s: "接口",
+            u: "/rdk_s_doc/01_Quick_start/01_hardware_introduction/01_rdk_s100/01_rdk_s100_kit",
+          },
+        ],
+      },
+    ]);
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/rdk_s_doc/search-index.json")) return s100Index;
+      if (url === s100KitUrl || url === `${s100KitUrl}/`) return s100ShellHtml;
+      throw new Error(`unexpected url ${url}`);
+    };
+    const page = await getPage({ url: s100KitUrl }, mock);
+    expect(page.markdown).toContain("80 TOPS");
+    expect(page.title.length).toBeGreaterThan(0);
+  });
+
   it("rewrites retired /rdk_doc/ urls onto /rdk_x_doc/ before fetching", async () => {
     const requested: string[] = [];
     const mock: HttpGet = async (url) => {

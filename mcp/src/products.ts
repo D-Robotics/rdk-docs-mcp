@@ -1,10 +1,10 @@
 export type BoardId = "x3" | "x5" | "s100" | "s600";
 
 const RULES: Array<{ id: BoardId; re: RegExp }> = [
-  { id: "x5", re: /x5|x\s*5/i },
-  { id: "x3", re: /x3|x\s*3|旭日\s*x3/i },
-  { id: "s600", re: /s600/i },
-  { id: "s100", re: /s100p?|s100\s*p/i },
+  { id: "x5", re: /rdk\s*x\s*5|\bx5\b/i },
+  { id: "x3", re: /rdk\s*x\s*3|\bx3\b|旭日\s*x3/i },
+  { id: "s600", re: /\bs600\b/i },
+  { id: "s100", re: /\bs100p?\b|\bs100\s*p\b/i },
 ];
 
 export function mentionedBoards(query: string): BoardId[] {

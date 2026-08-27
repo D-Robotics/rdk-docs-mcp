@@ -75,6 +75,20 @@ describe("matchOfficialPath", () => {
     expect(matchOfficialPath("RDK X5 USB 摄像头", "rdk-x")?.id).toBe("x5-usb-camera");
     expect(matchOfficialPath("电源", "x5")).toBeUndefined();
   });
+
+  it("does not steal USB-camera how-tos that mention 接口 or 有哪些", () => {
+    expect(matchOfficialPath("RDK X5 USB 接口怎么接摄像头", "rdk-x")?.id).toBe("x5-usb-camera");
+    expect(matchOfficialPath("RDK X5 有哪些 USB 摄像头", "rdk-x")?.id).toBe("x5-usb-camera");
+  });
+
+  it("does not pin a single-board spec page onto a comparison question", () => {
+    expect(matchOfficialPath("X3 和 X5 几路 USB 有何不同", "rdk-x")?.id).not.toBe(
+      "x5-hardware-intro",
+    );
+    expect(matchOfficialPath("X3 和 X5 几路 USB 有何不同", "rdk-x")?.id).not.toBe(
+      "x3-hardware-home",
+    );
+  });
 });
 
 describe("applyOfficialPath", () => {

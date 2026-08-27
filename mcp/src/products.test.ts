@@ -19,6 +19,16 @@ describe("mentionedBoards", () => {
     expect(mentionedBoards("如何烧录")).toEqual([]);
     expect(soleBoard("如何烧录")).toBeUndefined();
   });
+
+  it("does not treat incidental x/5 or s100 prefixes as a board", () => {
+    expect(mentionedBoards("max 5V")).toEqual([]);
+    expect(mentionedBoards("index 5 HDMI")).toEqual([]);
+    expect(mentionedBoards("appendix 5")).toEqual([]);
+    expect(mentionedBoards("X 3.3V")).toEqual([]);
+    expect(mentionedBoards("s1000 算力")).toEqual([]);
+    expect(mentionedBoards("as100")).toEqual([]);
+    expect(soleBoard("RDK X5 几路 USB")).toBe("x5");
+  });
 });
 
 describe("urlLooksLikeBoard", () => {
