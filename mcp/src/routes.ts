@@ -18,12 +18,64 @@ export type OfficialPath = {
 
 const ORIGIN = "https://developer.d-robotics.cc";
 
+/** Spec questions only — must not steal USB-camera / how-to pins. */
+const SPEC_QUERY =
+  /硬件简介|接口总览|几路|多少路|供电电压|默认静态\s*ip|type-a 接口|算力|tops|有哪些.{0,12}(?:usb|接口)|usb\s*接口/i;
+
 /**
  * High-confidence official start pages. First match wins.
  * Add a row here when a real question has a known best-practice page.
  * Do not add a row when the official page is still ambiguous.
  */
 export const OFFICIAL_PATHS: OfficialPath[] = [
+  {
+    id: "x5-hardware-intro",
+    title: "硬件简介",
+    url: `${ORIGIN}/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5`,
+    manual: "rdk-x",
+    why: "X5 规格（接口路数、供电、算力）看现网有正文的硬件简介，不要空壳页。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-x"],
+    scope: "product",
+    product: /x5/i,
+    boards: ["x5"],
+  },
+  {
+    id: "s600-hardware-kit",
+    title: "RDK S600 开发者套件",
+    url: `${ORIGIN}/rdk_s_doc/01_Quick_start/01_hardware_introduction/02_rdk_s600/01_rdk_s600_kit`,
+    manual: "rdk-s",
+    why: "S600 规格看现网有正文的开发者套件页。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-s"],
+    scope: "product",
+    product: /s600/i,
+    boards: ["s600"],
+  },
+  {
+    id: "x3-hardware-home",
+    title: "RDK X 系列手册",
+    url: `${ORIGIN}/rdk_x_doc/RDK`,
+    manual: "rdk-x",
+    why: "X3 硬件简介现网是空壳，规格题钉到手册首页，不要空壳 URL。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-x"],
+    scope: "product",
+    product: /x3/i,
+    boards: ["x3"],
+  },
+  {
+    id: "s100-hardware-home",
+    title: "RDK S 系列手册",
+    url: `${ORIGIN}/rdk_s_doc/RDK`,
+    manual: "rdk-s",
+    why: "S100 kit 页现网是空壳，规格题钉到手册首页。",
+    query: SPEC_QUERY,
+    manuals: ["rdk-s"],
+    scope: "product",
+    product: /s100|s100p/i,
+    boards: ["s100"],
+  },
   {
     id: "s100-burn",
     title: "3.7.4 S100 烧录",
