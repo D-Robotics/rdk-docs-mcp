@@ -54,6 +54,28 @@ describe("docusaurus index", () => {
     expect(docs.some((d) => d.title === "协议简介" && d.kind === "heading")).toBe(true);
     expect(docs.some((d) => d.snippet?.includes("多种标准"))).toBe(true);
   });
+
+  it("keeps untitled page urls and copies snippet text onto the page", () => {
+    const raw = [
+      { documents: [{ u: "/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3" }] },
+      {
+        documents: [
+          {
+            t: "开发板提供一路 USB 3.0 Type A 接口。",
+            s: "USB 接口",
+            u: "/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+          },
+        ],
+      },
+    ];
+    const docs = compactDocusaurusIndex(raw, "rdk-x");
+    const page = docs.find((d) => d.kind === "page" && d.url.includes("rdk_x3"));
+    expect(page).toBeTruthy();
+    expect(page?.title.length).toBeGreaterThan(0);
+    expect(page?.text).toContain("USB 3.0");
+    const headingOrSnippet = docs.find((d) => d.url.includes("rdk_x3") && d.kind !== "page");
+    expect(headingOrSnippet?.snippet || headingOrSnippet?.text).toBeTruthy();
+  });
 });
 
 describe("sphinx index", () => {
