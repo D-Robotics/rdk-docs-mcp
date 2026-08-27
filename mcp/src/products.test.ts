@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mentionedBoards, soleBoard } from "./products.js";
+import { mentionedBoards, soleBoard, urlLooksLikeBoard } from "./products.js";
 
 describe("mentionedBoards", () => {
   it("reads explicit board names and treats Module / S100P as the family", () => {
@@ -18,5 +18,26 @@ describe("mentionedBoards", () => {
   it("returns empty when no board is named", () => {
     expect(mentionedBoards("如何烧录")).toEqual([]);
     expect(soleBoard("如何烧录")).toBeUndefined();
+  });
+});
+
+describe("urlLooksLikeBoard", () => {
+  it("treats RDK X3 in a title as x3 without mistaking rdk_x5", () => {
+    expect(urlLooksLikeBoard("Q18: RDK X3 不同系统版本的有线网口的 IP 是什么？", "x3")).toBe(true);
+    expect(urlLooksLikeBoard("1.1.2 硬件简介", "x3")).toBe(false);
+    expect(
+      urlLooksLikeBoard(
+        "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5",
+        "x3",
+      ),
+    ).toBe(false);
+    expect(
+      urlLooksLikeBoard(
+        "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5",
+        "x5",
+      ),
+    ).toBe(true);
+    expect(urlLooksLikeBoard("RDK X5 HDMI", "x5")).toBe(true);
+    expect(urlLooksLikeBoard("RDK X5 HDMI", "x3")).toBe(false);
   });
 });

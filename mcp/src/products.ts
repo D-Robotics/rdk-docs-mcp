@@ -22,8 +22,12 @@ export function soleBoard(query: string): BoardId | undefined {
 
 export function urlLooksLikeBoard(url: string, board: BoardId): boolean {
   const u = url.toLowerCase();
-  if (board === "x3") return /rdk_x3|\/x3(?:_|\/|$)|hardware_introduction\/rdk_x3/.test(u);
-  if (board === "x5") return /rdk_x5|\/x5(?:_|\/|$)|hardware_introduction\/rdk_x5|display_rdkx5/.test(u);
-  if (board === "s100") return /s100/.test(u) && !/s600/.test(u);
-  return /s600/.test(u);
+  if (board === "x3") {
+    return /rdk_x3|rdk\s*x3|\bx3\b|\/x3(?:_|\/|$)|hardware_introduction\/rdk_x3/.test(u);
+  }
+  if (board === "x5") {
+    return /rdk_x5|rdk\s*x5|\bx5\b|\/x5(?:_|\/|$)|hardware_introduction\/rdk_x5|display_rdkx5/.test(u);
+  }
+  if (board === "s100") return /s100|rdk\s*s100/.test(u) && !/s600/.test(u);
+  return /s600|rdk\s*s600/.test(u);
 }

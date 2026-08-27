@@ -334,4 +334,68 @@ describe("rankHits", () => {
     );
     expect(hits[0]?.url).toContain("/install_tros");
   });
+
+  it("demotes the other board when the question names only one", () => {
+    const docs: IndexedDoc[] = [
+      {
+        manualId: "rdk-x",
+        title: "1.1.2 硬件简介",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5",
+        kind: "page",
+        text: "4 路 USB 3.0 Type A 接口",
+      },
+      {
+        manualId: "rdk-x",
+        title: "Q18: RDK X3 不同系统版本的有线网口的 IP 是什么？",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system",
+        kind: "page",
+        text: "RDK X3 USB 3.0",
+      },
+    ];
+    const hits = rankHits(docs, "RDK X3 几路 USB 3.0 Type-A", 5);
+    expect(hits[0]?.url).toContain("hardware_and_system");
+    expect(hits[0]?.url).not.toContain("rdk_x5");
+  });
+
+  it("fills snippet from breadcrumbs or text when the index left it blank", () => {
+    const hits = rankHits(
+      [
+        {
+          manualId: "rdk-x",
+          title: "调试串口",
+          url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5",
+          kind: "heading",
+          breadcrumbs: ["1 快速开始", "硬件简介"],
+        },
+      ],
+      "调试串口",
+      3,
+    );
+    expect(hits[0]?.snippet.length).toBeGreaterThan(0);
+  });
+
+  it("does not zero the other board when the question compares two boards", () => {
+    const docs: IndexedDoc[] = [
+      {
+        manualId: "rdk-x",
+        title: "1.1.2 硬件简介",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5",
+        kind: "page",
+        text: "4 路 USB 3.0 Type A 接口",
+      },
+      {
+        manualId: "rdk-x",
+        title: "1.1.1 硬件简介",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+        kind: "page",
+        text: "1 路 USB 3.0 Type A 接口",
+      },
+    ];
+    const hits = rankHits(docs, "X3 和 X5 的 USB 有何不同", 5);
+    const x5 = hits.find((h) => h.url.includes("rdk_x5"));
+    const x3 = hits.find((h) => h.url.includes("rdk_x3"));
+    expect(x5).toBeTruthy();
+    expect(x3).toBeTruthy();
+    expect(x5?.score).toBeGreaterThan(0);
+  });
 });

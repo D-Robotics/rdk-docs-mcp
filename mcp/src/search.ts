@@ -1,4 +1,5 @@
 import { GLOSSARY_ALIASES } from "./glossary-aliases.js";
+import { soleBoard, urlLooksLikeBoard } from "./products.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
 
 /** Question filler that carries no retrieval signal in Chinese queries. */
@@ -109,7 +110,7 @@ function haystack(doc: IndexedDoc): { title: string; extra: string; url: string 
   };
 }
 
-function scoreDoc(doc: IndexedDoc, matchers: Matcher[]): number {
+function scoreDoc(doc: IndexedDoc, matchers: Matcher[], query: string): number {
   const { title, extra, url } = haystack(doc);
   const queryTokens = matchers.map((m) => m.token);
   let score = 0;
@@ -161,11 +162,32 @@ function scoreDoc(doc: IndexedDoc, matchers: Matcher[]): number {
   if (titleMatched > 0 && (/\/overview(?:\.html)?$/.test(url) || title.includes("概述"))) score += 4;
   if (/\/faq\/|accessory|release_note|changelog|config_txt/.test(url)) score -= 6;
 
+  const sole = soleBoard(query);
+  if (sole) {
+    const mine = urlLooksLikeBoard(doc.url, sole) || urlLooksLikeBoard(doc.title, sole);
+    const other = (["x3", "x5", "s100", "s600"] as const)
+      .filter((b) => b !== sole)
+      .some((b) => urlLooksLikeBoard(doc.url, b) && !urlLooksLikeBoard(doc.url, sole));
+    if (mine) score += 8;
+    if (other) score -= 12;
+  }
+
   return score;
 }
 
 function canonicalUrl(url: string): string {
   return url.split("#")[0] ?? url;
+}
+
+function lastUrlSegment(url: string): string {
+  const path = canonicalUrl(url).split("/").filter(Boolean);
+  return path.at(-1) || url;
+}
+
+function fillSnippet(doc: IndexedDoc): string {
+  const crumbs = doc.breadcrumbs?.filter(Boolean).join(" / ");
+  const filled = doc.snippet || doc.text?.slice(0, 180) || crumbs || "";
+  return filled.trim() || lastUrlSegment(doc.url);
 }
 
 export function rankHits(docs: IndexedDoc[], query: string, limit: number): SearchHit[] {
@@ -174,22 +196,39 @@ export function rankHits(docs: IndexedDoc[], query: string, limit: number): Sear
   const matchers = queryTokens.map(buildMatcher);
 
   const best = new Map<string, SearchHit>();
+  const titleFromPage = new Map<string, boolean>();
   for (const doc of docs) {
-    const score = scoreDoc(doc, matchers);
+    const score = scoreDoc(doc, matchers, query);
     if (score <= 0) continue;
     const url = canonicalUrl(doc.url);
     const hit: SearchHit = {
-      title: doc.kind === "snippet" && doc.snippet ? doc.title : doc.title,
+      title: doc.title,
       url,
       manual: doc.manualId,
-      snippet: doc.snippet ?? doc.breadcrumbs?.join(" / ") ?? "",
+      snippet: fillSnippet(doc),
       score,
       source: doc.manualId === "forum" ? "forum" : "docs",
     };
     const prev = best.get(url);
-    if (!prev || hit.score > prev.score) {
+    if (!prev) {
       best.set(url, hit);
+      titleFromPage.set(url, doc.kind === "page");
+      continue;
     }
+
+    const prevWasPage = titleFromPage.get(url) === true;
+    const nextIsPage = doc.kind === "page";
+    let title = prev.title;
+    if (nextIsPage && (!prevWasPage || hit.score >= prev.score)) {
+      title = hit.title;
+    } else if (!prevWasPage && hit.score > prev.score) {
+      title = hit.title;
+    }
+
+    const winner = hit.score > prev.score ? hit : prev;
+    const snippet = (hit.score > prev.score ? hit.snippet : prev.snippet) || hit.snippet || prev.snippet;
+    best.set(url, { ...winner, title, snippet });
+    titleFromPage.set(url, prevWasPage || nextIsPage);
   }
 
   return [...best.values()].sort((a, b) => b.score - a.score).slice(0, limit);
