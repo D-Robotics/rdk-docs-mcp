@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,8 +27,19 @@ export type InstallResult = {
 
 export type InstallOptions = {
   home?: string;
+  /** Legacy single-skill injection (tests): one body string for the default skill. */
   skillSource?: string;
+  /** Multi-skill injection: explicit set of {name, body} to install instead of the bundle. */
+  skillsSource?: BundledSkill[];
 };
+
+export type BundledSkill = {
+  name: string;
+  body: string;
+};
+
+/** The skill the MCP server pairs with (and the legacy single-skill fallback name). */
+const DEFAULT_SKILL = "rdk-docs";
 
 type JsonObject = Record<string, unknown>;
 
@@ -56,6 +67,15 @@ function asObject(value: unknown): JsonObject {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 }
 
+// ---------------------------------------------------------------------------
+// Bundled skills: the package ships a `skills/` dir with one subdir per skill
+// (skills/<name>/SKILL.md). The legacy root SKILL.md is kept as the fallback.
+// ---------------------------------------------------------------------------
+
+export function bundledSkillsDir(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), "..", "skills");
+}
+
 export function bundledSkillPath(): string {
   return join(dirname(fileURLToPath(import.meta.url)), "..", "SKILL.md");
 }
@@ -68,15 +88,46 @@ export function loadBundledSkill(): string {
   return readFileSync(path, "utf8");
 }
 
-export function skillInstallPaths(home: string): string[] {
+/** All skills bundled in the package: one entry per skills/<name>/SKILL.md. */
+export function loadBundledSkills(): BundledSkill[] {
+  const dir = bundledSkillsDir();
+  const out: BundledSkill[] = [];
+  if (existsSync(dir)) {
+    for (const entry of readdirSync(dir)) {
+      const skillFile = join(dir, entry, "SKILL.md");
+      if (existsSync(skillFile)) {
+        out.push({ name: entry, body: readFileSync(skillFile, "utf8") });
+      }
+    }
+  }
+  if (out.length === 0) {
+    // Legacy single-file package (only root SKILL.md).
+    out.push({ name: DEFAULT_SKILL, body: loadBundledSkill() });
+  }
+  return out;
+}
+
+/** Resolve the working skill set: explicit injection wins, else the bundle. */
+function resolveSkills(options: InstallOptions): BundledSkill[] {
+  if (options.skillsSource && options.skillsSource.length > 0) return options.skillsSource;
+  if (options.skillSource) return [{ name: DEFAULT_SKILL, body: options.skillSource }];
+  return loadBundledSkills();
+}
+
+/** Client skill-dir bases (each client keeps skills under <base>/<name>/SKILL.md). */
+function clientSkillBases(home: string): string[] {
   return [
-    join(home, ".cursor", "skills", "rdk-docs", "SKILL.md"),
-    join(home, ".claude", "skills", "rdk-docs", "SKILL.md"),
-    join(home, ".zcode", "skills", "rdk-docs", "SKILL.md"),
-    join(home, ".agents", "skills", "rdk-docs", "SKILL.md"),
-    join(home, ".codex", "skills", "rdk-docs", "SKILL.md"),
-    join(home, ".dsh", "skills", "rdk-docs", "SKILL.md"),
+    join(home, ".cursor", "skills"),
+    join(home, ".claude", "skills"),
+    join(home, ".zcode", "skills"),
+    join(home, ".agents", "skills"),
+    join(home, ".codex", "skills"),
+    join(home, ".dsh", "skills"),
   ];
+}
+
+export function skillInstallPaths(home: string, skillName: string = DEFAULT_SKILL): string[] {
+  return clientSkillBases(home).map((base) => join(base, skillName, "SKILL.md"));
 }
 
 export function ensureDshMcpPatch(path: string): boolean {
@@ -87,15 +138,20 @@ export function ensureDshMcpPatch(path: string): boolean {
   return true;
 }
 
-/** Overwrite Skill copies that are already on disk. Used on every MCP startup. */
+/**
+ * Overwrite installed copies of every bundled skill on disk. A skill only lands
+ * where it already exists (refresh updates, never installs fresh on startup).
+ */
 export function refreshInstalledSkills(options: InstallOptions = {}): string[] {
   const home = options.home ?? homedir();
-  const skill = options.skillSource ?? loadBundledSkill();
+  const skills = resolveSkills(options);
   const updated: string[] = [];
-  for (const path of skillInstallPaths(home)) {
-    if (!existsSync(path) && !existsSync(dirname(path))) continue;
-    writeText(path, skill);
-    updated.push(path);
+  for (const skill of skills) {
+    for (const path of skillInstallPaths(home, skill.name)) {
+      if (!existsSync(path) && !existsSync(dirname(path))) continue;  // update only
+      writeText(path, skill.body);
+      updated.push(path);
+    }
   }
   return updated;
 }
@@ -114,8 +170,17 @@ export function refreshInstalledSkillsOnStart(): void {
 
 export function installRdkDocs(options: InstallOptions = {}): InstallResult {
   const home = options.home ?? homedir();
-  const skill = options.skillSource ?? loadBundledSkill();
+  const skills = resolveSkills(options);
   const result: InstallResult = { mcp: [], skills: [], warnings: [] };
+
+  /** write every bundled skill into a client's skills dir. */
+  const writeSkills = (baseDir: string) => {
+    for (const skill of skills) {
+      const skillPath = join(baseDir, skill.name, "SKILL.md");
+      writeText(skillPath, skill.body);
+      result.skills.push(skillPath);
+    }
+  };
 
   const cursor = join(home, ".cursor");
   if (existsSync(cursor)) {
@@ -126,16 +191,12 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
     mcp.mcpServers = servers;
     writeJson(mcpPath, mcp);
     result.mcp.push(mcpPath);
-    const skillPath = join(cursor, "skills", "rdk-docs", "SKILL.md");
-    writeText(skillPath, skill);
-    result.skills.push(skillPath);
+    writeSkills(join(cursor, "skills"));
   }
 
   const claude = join(home, ".claude");
   if (existsSync(claude)) {
-    const skillPath = join(claude, "skills", "rdk-docs", "SKILL.md");
-    writeText(skillPath, skill);
-    result.skills.push(skillPath);
+    writeSkills(join(claude, "skills"));
   }
 
   const zcode = join(home, ".zcode");
@@ -149,19 +210,14 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
     config.mcp = mcp;
     writeJson(configPath, config);
     result.mcp.push(configPath);
-    const skillPath = join(zcode, "skills", "rdk-docs", "SKILL.md");
-    writeText(skillPath, skill);
-    result.skills.push(skillPath);
-    const agentsSkill = join(home, ".agents", "skills", "rdk-docs", "SKILL.md");
-    writeText(agentsSkill, skill);
-    result.skills.push(agentsSkill);
+    writeSkills(join(zcode, "skills"));
+    // ZCode also reads the shared agents dir.
+    writeSkills(join(home, ".agents", "skills"));
   }
 
   const codex = join(home, ".codex");
   if (existsSync(codex)) {
-    const skillPath = join(codex, "skills", "rdk-docs", "SKILL.md");
-    writeText(skillPath, skill);
-    result.skills.push(skillPath);
+    writeSkills(join(codex, "skills"));
   }
 
   const dsh = join(home, ".dsh");
@@ -169,12 +225,15 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
     const patchPath = join(dsh, "cordis.patch.yml");
     ensureDshMcpPatch(patchPath);
     result.mcp.push(patchPath);
-    const dshSkill = join(dsh, "skills", "rdk-docs", "SKILL.md");
-    writeText(dshSkill, skill);
-    result.skills.push(dshSkill);
-    const agentsSkill = join(home, ".agents", "skills", "rdk-docs", "SKILL.md");
-    writeText(agentsSkill, skill);
-    if (!result.skills.includes(agentsSkill)) result.skills.push(agentsSkill);
+    writeSkills(join(dsh, "skills"));
+    const agentsBase = join(home, ".agents", "skills");
+    for (const skill of skills) {
+      const p = join(agentsBase, skill.name, "SKILL.md");
+      if (!result.skills.includes(p)) {
+        writeText(p, skill.body);
+        result.skills.push(p);
+      }
+    }
   }
 
   if (result.mcp.length === 0 && result.skills.length === 0) {

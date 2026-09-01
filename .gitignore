@@ -5,4 +5,5 @@ mcp/SKILL.md
 .DS_Store
 .env
 .env.*
-
+# prepack 打包产物（npm publish 时重新生成）
+mcp/skills/

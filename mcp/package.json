@@ -11,7 +11,8 @@
     "README.md",
     "LICENSE",
     "install.md",
-    "SKILL.md"
+    "SKILL.md",
+    "skills"
   ],
   "scripts": {
     "build": "tsc",
@@ -20,7 +21,7 @@
     "test:watch": "vitest",
     "eval:live": "npm run build && node dist/eval-live.js",
     "verify": "npm test && npm run eval:live",
-    "prepack": "cp ../skills/rdk-docs/SKILL.md ./SKILL.md",
+    "prepack": "rm -rf ./skills && cp -R ../skills ./skills && cp ../skills/rdk-docs/SKILL.md ./SKILL.md",
     "prepublishOnly": "npm test && npm run build && npm run prepack"
   },
   "engines": {

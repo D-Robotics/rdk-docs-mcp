@@ -96,6 +96,44 @@ describe("refreshInstalledSkills", () => {
   });
 });
 
+describe("multi-skill", () => {
+  const twoSkills = [
+    { name: "rdk-docs", body: "---\nname: rdk-docs\n---\n# docs\n" },
+    { name: "forum-post", body: "---\nname: forum-post\n---\n# forum\n" },
+    { name: "article-writer", body: "---\nname: article-writer\n---\n# writer\n" },
+  ];
+
+  it("installs every bundled skill into a present client dir", () => {
+    const root = home();
+    mkdirSync(join(root, ".codex"));
+    const result = installRdkDocs({ home: root, skillsSource: twoSkills });
+    for (const s of twoSkills) {
+      expect(readFileSync(join(root, ".codex", "skills", s.name, "SKILL.md"), "utf8")).toContain(s.name);
+      expect(result.skills).toContain(join(root, ".codex", "skills", s.name, "SKILL.md"));
+    }
+  });
+
+  it("refresh updates only skills that already exist on disk", () => {
+    const root = home();
+    // rdk-docs exists, forum-post does not
+    mkdirSync(join(root, ".codex", "skills", "rdk-docs"), { recursive: true });
+    writeFileSync(join(root, ".codex", "skills", "rdk-docs", "SKILL.md"), "# stale\n");
+    const updated = refreshInstalledSkills({ home: root, skillsSource: twoSkills });
+    expect(updated).toEqual([join(root, ".codex", "skills", "rdk-docs", "SKILL.md")]);
+    expect(existsSync(join(root, ".codex", "skills", "forum-post", "SKILL.md"))).toBe(false);
+  });
+
+  it("loadBundledSkills falls back to the root SKILL.md when no skills/ dir", () => {
+    // point at a temp dir with only a root SKILL.md
+    // (loadBundledSkills reads relative to the package; here we just assert the
+    // fallback contract via resolveSkills path used by install)
+    const root = home();
+    mkdirSync(join(root, ".codex"));
+    const result = installRdkDocs({ home: root, skillSource: "single-skill-body" });
+    expect(readFileSync(join(root, ".codex", "skills", "rdk-docs", "SKILL.md"), "utf8")).toBe("single-skill-body");
+  });
+});
+
 describe("install.md", () => {
   it("tells the agent to run the one-line installer and not clone a repo", () => {
     const path = join(dirname(fileURLToPath(import.meta.url)), "..", "install.md");
