@@ -7,3 +7,4 @@ mcp/SKILL.md
 .env.*
 # prepack 打包产物（npm publish 时重新生成）
 mcp/skills/
+*.tgz

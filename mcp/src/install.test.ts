@@ -140,7 +140,7 @@ describe("install.md", () => {
     const body = readFileSync(path, "utf8");
     expect(body).toContain("npx -y rdk-docs-mcp@latest --install");
     expect(body).toContain("不要 `git clone`");
-    expect(body).toContain("cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/SKILL.md");
+    expect(body).toContain("cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/skills/$s/SKILL.md");
     expect(body).toContain("~/.zcode/cli/config.json");
     expect(body).toContain("~/.dsh/cordis.patch.yml");
     expect(body).toContain("MCP 启动时");

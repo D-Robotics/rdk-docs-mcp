@@ -38,9 +38,13 @@ jsDelivr 不可用时，同一文件在：
 | `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown |
 | `list_toc` | 列出某一本手册的页面目录；`forum` 列出「开发与问题」和「通用」最近帖 |
 
-**Skill `rdk-docs`**
+**三个 bundled Skill**
 
-规定 Agent：**先搜再打开页面**；手册是规范、答案主体，论坛只作补充参考，必须附可点击链接。
+- `rdk-docs`：规定 Agent **先搜再打开页面**；手册是规范、答案主体，论坛只作补充参考，必须附可点击链接。
+- `forum-post`：把图文/视频发到[社区论坛](https://forum.d-robotics.cc/)（SSO 登录、composer 发帖、上传与编辑）。浏览器路线需要本机已装 [agent-browser](https://github.com/vercel-labs/agent-browser) CLI；发帖要用户自己的论坛账号。MCP 本身永远只读，写入只发生在 skill 驱动的浏览器/API 流程里。
+- `article-writer`：把一段工作写成可发布的中文技术文章并渲染成带配图的 HTML。
+
+`--install` 会把三个 skill 一并写入本机各客户端的 skills 目录；已安装的 skill 在 **MCP 启动时** 随新版本自动刷新。
 
 **不覆盖**
 

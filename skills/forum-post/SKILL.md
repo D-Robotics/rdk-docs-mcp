@@ -7,6 +7,12 @@ description: 把图文/视频内容发布到 Discourse 论坛（默认 forum.d-r
 
 默认目标 `https://forum.d-robotics.cc/`（地瓜机器人论坛，Discourse + D-Robotics SSO）。
 
+## 前置依赖（动手前先检查）
+
+- **agent-browser CLI**（浏览器路线必需）：`npm i -g agent-browser && agent-browser install`。`which agent-browser` 有输出才算就绪；没装就先装，别硬走 API 路线徒手搬 cookie。
+- **curl**（API 路线必需）：macOS / Linux 自带。
+- **ffmpeg**（仅当视频超过 ~25MB 需要压缩时）：`brew install ffmpeg` 或 `apt install ffmpeg`。
+
 ## 第 0 步：先要凭据（没有就登不进去）
 
 **发帖/编辑是写操作，必须先登录，而登录要用户的账号密码。动手前先确认凭据来源：**
