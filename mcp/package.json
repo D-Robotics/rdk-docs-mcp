@@ -1,8 +1,8 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "type": "module",
-  "description": "Search D-Robotics RDK official manuals and the community forum via MCP.",
+  "description": "Search D-Robotics RDK official manuals and the community forum, and discover RDK skills, via MCP.",
   "bin": {
     "rdk-docs-mcp": "dist/index.js"
   },
@@ -52,6 +52,7 @@
     "d-robotics",
     "documentation",
     "forum",
+    "skills",
     "tros"
   ],
   "license": "MIT",

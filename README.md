@@ -29,7 +29,7 @@ jsDelivr 不可用时，同一文件在：
 - 问「X5 怎么烧录 / TROS 某节点怎么启 / XBurn 支持哪些板」时，不再靠过期训练数据。
 - 同一套能力可以装进不同 Agent，不用为每个 IDE 重写爬虫。
 
-**四个工具**
+**六个工具**
 
 | Tool | 做什么 |
 |------|--------|
@@ -37,6 +37,8 @@ jsDelivr 不可用时，同一文件在：
 | `search_docs` | 中英文关键词检索。指定手册只搜那一本；不指定时手册为主、论坛至多作补充。`forum` 只搜社区。 |
 | `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown |
 | `list_toc` | 列出某一本手册的页面目录；`forum` 列出「开发与问题」和「通用」最近帖 |
+| `search_skills` | 在 [D-Robotics/rdk-skills](https://github.com/D-Robotics/rdk-skills) 目录快照里按任务找 Skill（只读，带 `catalog_revision` 溯源） |
+| `get_skill` | 按目录精确名称返回 Skill 详情与安装引导：flat 给 `npx skills add ...`，workspace 给整包交接（Pack repo/ref/verify_paths + `rdk-pack-installer` 获取入口） |
 
 **三个 bundled Skill**
 
@@ -51,6 +53,16 @@ jsDelivr 不可用时，同一文件在：
 - 旧版资料 `https://developer.d-robotics.cc/information` 不在索引里。
 - 论坛内容默认走 MCP：`search_docs` 带 `source=forum`（只要社区）或 `source=all`（手册为主、论坛补充）；`get_page` 可直接读公开论坛帖。MCP 论坛检索失败或 0 命中时，才直接 GET Discourse 公开 JSON 兜底。论坛帖子不当官方规范，不要爬论坛 HTML。
 - 不需要登录，也不写入文档站或论坛。
+
+**Skill 发现（只读）**
+
+用户问「X5 40PIN GPIO 有没有现成 Skill」「X5 PTQ 量化部署怎么做」这类工具/工作流问题时，Agent 调 `search_skills`，再对候选调 `get_skill` 核对，最多推荐 1–2 个：
+
+- **目录里有 ≠ 本机已安装。** 两个工具只读：不安装、不执行上游脚本、不读写用户 Skill 目录。
+- flat 型 Skill 的安装入口是 `npx skills add d-robotics/rdk-skills --skill <name>`（装整个 Skill 目录）。
+- workspace 型（OE 工具链类）必须整包安装：交接 `rdk-pack-installer`、需要项目根目录、按 `verify_paths` 校验，不能只复制单个 SKILL.md。
+- 量化问题未指明 PTQ/QAT 时，工具返回的 `guidance` 要求先分流，不替用户决定。
+- 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单。
 
 ---
 
@@ -98,12 +110,15 @@ cd mcp
 npm install
 npm test
 npm run eval:live
+npm run eval:skills
 npm run build
 ```
 
-`eval:live` 用真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。
+`eval:live` 用真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。`eval:skills` 起真实 stdio MCP 连接打 rdk-skills 在线目录，验证六个工具与 flat/workspace 安装引导（需要网络；用隔离 HOME/缓存目录，不碰用户配置）。
 
 索引缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），默认 TTL 24 小时。官方改文档后，缓存过期会重新拉最新索引；要立刻跟上就删掉缓存目录，或设 `RDK_DOCS_CACHE_TTL_MS=0`。
+
+Skill 目录缓存是同一目录下的独立快照文件 `skill-catalog-snapshot.json`：一次刷新先取 rdk-skills 默认分支 commit SHA，再按同一 SHA 拉索引与 Pack 注册表两份 JSON，校验通过后原子替换；损坏视为 miss 重取，过期后刷新失败会明确报「目录不可用」，不回退旧数据。它和文档索引缓存互不影响，也和「MCP 启动时刷新已安装 bundled Skill」是两回事（后者只覆盖本包自带的 rdk-docs/forum-post/article-writer 三个 Skill 的既有安装，见 `mcp/src/install.ts`）。
 
 S 系列 OE / OE LLM 是 Rspress 站点：不写死 `search_index.*.json` 的哈希，每次从首页 JS 里发现当前文件名，所以站点发版后哈希变了也能搜。资料中心**新上架一本手册**时，还要在 `mcp/src/catalog.ts` 加一条（并补 `eval/cases.json`）。
 
