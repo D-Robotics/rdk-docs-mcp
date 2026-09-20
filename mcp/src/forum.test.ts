@@ -66,17 +66,30 @@ describe("forumListing", () => {
 });
 
 describe("rdk-docs skill", () => {
-  it("splits manuals onto MCP and community onto Discourse JSON", () => {
+  it("routes community through MCP first, with Discourse JSON only as fallback", () => {
     const skill = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills", "rdk-docs", "SKILL.md"),
       "utf8",
     );
+    expect(skill).toContain("所有检索都走 MCP");
+    expect(skill).toContain("`source=forum`");
     expect(skill).toContain("https://forum.d-robotics.cc/search.json?q=");
     expect(skill).toContain("https://forum.d-robotics.cc/t/{id}.json");
     expect(skill).toContain("不要向用户汇报「论坛索引不可用");
-    expect(skill).toContain("不要用 Web Search");
+    expect(skill).toContain("不要网页搜索");
     expect(skill).toContain("只有官方手册，没有 forum");
     expect(skill).not.toMatch(/indexKind=discourse/);
+  });
+
+  it("keeps image-evidence, truncated and known-conflict rules in the skill (issue #5)", () => {
+    const skill = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills", "rdk-docs", "SKILL.md"),
+      "utf8",
+    );
+    expect(skill).toContain("含图的信息不算已读");
+    expect(skill).toContain("truncated");
+    expect(skill).toContain("maxChars");
+    expect(skill).toContain("数值冲突不要自行裁决");
   });
 });
 

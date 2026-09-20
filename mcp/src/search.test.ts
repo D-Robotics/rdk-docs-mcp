@@ -245,6 +245,82 @@ describe("rankHits", () => {
     expect(hits[0]?.url).toContain("/01_40pin_user_sample/gpio");
   });
 
+  it("finds the 40pin define page for every common 40PIN spelling", () => {
+    // Issue #5 minimal repro: tokens("40PIN") used to split into "40" + "pin",
+    // both blocked by the short-word boundary rule against "40pin" text.
+    const target: IndexedDoc = {
+      manualId: "rdk-x",
+      kind: "page",
+      title: "管脚定义与应用",
+      url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define",
+      text: "开发板上的 40PIN 功能管脚",
+    };
+    for (const query of ["40PIN", "40pin", "40 pin", "40-PIN"]) {
+      const hits = rankHits([target], query, 5);
+      expect(hits.length, `query ${query} should hit`).toBeGreaterThan(0);
+      expect(hits[0]?.title, `query ${query}`).toBe("管脚定义与应用");
+    }
+  });
+
+  it("ranks the 40pin define page first for the full question over generic x5 pages", () => {
+    const docs: IndexedDoc[] = [
+      {
+        manualId: "rdk-x",
+        kind: "page",
+        title: "管脚定义与应用",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define",
+        text: "开发板上的 40PIN 功能管脚",
+      },
+      {
+        manualId: "rdk-x",
+        kind: "page",
+        title: "X5 驱动开发指南",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/linux_development/driver_development_x5/driver_gpio_dev",
+        text: "Linux 驱动开发流程",
+      },
+      {
+        manualId: "rdk-x",
+        kind: "page",
+        title: "RDK 套件首页",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/",
+        text: "开发套件概述",
+      },
+      {
+        manualId: "rdk-x",
+        kind: "page",
+        title: "1.8 配件清单",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/accessory",
+        text: "配件列表",
+      },
+    ];
+    const long = rankHits(docs, "RDK X5 40PIN 接口定义", 5);
+    expect(long[0]?.url).toContain("40pin_define");
+    const short = rankHits(docs, "40PIN", 5);
+    expect(short[0]?.url).toContain("40pin_define");
+  });
+
+  it("keeps letter-boundary protection while allowing digit neighbours", () => {
+    const docs: IndexedDoc[] = [
+      {
+        manualId: "rdk-x",
+        kind: "page",
+        title: "Pinmux 引脚复用",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/pin-mux",
+        text: "40pin 引脚复用配置",
+      },
+      {
+        manualId: "rdk-x",
+        kind: "page",
+        title: "pinion 齿轮",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/pinion",
+        text: "小齿轮 pinion",
+      },
+    ];
+    const hits = rankHits(docs, "40 pin", 5);
+    expect(hits[0]?.url).toContain("pin-mux");
+    expect(hits.some((h) => h.url.includes("pinion"))).toBe(false);
+  });
+
   it("prefers remote login over the accessory list for WiFi", () => {
     const hits = rankHits(
       [

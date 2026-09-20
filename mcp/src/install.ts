@@ -45,12 +45,15 @@ type JsonObject = Record<string, unknown>;
 
 function readJson(path: string): JsonObject {
   if (!existsSync(path)) return {};
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as JsonObject) : {};
-  } catch {
-    return {};
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error(`Invalid JSON configuration at ${path}: expected an object`);
+  return parsed as JsonObject;
 }
 
 function writeJson(path: string, value: JsonObject): void {
@@ -138,6 +141,34 @@ export function ensureDshMcpPatch(path: string): boolean {
   return true;
 }
 
+/** Codex keeps MCP servers as TOML tables in ~/.codex/config.toml. */
+export const CODEX_MCP_BLOCK = `
+[mcp_servers.rdk-docs]
+command = "npx"
+args = ["-y", "rdk-docs-mcp@latest"]
+`;
+
+function codexMcpRegistered(toml: string): boolean {
+  return /^[ \t]*\[mcp_servers\.["']?rdk-docs["']?\]/m.test(toml);
+}
+
+/**
+ * Append the rdk-docs MCP server to Codex's config.toml, keeping every other
+ * entry untouched. Already-registered configs are left exactly as they are.
+ * Returns true only when the written file reads back with the server present.
+ */
+export function ensureCodexMcpServer(path: string): boolean {
+  const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
+  if (codexMcpRegistered(existing)) return true;
+  const prefix = existing.length === 0 ? "" : existing.endsWith("\n") ? existing : `${existing}\n`;
+  try {
+    writeText(path, `${prefix}${CODEX_MCP_BLOCK}`);
+    return codexMcpRegistered(readFileSync(path, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Overwrite installed copies of every bundled skill on disk. A skill only lands
  * where it already exists (refresh updates, never installs fresh on startup).
@@ -218,6 +249,14 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
   const codex = join(home, ".codex");
   if (existsSync(codex)) {
     writeSkills(join(codex, "skills"));
+    const configPath = join(codex, "config.toml");
+    if (ensureCodexMcpServer(configPath)) {
+      result.mcp.push(configPath);
+    } else {
+      result.warnings.push(
+        `Failed to register the rdk-docs MCP in ${configPath}. Finish manually: codex mcp add rdk-docs -- npx -y rdk-docs-mcp@latest`,
+      );
+    }
   }
 
   const dsh = join(home, ".dsh");
@@ -241,6 +280,13 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
       "No Cursor / Claude / ZCode / Codex / DeepSeek Harness directory found. Create one, or merge the MCP snippet from install.md yourself.",
     );
   }
+  // Skills without MCP leave the agent with instructions but no tools; say so
+  // instead of ending silently (Claude Code has no file-based MCP registration).
+  if (result.mcp.length === 0 && result.skills.length > 0) {
+    result.warnings.push(
+      "Skills were written, but no MCP server configuration could be written for any client. Register the MCP manually (see install.md), or the rdk-docs tools stay unavailable.",
+    );
+  }
 
   return result;
 }
@@ -262,7 +308,9 @@ export function formatInstallReport(result: InstallResult): string {
     for (const warning of result.warnings) lines.push(`- ${warning}`);
     lines.push("");
   }
-  lines.push("Reload the Agent / MCP servers, then ask: 「RDK X5 怎么烧录？」");
+  if (result.mcp.length === 0)
+    lines.push("No MCP client configuration was written; Skills alone do not provide MCP tools.");
+  lines.push("Reload the Agent / MCP servers, then ask: `RDK X5 怎么烧录？`");
   lines.push("Open the `official-start` hit first. Do not clone the source repository.");
   return lines.join("\n");
 }

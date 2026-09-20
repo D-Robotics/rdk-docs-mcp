@@ -134,6 +134,66 @@ describe("multi-skill", () => {
   });
 });
 
+describe("Codex MCP registration (issue #5)", () => {
+  it("registers the Codex MCP in config.toml on a Codex-only machine", () => {
+    const root = home();
+    mkdirSync(join(root, ".codex"));
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+    const toml = readFileSync(join(root, ".codex", "config.toml"), "utf8");
+    expect(toml).toContain("[mcp_servers.rdk-docs]");
+    expect(toml).toContain('command = "npx"');
+    expect(toml).toContain('"rdk-docs-mcp@latest"');
+    expect(result.mcp).toContain(join(root, ".codex", "config.toml"));
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("keeps existing Codex config intact and never duplicates the entry", () => {
+    const root = home();
+    mkdirSync(join(root, ".codex"));
+    writeFileSync(
+      join(root, ".codex", "config.toml"),
+      'model = "gpt-5"\n\n[mcp_servers.other]\ncommand = "foo"\n',
+    );
+    installRdkDocs({ home: root, skillSource: skillBody });
+    installRdkDocs({ home: root, skillSource: skillBody });
+    const toml = readFileSync(join(root, ".codex", "config.toml"), "utf8");
+    expect(toml).toContain('model = "gpt-5"');
+    expect(toml).toContain("[mcp_servers.other]");
+    expect(toml.match(/\[mcp_servers\.rdk-docs\]/g)?.length).toBe(1);
+  });
+
+  it("leaves a user-customized rdk-docs entry untouched", () => {
+    const root = home();
+    mkdirSync(join(root, ".codex"));
+    writeFileSync(
+      join(root, ".codex", "config.toml"),
+      '[mcp_servers.rdk-docs]\ncommand = "/custom/path/npx"\nargs = ["-y", "rdk-docs-mcp@1.2.3"]\n',
+    );
+    installRdkDocs({ home: root, skillSource: skillBody });
+    const toml = readFileSync(join(root, ".codex", "config.toml"), "utf8");
+    expect(toml).toContain('"/custom/path/npx"');
+    expect(toml).not.toContain('command = "npx"');
+  });
+
+  it("warns instead of ending silently when only skills could be written", () => {
+    const root = home();
+    mkdirSync(join(root, ".claude"));
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+    expect(result.mcp).toEqual([]);
+    expect(result.skills.length).toBeGreaterThan(0);
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings[0]).toContain("no MCP server configuration");
+  });
+
+  it("rejects an invalid JSON client config instead of silently overwriting it", () => {
+    const root = home();
+    mkdirSync(join(root, ".cursor"));
+    writeFileSync(join(root, ".cursor", "mcp.json"), "{ not valid json");
+    expect(() => installRdkDocs({ home: root, skillSource: skillBody })).toThrow(/Invalid JSON configuration/);
+    expect(readFileSync(join(root, ".cursor", "mcp.json"), "utf8")).toBe("{ not valid json");
+  });
+});
+
 describe("install.md", () => {
   it("tells the agent to run the one-line installer and not clone a repo", () => {
     const path = join(dirname(fileURLToPath(import.meta.url)), "..", "install.md");

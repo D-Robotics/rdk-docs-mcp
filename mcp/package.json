@@ -1,6 +1,6 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "type": "module",
   "description": "Search D-Robotics RDK official manuals and the community forum via MCP.",
   "bin": {
@@ -39,11 +39,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/QiaolongLi1201/rdk-docs.git"
+    "url": "git+https://github.com/D-Robotics/rdk-docs-mcp.git"
   },
-  "homepage": "https://github.com/QiaolongLi1201/rdk-docs#readme",
+  "homepage": "https://github.com/D-Robotics/rdk-docs-mcp#readme",
   "bugs": {
-    "url": "https://github.com/QiaolongLi1201/rdk-docs/issues"
+    "url": "https://github.com/D-Robotics/rdk-docs-mcp/issues"
   },
   "keywords": [
     "mcp",

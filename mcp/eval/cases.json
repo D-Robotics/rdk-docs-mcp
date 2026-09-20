@@ -36,6 +36,22 @@
     "pageMustInclude": ["GPIO"]
   },
   {
+    "id": "x5-40pin-define",
+    "question": "RDK X5 40PIN 接口定义",
+    "query": "RDK X5 40PIN 接口定义",
+    "manual": "x5",
+    "urlMustInclude": ["40pin_define"],
+    "pageMustInclude": ["40PIN", "管脚"]
+  },
+  {
+    "id": "x5-40pin-short",
+    "question": "40PIN",
+    "query": "40PIN",
+    "manual": "x5",
+    "urlMustInclude": ["40pin_define"],
+    "pageMustInclude": ["40PIN", "管脚"]
+  },
+  {
     "id": "x5-miniboot",
     "question": "RDK X5 怎么升级 miniboot？",
     "query": "miniboot",
