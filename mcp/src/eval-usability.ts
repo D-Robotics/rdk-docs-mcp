@@ -1,5 +1,5 @@
 import { listManuals, resolveManual } from "./catalog.js";
-import { scoreDocsFirstMix } from "./eval.js";
+import { inspectPage, scoreDocsFirstMix } from "./eval.js";
 import type { HttpGet } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
 
@@ -117,10 +117,10 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
         http,
       );
       const topic = await getPage({ url: "https://forum.d-robotics.cc/t/topic/33210", maxChars: 4000 }, http);
-      if (!doc.markdown.includes("PoE") && !doc.markdown.includes("POE")) {
+      if (!inspectPage(doc.markdown).valid || !/poe/i.test(doc.markdown)) {
         return { pass: false, reason: "official PoE page missing PoE" };
       }
-      if (!topic.markdown.toLowerCase().includes("wifi")) {
+      if (!inspectPage(topic.markdown).valid || !topic.markdown.toLowerCase().includes("wifi")) {
         return { pass: false, reason: "forum topic 33210 missing wifi" };
       }
       return { pass: true, reason: `opened ${doc.title} + ${topic.title}` };
@@ -259,15 +259,13 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
   );
 
   results.push(
-    await check("x3-hardware-get-page-not-blank", async () => {
+    await check("x3-hardware-shell-recovery-or-diagnostic", async () => {
       const page = await getPage(
         { url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3", maxChars: 4000 },
         http,
       );
-      if (!page.markdown.trim()) {
-        return { pass: false, reason: "X3 hardware intro still returns empty markdown" };
-      }
-      return { pass: true, reason: `${page.title} · ${page.markdown.trim().slice(0, 80)}` };
+      const content = inspectPage(page.markdown);
+      return { pass: content.valid || content.shell, reason: content.reason };
     }),
   );
 

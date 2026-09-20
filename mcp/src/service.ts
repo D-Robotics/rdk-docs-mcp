@@ -1,4 +1,5 @@
 import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
+import { mentionedBoards, urlLooksLikeBoard } from "./products.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
@@ -132,6 +133,12 @@ export async function searchDocs(
   const includeDocs = source === "docs" || source === "all";
   const includeForum = source === "forum" || source === "all";
   const warnings: string[] = [];
+  const mentioned = mentionedBoards(query);
+  const needsBoard = /升级|烧录|镜像|驱动|安装|系统|GPIO|PoE|WiFi|摄像头/i.test(query);
+  if (needsBoard && mentioned.length === 0 && !input.manual)
+    warnings.push("Board model is missing; version- or hardware-specific instructions require clarification before execution.");
+  if (mentioned.length > 1 && input.manual === "rdk-x")
+    warnings.push("Comparison evidence must be checked per board; do not infer a missing model's facts from another model.");
 
   let docHits: SearchHit[] = [];
   if (includeDocs) {
@@ -167,6 +174,11 @@ export async function searchDocs(
   }
 
   const official = includeDocs ? matchOfficialPath(query, input.manual) : undefined;
+  if (mentioned.length > 1 && docHits.length > 0) {
+    const missing = mentioned.filter((board) => !docHits.some((hit) => urlLooksLikeBoard(hit.url, board) || urlLooksLikeBoard(hit.title, board)));
+    if (missing.length > 0)
+      warnings.push(`No retrieved hit is explicitly scoped to: ${missing.join(", ")}. Treat the comparison as incomplete.`);
+  }
   return {
     hits: applyOfficialPath(mergeHits(docHits, forumHits, limit), official, limit),
     warnings,

@@ -7,8 +7,21 @@ export type EvalCase = {
   manual?: string;
   urlMustInclude: string[];
   pageMustInclude: string[];
+  pageFactGroups?: string[][];
   firstHitMustInclude?: string[];
 };
+
+export function missingFactGroups(text: string, groups: string[][]): string[][] {
+  const normalized = text.toLowerCase();
+  return groups.filter((group) => !group.some((term) => term.trim() && normalized.includes(term.toLowerCase())));
+}
+
+export function inspectPage(markdown?: string): { valid: boolean; shell: boolean; reason: string } {
+  const text = markdown?.trim() ?? "";
+  const shell = /这是现网空壳页|现网该页没有正文/.test(text);
+  const body = text.replace(/^\s*#{1,6}\s+.*$/gm, "").replace(/!?\[[^\]]*\]\([^)]*\)/g, "").trim();
+  return { valid: !shell && Boolean(body), shell, reason: shell ? "diagnosed empty shell; not valid body content" : body ? "body content present" : "empty or heading/link-only page" };
+}
 
 export type CaseScore = {
   id: string;
@@ -95,12 +108,10 @@ export function scoreCase(
 
   const hit = pickRelevantHit(hits, evalCase.urlMustInclude);
   const searchPass = Boolean(hit);
-  const pagePass =
-    !evalCase.pageMustInclude.length ||
-    Boolean(
-      pageMarkdown &&
-        evalCase.pageMustInclude.some((needle) => pageMarkdown.toLowerCase().includes(needle.toLowerCase())),
-    );
+  const page = inspectPage(pageMarkdown);
+  const groups = evalCase.pageFactGroups ?? (evalCase.pageMustInclude.length ? [evalCase.pageMustInclude] : []);
+  const missing = missingFactGroups(pageMarkdown ?? "", groups);
+  const pagePass = page.valid && missing.length === 0;
 
   if (!searchPass) {
     return {
@@ -122,7 +133,7 @@ export function scoreCase(
       pass: false,
       hitUrl: hit?.url,
       hitTitle: hit?.title,
-      reason: `page missing ${evalCase.pageMustInclude.join(" | ")}`,
+      reason: !page.valid ? page.reason : `page missing fact groups: ${missing.map((group) => group.join(" | ")).join("; ")}`,
     };
   }
 
@@ -134,6 +145,6 @@ export function scoreCase(
     pass: true,
     hitUrl: hit?.url,
     hitTitle: hit?.title,
-    reason: "search + page can answer",
+    reason: "retrieval checks passed: search + page facts (answer not evaluated)",
   };
 }
