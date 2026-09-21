@@ -525,3 +525,16 @@ describe("skill search ranking — platform scope and conflicts (retest 2026-09-
     expect(narrowed.matches).toEqual([]);
   });
 });
+
+ describe('expanded natural-language delivery acceptance', () => {
+  it.each(['X5 有没有已经量化好的模型','下载官方模型','already quantized models for X5','pre-quantized model zoo'])('model lookup: %s', q => {
+    const r=searchSkillRecords(SKILLS,q); expect(r.matches[0].skill.name).toBe('rdk-model-zoo'); expect(r.guidance_kind).toBe('default');
+  });
+  it.each(['X5 post training quantization','X5 post-training quantization','X5 训练后量化 PTQ'])('PTQ terminology: %s',q=>{
+    const r=searchSkillRecords(SKILLS,q); expect(r.matches[0].skill.name).toBe('x5-ptq-deploy'); expect(r.matches.some(m=>m.skill.name.includes('-qat-'))).toBe(false);
+  });
+  it.each(['X5 摄像头直接用','X5 串口开箱即用'])('peripheral is not model lookup: %s', q=>{
+    expect(searchSkillRecords(SKILLS,q).matches[0]?.skill.name).not.toBe('rdk-model-zoo');
+  });
+  it.each(['不要现成模型我要自己量化','X5 ONNX 转换 hbm'])('undecided: %s',q=>expect(searchSkillRecords(SKILLS,q).guidance_kind).toBe('ambiguous_quant'));
+ });

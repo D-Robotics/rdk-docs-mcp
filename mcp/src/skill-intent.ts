@@ -40,16 +40,17 @@ export type IntentAnalysis = {
 // ---------------------------------------------------------------------------
 
 const NEGATION_CUE =
-  /(?:不用|不要|不想|不是|不选|不做|不把|排除|拒绝|非|没有|无法|别|除外|not|no|without|except|rather than|excluding|don't|dont|isn't|isnt)(?:[\s:：,，、]*|$)/gi;
+  /(?:不用|不要|不想|不是|不选|不做|不把|不量化|排除|拒绝|非|没有|无法|别|除外|\bnot\b|\bno\b|\bwithout\b|\bexcept\b|rather than|\bexcluding\b|don't|dont|isn't|isnt)(?:[\s:：,，、]*|$)/gi;
 
 function negationSpans(lowered: string): Array<[number, number]> {
   const spans: Array<[number, number]> = [];
   for (const match of lowered.matchAll(NEGATION_CUE)) {
-    const start = (match.index ?? 0) + match[0].length;
+    if (match[0].startsWith("没有") && lowered.slice(Math.max(0, (match.index ?? 0) - 1), match.index) === "有") continue;
+    const start = (match.index ?? 0) + (match[0].startsWith("不量化") ? 1 : match[0].length);
     // The negated unit is one ascii word or one CJK run, never crossing
     // punctuation, so "not PTQ: X5 QAT" only negates PTQ.
     const rest = lowered.slice(start, start + 24);
-    const word = /^(?:[a-z0-9_.-]+|[一-鿿]+)/.exec(rest)?.[0];
+    const word = /^(?:[a-z0-9_.-]+|[一-鿿]+)/.exec(rest)?.[0]?.split(/但是|但|而是|我要|我想|只想|只要/)[0];
     if (word) spans.push([start, start + word.length]);
   }
   return spans;
@@ -78,6 +79,8 @@ function occurrences(lowered: string, needle: string): Array<[index: number, len
 type TaskPhrase = { text: string; covers?: "quant" | "training" };
 
 const READY_PHRASES: TaskPhrase[] = [
+  { text: "already quantized", covers: "quant" },
+  { text: "pre-quantized", covers: "quant" },
   { text: "量化好", covers: "quant" },
   { text: "已量化", covers: "quant" },
   { text: "量化完成", covers: "quant" },
@@ -91,6 +94,8 @@ const READY_PHRASES: TaskPhrase[] = [
   { text: "ready-made" },
   { text: "ready to use" },
   { text: "直接用" },
+  { text: "直接跑" },
+  { text: "下载" },
 ];
 
 /** Affirmative "quantize it myself / for me" phrasing (longest first). */
@@ -136,7 +141,9 @@ export function analyzeIntent(query: string): IntentAnalysis {
   const coveredBy = (needle: string): Array<[number, number]> => occurrences(lowered, needle);
 
   let readyCues = 0;
+  const modelContext = /模型|\bmodels?\b|model zoo|量化好|已量化|预训练|pretrained|quantized/.test(lowered);
   for (const phrase of READY_PHRASES) {
+    if (!modelContext && ["现成", "开箱即用", "ready-made", "ready to use", "直接用", "直接跑", "下载"].includes(phrase.text)) continue;
     for (const [index, length] of coveredBy(phrase.text)) {
       if (phrase.covers === "quant") coveredQuant.push([index, index + length]);
       if (phrase.covers === "training") coveredTraining.push([index, index + length]);
@@ -153,6 +160,7 @@ export function analyzeIntent(query: string): IntentAnalysis {
   for (const text of QUANT_TASK_PHRASES) {
     for (const [index, length] of coveredBy(text)) {
       // An English task word also covers the bare quant token it contains.
+      if (quantCovered(index, length)) continue;
       if (/^quant/.test(text)) coveredQuant.push([index, index + length]);
       if (!inSpans(spans, index, length)) quantizeCues += 1;
     }
@@ -173,7 +181,10 @@ export function analyzeIntent(query: string): IntentAnalysis {
   const maintainerCue = [...lowered.matchAll(MAINTAINER_CUE)].some(
     (match) => !inSpans(spans, match.index ?? 0, match[0].length),
   );
+  // Conversion requests do not choose a quantization workflow by themselves.
+  if (/转换|convert/.test(lowered) && /onnx|hbm|模型|model/.test(lowered)) quantizeCues += 1;
   const mixedModelAsk = readyCues > 0 && quantizeCues > 0;
+  const path = decidedQuantPath(lowered, spans, trainingCovered);
 
   let intent: TaskIntent;
   if (quantizeCues > 0) intent = "quantize";
@@ -182,9 +193,9 @@ export function analyzeIntent(query: string): IntentAnalysis {
 
   return {
     intent,
-    decidedQuantPath: decidedQuantPath(lowered, spans, trainingCovered),
+    decidedQuantPath: path,
     mixedModelAsk,
-    conceptTokens: intent === "ready_model" ? ["model", "zoo"] : [],
+    conceptTokens: intent === "ready_model" || (/模型库|model zoo/.test(lowered) && !isNegatedToken("模型库") && !isNegatedToken("model zoo")) ? ["model", "zoo", ...(maintainerCue && /发版|release/.test(lowered) ? ["release"] : [])] : path ? [path] : [],
     isNegatedToken,
   };
 }
@@ -221,11 +232,14 @@ function decidedQuantPath(
   spans: Array<[number, number]>,
   trainingCovered: (index: number, length: number) => boolean,
 ): QuantPath | null {
-  const ptq = hasEffectiveSignal(lowered, "ptq", spans);
+  const postTraining = /post[- ]training(?: quantization)?|训练后量化/g;
+  const postSpans = [...lowered.matchAll(postTraining)].map(m => [m.index!, m.index! + m[0].length] as [number, number]);
+  const ptq = hasEffectiveSignal(lowered, "ptq", spans) || postSpans.some(([a,b]) => !inSpans(spans,a,b-a));
+  const coveredTraining = (i: number, n: number) => trainingCovered(i,n) || inSpans(postSpans,i,n);
   const qat =
     hasEffectiveSignal(lowered, "qat", spans) ||
-    hasEffectiveSignal(lowered, "训练", spans, trainingCovered) ||
-    hasEffectiveSignal(lowered, "training", spans, trainingCovered);
+    hasEffectiveSignal(lowered, "训练", spans, coveredTraining) ||
+    hasEffectiveSignal(lowered, "training", spans, coveredTraining);
   if (ptq && !qat) return "ptq";
   if (qat && !ptq) return "qat";
   return null;
