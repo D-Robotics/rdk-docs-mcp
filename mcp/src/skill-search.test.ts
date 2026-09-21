@@ -143,6 +143,96 @@ const SKILLS: SkillRecord[] = [
     catalog_path: "skills/oe-skills-s/skills/horizon-router",
     install_type: "workspace",
   },
+  {
+    name: "rdk-model-zoo",
+    description:
+      "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo",
+    install_type: "flat",
+  },
+  {
+    name: "rdk-model-zoo-develop",
+    description:
+      "Use when adding or modifying maintained RDK Model Zoo samples, shared utilities, sample docs, tests, or repository conventions, including bug fixes. 触发词：开发样例、新增模型、修复 sample、公共工具。Do not use as the primary skill for read-only review, ready-made use, or toolchain quantization.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo-develop",
+    install_type: "flat",
+  },
+  {
+    name: "rdk-model-zoo-integrate",
+    description:
+      "Use when integrating a custom model artifact or changed I/O contract into an RDK Model Zoo sample, including class-count, shape, wrapper, or cross-platform adaptation. 触发词：自训练接入、替换权重、接口适配。Do not use to implement PTQ/QAT or to review an unchanged sample.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo-integrate",
+    install_type: "flat",
+  },
+  {
+    name: "rdk-model-zoo-release",
+    description:
+      "Use when preparing or checking RDK Model Zoo model releases, Skills Pack releases, manifests, Hub registration migration, tags, or release isolation. 触发词：模型发版、Skills 发版、Hub 接入、Tag 兼容。Do not use for routine sample development, OE Pack releases, or publishing without explicit authorization.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo-release",
+    install_type: "flat",
+  },
+  {
+    name: "rdk-model-zoo-repo",
+    description:
+      "Use to establish an RDK Model Zoo checkout's platform, version, layout, conventions, dirty or untracked files, affected samples, and development entrypoints. 触发词：仓库上下文、工作区盘点、开发入口、分支规范。Workspace inventory belongs here; assessing code correctness, standards compliance or delivery readiness belongs to review. Do not use as primary for ready-made model lookup or quantization.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo-repo",
+    install_type: "flat",
+  },
+  {
+    name: "rdk-model-zoo-review",
+    description:
+      "Use to assess an RDK Model Zoo sample, PR, local changes, staged diff, or commit range for standards compliance, delivery completeness, technical correctness, and regressions. 触发词：PR review、样例审计、代码评审。Platform, version, directory or untracked-file inventory without a quality assessment belongs to rdk-model-zoo-repo. Do not use to modify code, run quantization, or silently execute board tests.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo-review",
+    install_type: "flat",
+  },
+  {
+    name: "rdk-model-zoo-validate",
+    description:
+      "Use when planning or executing sample-scoped RDK Model Zoo smoke, numerical, accuracy, performance, or regression checks and preparing verification evidence. 触发词：样例验收、回归测试、数值一致性。Do not use as a PR verdict, a published-benchmark lookup, or a quantization implementation.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo-validate",
+    install_type: "flat",
+  },
+  {
+    name: "__SKILL_j6-plugin-__set-fake-quantize",
+    description:
+      "在适配 horizon_plugin_pytorch 的量化流程中，为模型设置 fake quantize 状态（QAT/CALIBRATION/VALIDATION）。只添加/调用 set_fake_quantize，不做其他修改。",
+    pack: "OE Tool Chain (S)",
+    repo: "D-Robotics/oe-skills-s",
+    catalog_path: "skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize",
+    install_type: "workspace",
+  },
+  {
+    name: "__SKILL_j6-plugin-__quantization",
+    description:
+      "为基础网络结构生成量化流程代码（set_march → 插入 Quant/DeQuant → 配置量化参数 → prepare → 校准 → QAT 训练）。务必在用户提到模型量化、量化流程、QAT 校准、Horizon 量化适配、HistogramObserver/MinMaxObserver 配置、量化参数配置、校准训练、QuantStub 插入时触发此 skill，即使用户只问其中一个步骤，只要涉及 Horizon 量化流程的任何环节都应触发。",
+    pack: "OE Tool Chain (S)",
+    repo: "D-Robotics/oe-skills-s",
+    catalog_path: "skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization",
+    install_type: "workspace",
+  },
+  {
+    name: "j6-board-monitor",
+    description:
+      "RDK S 系列开发板资源监控与推理期间资源采集。当用户需要监控 BPU 占用率、DDR 带宽、内存使用时触发。支持三种场景：CV 模型推理期间同步采集 BPU/DDR/内存数据、独立监控板端硬件资源、LLM 模型循环推理期间同步采集资源数据。关键词：BPU 监控、DDR 带宽、内存使用、资源监控、板端资源评估。注意：不要用 hbm_infer/gRPC 做高频推理监控。",
+    pack: "OE Tool Chain (S)",
+    repo: "D-Robotics/oe-skills-s",
+    catalog_path: "skills/oe-skills-s/skills/ucp/j6-board-monitor",
+    install_type: "workspace",
+  },
 ];
 
 const names = (result: { matches: Array<{ skill: SkillRecord }> }) => result.matches.map((m) => m.skill.name);
@@ -315,11 +405,16 @@ describe("skill search ranking — retest 2026-09-21", () => {
   });
 
   it("requires a real model hit for model-only queries — orchestrator bonus alone never qualifies", () => {
-    // No fixture mentions J6, so a J6-only query must not return deploy-named
-    // entries riding on the orchestrator bonus.
-    const orphan = searchSkillRecords(SKILLS, "J6");
-    expect(orphan.matches).toEqual([]);
-    expect(orphan.guidance_kind).toBe("no_match");
+    // J6 exists in the fixture only inside the S-series pack records; a J6-only
+    // query returns exactly those records, never deploy-named entries riding
+    // on the orchestrator bonus.
+    const j6 = searchSkillRecords(SKILLS, "J6");
+    expect(j6.guidance_kind).toBe("model_only");
+    expect(j6.matches.length).toBeGreaterThan(0);
+    for (const match of j6.matches) {
+      expect(match.matched_terms).toContain("j6");
+    }
+    expect(names(j6)).not.toContain("x5-ptq-deploy");
 
     // A model that does exist returns only records that actually match it.
     const x5 = searchSkillRecords(SKILLS, "X5");
@@ -328,5 +423,105 @@ describe("skill search ranking — retest 2026-09-21", () => {
     for (const match of x5.matches) {
       expect(match.matched_terms).toContain("x5");
     }
+  });
+});
+
+describe("skill search ranking — natural language quality (retest 2026-09-21)", () => {
+  const readyQueries = [
+    "现成的量化好的模型直接用",
+    "官方已经量化好的模型",
+    "找模型库",
+    "找预训练模型",
+    "pretrained models ready to use",
+  ];
+
+  it.each(readyQueries)("routes a ready-model ask to the Model Zoo user entry: %s", (query) => {
+    const result = searchSkillRecords(SKILLS, query);
+    expect(result.matches[0]?.skill.name).toBe("rdk-model-zoo");
+    expect(result.guidance_kind).not.toBe("ambiguous_quant");
+  });
+
+  const undecidedQueries = ["我想量化模型", "X5 上把模型量化后部署", "量化", "quantization"];
+
+  it.each(undecidedQueries)("keeps PTQ/QAT guidance undecided for: %s", (query) => {
+    const result = searchSkillRecords(SKILLS, query);
+    expect(result.guidance_kind).toBe("ambiguous_quant");
+    // No PTQ/QAT-dedicated workflow may be presented as the decided answer,
+    // even when the query returned no candidates at all.
+    for (const match of result.matches) {
+      expect(/(^|[-_])(ptq|qat)([-_]|$)/.test(match.skill.name.toLowerCase())).toBe(false);
+    }
+  });
+
+  it("does not route the Model Zoo when the user negates ready-made models", () => {
+    const result = searchSkillRecords(SKILLS, "不要现成模型，我要自己量化");
+    expect(result.guidance_kind).toBe("ambiguous_quant");
+    expect(names(result)).not.toContain("rdk-model-zoo");
+  });
+
+  it("does not treat 预训练 (pretrained) as a QAT training decision", () => {
+    const result = searchSkillRecords(SKILLS, "找预训练模型");
+    expect(result.guidance_kind).not.toBe("ambiguous_quant");
+    // The word 训练 inside 预训练 must not promote a QAT-dedicated workflow
+    // above the ready-model entry (or at all ahead of it).
+    const ranked = names(result);
+    expect(ranked.indexOf("rdk-model-zoo")).toBe(0);
+    const qatAt = ranked.indexOf("x5-qat-training");
+    expect(qatAt === -1 || qatAt > 0).toBe(true);
+  });
+});
+
+describe("skill search ranking — platform scope and conflicts (retest 2026-09-21)", () => {
+  const sPackNames = [
+    "__SKILL_j6-plugin-__set-fake-quantize",
+    "__SKILL_j6-plugin-__quantization",
+    "j6-board-monitor",
+    "horizon-router",
+  ];
+
+  it("excludes the known S-series pack when the query names X5", () => {
+    const result = searchSkillRecords(SKILLS, "X5 上把模型量化后部署");
+    const all = names(result);
+    for (const name of sPackNames) expect(all).not.toContain(name);
+    expect(all).toContain("x5-router");
+    expect(result.matches[0]?.skill.name).toBe("x5-router");
+  });
+
+  it("excludes the known S-series pack when platform=x5 is explicit", () => {
+    const result = searchSkillRecords(SKILLS, "量化模型 PTQ", { platform: "x5" });
+    const all = names(result);
+    for (const name of sPackNames) expect(all).not.toContain(name);
+    expect(all).toContain("x5-ptq-deploy");
+    expect(result.matches[0]?.skill.name).toBe("x5-ptq-deploy");
+  });
+
+  it("keeps board-agnostic GPIO and Model Zoo candidates under a board constraint", () => {
+    const gpio = searchSkillRecords(SKILLS, "40PIN GPIO", { platform: "x5" });
+    expect(names(gpio)).toContain("rdk-gpio-40pin");
+
+    const zoo = searchSkillRecords(SKILLS, "X5 现成的量化好的模型直接用");
+    expect(zoo.matches[0]?.skill.name).toBe("rdk-model-zoo");
+    expect(zoo.guidance_kind).not.toBe("ambiguous_quant");
+  });
+
+  it("reports a platform conflict instead of silently recommending one board", () => {
+    const result = searchSkillRecords(SKILLS, "X5 PTQ", { platform: "s100" });
+    expect(result.matches).toEqual([]);
+    expect(result.guidance_kind).toBe("platform_conflict");
+    expect(result.guidance).toContain("X5");
+    expect(result.guidance).toContain("S100");
+  });
+
+  it("does not narrow a multi-board comparison query to a single board", () => {
+    const result = searchSkillRecords(SKILLS, "X5 和 S100 量化部署怎么选");
+    const all = names(result);
+    expect(all).toContain("x5-router");
+    expect(all).toContain("horizon-router");
+
+    // A single-board platform parameter on a comparison query must not
+    // silently drop the other board either.
+    const narrowed = searchSkillRecords(SKILLS, "X5 和 S100 量化部署怎么选", { platform: "x5" });
+    expect(narrowed.guidance_kind).toBe("platform_conflict");
+    expect(narrowed.matches).toEqual([]);
   });
 });

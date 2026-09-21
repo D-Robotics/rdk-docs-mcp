@@ -1,13 +1,16 @@
 import { mentionedBoards, type BoardId } from "./products.js";
+import { analyzeIntent, type QuantPath } from "./skill-intent.js";
+import { defaultPackBoardFamilies, type PackBoardFamilyIndex } from "./skill-catalog.js";
 import type { InstallType, SkillRecord } from "./skill-catalog.js";
 
 /**
  * Pure ranking for the rdk-skills catalog (issue #4 §5). Nothing here talks to
  * the network or reads user state; every result comes from the validated
- * snapshot passed in. The rules deliberately differ from doc search: task
- * words must decide relevance, model words alone never promote a workflow,
- * and quantization queries without a PTQ/QAT decision are disambiguated
- * instead of guessed.
+ * snapshot passed in. The rules deliberately differ from doc search: the
+ * query's task intent (skill-intent.ts) is classified before PTQ/QAT
+ * guardrails apply, task words must decide relevance, model words alone never
+ * promote a workflow, and quantization queries without a PTQ/QAT decision are
+ * disambiguated instead of guessed.
  */
 
 export type SearchFilters = {
@@ -22,9 +25,22 @@ export type RankedSkill = {
   score: number;
   matched_terms: string[];
   match_reason: string;
+  /**
+   * Board evidence relative to the active board constraint: "matched-board"
+   * (pack families or the record itself involve a constrained board),
+   * "unknown" (no board evidence — kept, but never a compatibility claim), or
+   * "unconstrained" (no board is in play for this query).
+   */
+  platform_scope: "matched-board" | "unknown" | "unconstrained";
 };
 
-export type GuidanceKind = "default" | "model_only" | "ambiguous_quant" | "no_match" | "invalid_input";
+export type GuidanceKind =
+  | "default"
+  | "model_only"
+  | "ambiguous_quant"
+  | "platform_conflict"
+  | "no_match"
+  | "invalid_input";
 
 export type SkillSearchOutcome = {
   matches: RankedSkill[];
@@ -147,48 +163,16 @@ function descriptionMatcher(description: string): DescriptionMatcher {
 }
 
 // ---------------------------------------------------------------------------
-// Classification of the query and of catalog records. The classification is
-// token-based on purpose: no hand-maintained skill-name whitelist (spec §5).
+// Classification of catalog records. The classification is token-based on
+// purpose: no hand-maintained skill-name whitelist (spec §5). The query-side
+// classification (task intent, PTQ/QAT decision, negation spans) lives in
+// skill-intent.ts.
 // ---------------------------------------------------------------------------
 
 const QUANT_TOKENS = new Set(["量化", "quant"]);
 
 function isQuantToken(token: string): boolean {
   return QUANT_TOKENS.has(token);
-}
-
-// ---------------------------------------------------------------------------
-// The PTQ/QAT decision implied by the query itself. A signal is only counted
-// when it is actually asserted: "不用 QAT，直接 PTQ" commits to PTQ, "not PTQ"
-// does not commit to PTQ, and a question mentioning both paths ("PTQ 和 QAT
-// 区别") commits to neither, so no mutual exclusion is applied.
-// ---------------------------------------------------------------------------
-
-type QuantPath = "ptq" | "qat";
-
-/** Negation cues that may sit immediately before a signal ("非/不用/not …"). */
-const QUERY_NEGATION_BEFORE =
-  /(?:不用|不要|不是|不选|不做|排除|拒绝|非|没有|无法)\s*$|(?:^|[\s(（,，、/])(?:not|no|without|except|rather than|excluding)[\s:-]*$/i;
-/** Cues that negate the signal from the right ("QAT 除外"). */
-const QUERY_NEGATION_AFTER = /^\s*(?:除外|就不要|就不用|不行)/;
-
-function hasEffectiveSignal(lowered: string, signal: string): boolean {
-  for (let index = lowered.indexOf(signal); index !== -1; index = lowered.indexOf(signal, index + 1)) {
-    const before = lowered.slice(Math.max(0, index - 16), index);
-    const after = lowered.slice(index + signal.length, index + signal.length + 6);
-    if (!QUERY_NEGATION_BEFORE.test(before) && !QUERY_NEGATION_AFTER.test(after)) return true;
-  }
-  return false;
-}
-
-/** The quantization path the query commits to, or null when undecided/both. */
-function decidedQuantPath(query: string): QuantPath | null {
-  const lowered = query.trim().toLowerCase();
-  const ptq = hasEffectiveSignal(lowered, "ptq");
-  const qat = ["qat", "训练", "training"].some((signal) => hasEffectiveSignal(lowered, signal));
-  if (ptq && !qat) return "ptq";
-  if (qat && !ptq) return "qat";
-  return null;
 }
 
 function isEntrySkill(skill: SkillRecord): boolean {
@@ -216,24 +200,74 @@ function quantPathOf(skill: SkillRecord): QuantPath | null {
 }
 
 // ---------------------------------------------------------------------------
-// Platform filter: a known board keeps board-agnostic skills and skills that
-// mention that board, and drops skills scoped to a different board only.
+// Board scope (retest 2026-09-21 P1/P2). A board named in the query is a
+// default constraint, consistent with an explicit platform parameter; known
+// pack families (skill-catalog.ts) exclude packs proven to target another
+// family; records with no board evidence stay but are reported as unknown
+// scope, never as compatible. Contradictory board inputs are surfaced as a
+// conflict instead of silently narrowing the recommendation.
 // ---------------------------------------------------------------------------
 
 function boardsInText(text: string): BoardId[] {
   return mentionedBoards(text);
 }
 
-function passesPlatformFilter(skill: SkillRecord, platform: string): boolean {
-  const platformBoards = boardsInText(platform.toLowerCase());
-  if (platformBoards.length === 0) {
-    // Unknown platform string: require every token to appear in the text.
-    const text = `${skill.name} ${skill.description} ${skill.pack}`.toLowerCase();
-    return skillQueryTokens(platform).every((token) => buildMatcher(token).test(text));
+type BoardConstraint = {
+  /** Boards the result set is scoped to; empty means no narrowing. */
+  boards: BoardId[];
+  /** Set when the query and the platform parameter contradict each other. */
+  conflict: { queryBoards: BoardId[]; platformBoards: BoardId[] } | null;
+};
+
+function boardConstraint(query: string, platform: string | undefined): BoardConstraint {
+  const queryBoards = boardsInText(query);
+  const platformBoards = platform ? boardsInText(platform.toLowerCase()) : [];
+  if (platformBoards.length > 0 && queryBoards.length > 0) {
+    // The platform parameter must cover every board the query names, or it is
+    // trying to narrow (or contradict) an explicit user statement — including
+    // a multi-board comparison, which must not collapse to one board silently.
+    const covered = queryBoards.every((board) => platformBoards.includes(board));
+    if (!covered) return { boards: [], conflict: { queryBoards, platformBoards } };
+  }
+  if (platformBoards.length > 0) return { boards: platformBoards, conflict: null };
+  // A single board named in the query narrows by default; a multi-board query
+  // is a comparison and stays open.
+  if (queryBoards.length === 1) return { boards: queryBoards, conflict: null };
+  return { boards: [], conflict: null };
+}
+
+type FamilyResolver = (packName: string) => readonly BoardId[] | undefined;
+
+function familyResolver(packFamilies?: PackBoardFamilyIndex): FamilyResolver {
+  return (packName: string) => packFamilies?.get(packName) ?? defaultPackBoardFamilies(packName);
+}
+
+/**
+ * Board evidence for one record under an active constraint: matched via pack
+ * families or the record's own board mentions, unknown when no evidence
+ * exists (kept, never claimed compatible).
+ */
+function boardScopeOf(
+  skill: SkillRecord,
+  constraintBoards: BoardId[],
+  families: FamilyResolver,
+): { included: boolean; scope: "matched-board" | "unknown" | "unconstrained" } {
+  if (constraintBoards.length === 0) return { included: true, scope: "unconstrained" };
+  const packFamilies = families(skill.pack);
+  if (packFamilies && packFamilies.length > 0) {
+    const matched = packFamilies.some((board) => constraintBoards.includes(board));
+    return { included: matched, scope: matched ? "matched-board" : "unknown" };
   }
   const mentioned = boardsInText(`${skill.name} ${skill.description} ${skill.pack}`);
-  if (mentioned.length === 0) return true; // board-agnostic skills stay
-  return platformBoards.some((board) => mentioned.includes(board));
+  if (mentioned.length === 0) return { included: true, scope: "unknown" };
+  const matched = constraintBoards.some((board) => mentioned.includes(board));
+  return { included: matched, scope: matched ? "matched-board" : "unknown" };
+}
+
+/** Explicit unknown platform strings keep the strict every-token text filter. */
+function passesUnknownPlatformFilter(skill: SkillRecord, platform: string): boolean {
+  const text = `${skill.name} ${skill.description} ${skill.pack}`.toLowerCase();
+  return skillQueryTokens(platform).every((token) => buildMatcher(token).test(text));
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +284,14 @@ const ORCHESTRATOR_BONUS = 6;
 const AMBIGUOUS_ENTRY_BOOST = 20;
 const AMBIGUOUS_OTHER_ENTRY_BOOST = 8;
 const AMBIGUOUS_GENERIC_FACTOR = 0.5;
+/**
+ * For a ready-model ask, records whose *positive* description asserts consumer
+ * vocabulary (ready-made, 现成, pretrained, ...) outrank maintainer workflows
+ * of the same family. Derived from description metadata, not a name whitelist.
+ */
+const READY_CONSUMER_BONUS = 15;
+const READY_CONSUMER_MARKER =
+  /现成|ready-made|ready to use|pretrained|预训练|开箱即用|published benchmarks|跑示例|模型库/;
 
 type FieldHits = { name: string[]; path: string[]; pack: string[]; description: string[] };
 
@@ -269,6 +311,7 @@ function scoreSkill(
   modelMatchers: Matcher[],
   exactName: boolean,
   ambiguousQuant: boolean,
+  readyModelIntent: boolean,
 ): { score: number; hits: FieldHits; matchedTask: number; matchedModel: number; quantMatched: boolean } {
   const name = skill.name.toLowerCase();
   const path = skill.catalog_path.toLowerCase();
@@ -334,6 +377,16 @@ function scoreSkill(
   const alignedModel = modelMatchers.length > 0 && matchedModel === modelMatchers.length;
   if (alignedModel) score += ALIGNED_MODEL_BONUS;
   if (isOrchestratorSkill(skill)) score += ORCHESTRATOR_BONUS;
+  if (readyModelIntent) {
+    // Consumer-entry preference: only positive sentences count, so the
+    // maintainer skills' "Do not use ... ready-made use" lines never qualify.
+    const positiveSentences = splitSentences(skill.description).filter(
+      (sentence) => !NEGATION_CUES.test(sentence),
+    );
+    if (positiveSentences.some((sentence) => READY_CONSUMER_MARKER.test(sentence))) {
+      score += READY_CONSUMER_BONUS;
+    }
+  }
   if (ambiguousQuant) {
     if (isEntrySkill(skill)) score += alignedModel ? AMBIGUOUS_ENTRY_BOOST : AMBIGUOUS_OTHER_ENTRY_BOOST;
     else if (!quantMatched) score = Math.round(score * AMBIGUOUS_GENERIC_FACTOR);
@@ -354,34 +407,74 @@ const GUIDANCE_TEXT: Record<GuidanceKind, string> = {
     "The query names only a board/model. These are catalog candidates matching that model, not compatibility claims and not a decided workflow. Ask the user for the concrete task (flashing, GPIO, camera, quantization, deployment, ...) before recommending a skill.",
   ambiguous_quant:
     "Quantization path is ambiguous: PTQ (post-training quantization, calibration on ready models) and QAT (quantization-aware training on trainable models) are different workflows. Ask the user which one they mean; an entry/router skill can triage further. Do not present a PTQ or QAT sub-step as the decided answer for this query.",
+  platform_conflict:
+    "The board named in the query and the platform parameter contradict each other. No candidate is recommended for either side; ask the user which board they actually target before searching again.",
   no_match:
     "No skill in the catalog snapshot matched. Do not invent skill names or install commands; ask the user to rephrase with the concrete task, and fall back to official docs where applicable.",
   invalid_input:
     "The query has no usable search terms (only punctuation, numbers, or filler words). Do not recommend any skill from this input; ask the user to rephrase with the concrete task or board model.",
 };
 
+/** A ready-model ask that also asks to quantize: clarify the task, not just PTQ vs QAT. */
+const MIXED_MODEL_GUIDANCE =
+  "The query mixes consuming a ready-made (already quantized) model with running quantization yourself. These are different tasks: the Model Zoo serves ready-made models, while PTQ (calibration) and QAT (quantization-aware training) are for quantizing a model yourself. Ask the user which they want before recommending; do not guess one and do not present a PTQ/QAT sub-step as the decided answer.";
+
+const BOARD_LABEL: Record<BoardId, string> = { x3: "X3", x5: "X5", s100: "S100", s600: "S600" };
+
+function conflictGuidance(conflict: { queryBoards: BoardId[]; platformBoards: BoardId[] }): string {
+  const querySide = conflict.queryBoards.map((board) => BOARD_LABEL[board]).join(" + ");
+  const platformSide = conflict.platformBoards.map((board) => BOARD_LABEL[board]).join(" + ");
+  return `${GUIDANCE_TEXT.platform_conflict} (query names ${querySide}; platform parameter narrows to ${platformSide}.)`;
+}
+
 /**
  * Rank catalog skills for a query. Throws no errors for content reasons —
- * zero matches are a valid outcome with no_match guidance, and a query with
- * zero usable tokens is reported as invalid_input instead of matching
- * unrelated records through ranking bonuses.
+ * zero matches are a valid outcome with no_match guidance, a query with zero
+ * usable tokens is reported as invalid_input, and contradictory board inputs
+ * are reported as platform_conflict instead of silently narrowing.
  */
-export function searchSkillRecords(skills: SkillRecord[], query: string, filters: SearchFilters = {}): SkillSearchOutcome {
-  const tokens = skillQueryTokens(query);
+export function searchSkillRecords(
+  skills: SkillRecord[],
+  query: string,
+  filters: SearchFilters = {},
+  packFamilies?: PackBoardFamilyIndex,
+): SkillSearchOutcome {
+  const intent = analyzeIntent(query);
+  const tokens = skillQueryTokens(query).filter((token) => !intent.isNegatedToken(token));
   if (tokens.length === 0) {
     return { matches: [], guidance: GUIDANCE_TEXT.invalid_input, guidance_kind: "invalid_input" };
   }
-  const taskMatchers = tokens.filter((token) => !MODEL_WORDS.has(token)).map(buildMatcher);
-  const modelMatchers = tokens.filter((token) => MODEL_WORDS.has(token)).map(buildMatcher);
+  const taskTokens = [...new Set([...tokens, ...intent.conceptTokens])];
+  const taskMatchers = taskTokens.filter((token) => !MODEL_WORDS.has(token)).map(buildMatcher);
+  const modelMatchers = taskTokens.filter((token) => MODEL_WORDS.has(token)).map(buildMatcher);
   // The PTQ/QAT path the query commits to; null while undecided (or when both
   // paths are mentioned, e.g. a comparison question).
-  const decidedPath: QuantPath | null = decidedQuantPath(query);
-  const ambiguousQuant = tokens.some(isQuantToken) && decidedPath === null;
+  const decidedPath: QuantPath | null = intent.decidedQuantPath;
+  // Guardrails only apply once the intent is actually "quantize": a ready-model
+  // ask mentioning quantization words must not be pushed into PTQ/QAT clarity.
+  const ambiguousQuant =
+    (intent.intent === "quantize" || intent.mixedModelAsk) && decidedPath === null;
 
+  const constraint = boardConstraint(query, filters.platform);
+  if (constraint.conflict) {
+    return {
+      matches: [],
+      guidance: conflictGuidance(constraint.conflict),
+      guidance_kind: "platform_conflict",
+    };
+  }
+  const families = familyResolver(packFamilies);
+
+  const unknownPlatform =
+    filters.platform && boardsInText(filters.platform.toLowerCase()).length === 0
+      ? filters.platform.trim()
+      : undefined;
   const pool = skills.filter((skill) => {
     if (filters.installType && skill.install_type !== filters.installType) return false;
     if (filters.pack && skill.pack.toLowerCase() !== filters.pack.trim().toLowerCase()) return false;
-    if (filters.platform && !passesPlatformFilter(skill, filters.platform)) return false;
+    const scope = boardScopeOf(skill, constraint.boards, families);
+    if (!scope.included) return false;
+    if (unknownPlatform && !passesUnknownPlatformFilter(skill, unknownPlatform)) return false;
     return true;
   });
 
@@ -394,6 +487,7 @@ export function searchSkillRecords(skills: SkillRecord[], query: string, filters
       modelMatchers,
       exactName,
       ambiguousQuant,
+      intent.intent === "ready_model",
     );
 
     let included = true;
@@ -431,6 +525,7 @@ export function searchSkillRecords(skills: SkillRecord[], query: string, filters
       score,
       matched_terms: [...new Set([...hits.name, ...hits.path, ...hits.pack, ...hits.description])],
       match_reason: matchReason(hits, exactName),
+      platform_scope: boardScopeOf(skill, constraint.boards, families).scope,
     });
   }
 
@@ -438,10 +533,17 @@ export function searchSkillRecords(skills: SkillRecord[], query: string, filters
   const limit = Math.min(Math.max(filters.limit ?? 5, 1), 20);
   const limited = matches.slice(0, limit);
 
+  // Guidance is chosen from the intent first, then from the candidate shape:
+  // a genuinely undecided quantization ask keeps its clarification even when
+  // no candidate matched (Chinese 量化 and English quantization behave alike).
   let guidanceKind: GuidanceKind = "default";
-  if (limited.length === 0) guidanceKind = "no_match";
-  else if (ambiguousQuant) guidanceKind = "ambiguous_quant";
+  if (ambiguousQuant) guidanceKind = "ambiguous_quant";
+  else if (limited.length === 0) guidanceKind = "no_match";
   else if (taskMatchers.length === 0) guidanceKind = "model_only";
+  const guidance =
+    guidanceKind === "ambiguous_quant" && intent.mixedModelAsk
+      ? MIXED_MODEL_GUIDANCE
+      : GUIDANCE_TEXT[guidanceKind];
 
-  return { matches: limited, guidance: GUIDANCE_TEXT[guidanceKind], guidance_kind: guidanceKind };
+  return { matches: limited, guidance, guidance_kind: guidanceKind };
 }
