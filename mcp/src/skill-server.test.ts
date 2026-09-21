@@ -55,6 +55,24 @@ const SKILLS: SkillRecord[] = [
     catalog_path: "skills/oe-skills-x5/skills/x5-qat-deploy",
     install_type: "workspace",
   },
+  {
+    name: "rdk-model-zoo",
+    description:
+      "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo",
+    install_type: "flat",
+  },
+  {
+    name: "__SKILL_j6-plugin-__set-fake-quantize",
+    description:
+      "在适配 horizon_plugin_pytorch 的量化流程中，为模型设置 fake quantize 状态（QAT/CALIBRATION/VALIDATION）。只添加/调用 set_fake_quantize，不做其他修改。",
+    pack: "OE Tool Chain (S)",
+    repo: "D-Robotics/oe-skills-s",
+    catalog_path: "skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize",
+    install_type: "workspace",
+  },
 ];
 
 const SNAPSHOT: SkillCatalogSnapshot = {
@@ -71,6 +89,15 @@ const SNAPSHOT: SkillCatalogSnapshot = {
       install_script: "setup.sh",
       workspace_dir: ".drobotics",
       verify_paths: [".drobotics/VERSION"],
+    },
+    {
+      name: "OE Tool Chain (S)",
+      repo: "D-Robotics/oe-skills-s",
+      ref: "v1.0.0",
+      catalog_dir: "oe-skills-s",
+      install_script: "setup.sh",
+      workspace_dir: ".horizon",
+      verify_paths: [".horizon/VERSION"],
     },
   ],
 };
@@ -193,6 +220,80 @@ describe("MCP server: skill tools over the protocol", () => {
     expect(parsed.matches).toEqual([]);
     expect(parsed.guidance_kind).toBe("invalid_input");
     expect(parsed.guidance).toMatch(/no usable search terms/i);
+    await client.close();
+  });
+
+  it("routes a Chinese ready-model ask to the Model Zoo entry over the protocol (retest 2026-09-21)", async () => {
+    const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
+    const parsed = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "现成的量化好的模型直接用" } })) as CallToolResult,
+    );
+    expect(parsed.matches[0].name).toBe("rdk-model-zoo");
+    expect(parsed.matches[0].display_name).toBe("rdk-model-zoo");
+    expect(parsed.guidance_kind).not.toBe("ambiguous_quant");
+    await client.close();
+  });
+
+  it("keeps undecided quantization clarification independent of candidates over the protocol", async () => {
+    const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
+    for (const query of ["我想量化模型", "quantization"]) {
+      const parsed = parseText(
+        (await client.callTool({ name: "search_skills", arguments: { query } })) as CallToolResult,
+      );
+      expect(parsed.guidance_kind).toBe("ambiguous_quant");
+      expect(parsed.guidance).toContain("PTQ");
+      expect(parsed.guidance).toContain("QAT");
+      for (const match of parsed.matches ?? []) {
+        expect(/(^|[-_])(ptq|qat)([-_]|$)/.test(String(match.name).toLowerCase())).toBe(false);
+      }
+    }
+    await client.close();
+  });
+
+  it("excludes the S-series pack for X5 queries and reports platform conflicts over the protocol", async () => {
+    const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
+    const byQuery = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "X5 上把模型量化后部署" } })) as CallToolResult,
+    );
+    expect(byQuery.matches.map((match: { name: string }) => match.name)).not.toContain("__SKILL_j6-plugin-__set-fake-quantize");
+    expect(byQuery.matches[0].name).toBe("x5-router");
+
+    const byPlatform = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "量化模型 PTQ", platform: "x5" } })) as CallToolResult,
+    );
+    expect(byPlatform.matches.map((match: { name: string }) => match.name)).not.toContain("__SKILL_j6-plugin-__set-fake-quantize");
+    expect(byPlatform.matches[0].name).toBe("x5-ptq-deploy");
+
+    const conflict = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "X5 PTQ", platform: "s100" } })) as CallToolResult,
+    );
+    expect(conflict.matches).toEqual([]);
+    expect(conflict.guidance_kind).toBe("platform_conflict");
+    expect(conflict.guidance).toContain("X5");
+    expect(conflict.guidance).toContain("S100");
+    await client.close();
+  });
+
+  it("serves display_name while get_skill stays keyed by the exact canonical name", async () => {
+    const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
+    const search = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "__SKILL_j6-plugin-__set-fake-quantize" } })) as CallToolResult,
+    );
+    expect(search.matches[0].name).toBe("__SKILL_j6-plugin-__set-fake-quantize");
+    expect(search.matches[0].display_name).toBe("j6-plugin-set-fake-quantize");
+
+    const detail = parseText(
+      (await client.callTool({ name: "get_skill", arguments: { name: "__SKILL_j6-plugin-__set-fake-quantize" } })) as CallToolResult,
+    );
+    expect(detail.name).toBe("__SKILL_j6-plugin-__set-fake-quantize");
+    expect(detail.display_name).toBe("j6-plugin-set-fake-quantize");
+    expect(detail.installation.type).toBe("workspace");
+    expect(detail.installation.pack.workspace_dir).toBe(".horizon");
+
+    const missing = parseError(
+      (await client.callTool({ name: "get_skill", arguments: { name: "j6-plugin-set-fake-quantize" } })) as CallToolResult,
+    );
+    expect(missing.code).toBe("unknown_skill");
     await client.close();
   });
 

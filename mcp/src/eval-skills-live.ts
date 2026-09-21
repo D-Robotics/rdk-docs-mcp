@@ -115,6 +115,44 @@ async function main() {
       `guidance asks PTQ/QAT; entry first: ${ambiguousNames[0]}; matches: ${ambiguousNames.join(", ") || "(none)"}`,
     );
 
+    // --- natural-language quality (retest 2026-09-21) -----------------------
+    const ready = parseOk(
+      (await client.callTool({ name: "search_skills", arguments: { query: "现成的量化好的模型直接用" } })) as CallResult,
+    );
+    record(
+      "search-ready-model-zh",
+      ready.matches?.[0]?.name === "rdk-model-zoo" && ready.guidance_kind !== "ambiguous_quant",
+      `first ${ready.matches?.[0]?.name}, guidance_kind ${ready.guidance_kind}`,
+    );
+
+    const ptqBoard = parseOk(
+      (await client.callTool({ name: "search_skills", arguments: { query: "X5 上把模型量化后部署" } })) as CallResult,
+    );
+    const ptqBoardPacks = new Set((ptqBoard.matches ?? []).map((match: { pack: string }) => match.pack));
+    record(
+      "search-x5-excludes-s-pack",
+      ptqBoard.guidance_kind === "ambiguous_quant" && !ptqBoardPacks.has("OE Tool Chain (S)"),
+      `guidance_kind ${ptqBoard.guidance_kind}; packs: ${[...ptqBoardPacks].join(", ") || "(none)"}`,
+    );
+
+    const undecidedEn = parseOk(
+      (await client.callTool({ name: "search_skills", arguments: { query: "quantization" } })) as CallResult,
+    );
+    record(
+      "search-undecided-en",
+      undecidedEn.guidance_kind === "ambiguous_quant",
+      `guidance_kind ${undecidedEn.guidance_kind} with ${undecidedEn.matches?.length ?? 0} matches (clarification independent of candidates)`,
+    );
+
+    const conflict = parseOk(
+      (await client.callTool({ name: "search_skills", arguments: { query: "X5 PTQ", platform: "s100" } })) as CallResult,
+    );
+    record(
+      "search-platform-conflict",
+      conflict.guidance_kind === "platform_conflict" && (conflict.matches ?? []).length === 0,
+      `guidance_kind ${conflict.guidance_kind}; guidance mentions boards: ${/X5/.test(String(conflict.guidance)) && /S100/.test(String(conflict.guidance))}`,
+    );
+
     // --- flat detail (A4) ----------------------------------------------------
     const flat = parseOk(
       (await client.callTool({ name: "get_skill", arguments: { name: "rdk-gpio-40pin" } })) as CallResult,
@@ -149,6 +187,19 @@ async function main() {
       "get-workspace-detail",
       workspaceOk,
       `pack ${workspace.installation?.pack?.name} ref ${workspace.installation?.pack?.ref}, ${workspace.installation?.pack?.verify_paths?.length} verify_paths, installer handoff present`,
+    );
+
+    // --- display name keeps canonical identity (retest 2026-09-21) ----------
+    const sSeries = parseOk(
+      (await client.callTool({
+        name: "get_skill",
+        arguments: { name: "__SKILL_j6-plugin-__set-fake-quantize" },
+      })) as CallResult,
+    );
+    record(
+      "get-display-name",
+      sSeries.name === "__SKILL_j6-plugin-__set-fake-quantize" && sSeries.display_name === "j6-plugin-set-fake-quantize",
+      `name ${sSeries.name} → display_name ${sSeries.display_name}`,
     );
 
     // --- errors (A6) ---------------------------------------------------------

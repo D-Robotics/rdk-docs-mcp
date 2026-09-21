@@ -59,8 +59,10 @@ GET https://forum.d-robotics.cc/t/{id}.json
 4. flat 型返回 `npx skills add d-robotics/rdk-skills --skill <name>`（安装整个 Skill 目录，含 references/scripts，不是单个 SKILL.md）。
 5. workspace 型（OE 工具链类）是**整包安装**：交接给 `rdk-pack-installer`，需要项目根目录，按 `verify_paths` 校验；不能把单个 SKILL.md 复制进全局目录当作装好。`catalog_revision`（目录快照）与 Pack `ref`（上游发布版本）是两个概念，`npx skills add` 不锁定到目录 SHA。
 6. 量化类问题：用户没指明 PTQ 还是 QAT 时，按返回的 `guidance` 先向用户分流，不要替用户决定；明确 PTQ 指向 PTQ 工作流，明确 QAT 指向 QAT 入口。
-7. `platform` 参数只是文本筛选（去掉明确属于其他板型的记录），不是官方兼容性认证；描述里的「不要用于…」也不能当成正向推荐依据（排序已处理，引用时仍需注意）。
-8. 两个工具独立于文档工具：目录不可用时文档检索不受影响，反之亦然。
+7. **消费现成模型 ≠ 自己做量化。**「现成的/已量化/量化好的/预训练模型、模型库」这类询问优先发现 Model Zoo 使用入口（`rdk-model-zoo`），不要推送 PTQ/QAT 澄清；「自己量化/把模型量化」才进入量化流程。服务端已做意图区分——直接传用户的原话，**不要为了绕开服务端问题而把中文改写成英文关键词**；结果不对时应报告问题，而不是换个语言重试。
+8. 板卡约束：查询里点名的板卡（如 X5）会自动限定候选范围，已知 S 系列 pack（S100/S600）不会混入 X5 结果，反之亦然。查询板卡与 `platform` 参数矛盾时返回 `guidance_kind=platform_conflict` 且无候选——此时向用户澄清目标板卡，不要自行二选一。多板卡比较（如「X5 和 S100 哪个」）不会被收窄成单板卡。`platform_scope=unknown` 表示该记录板卡范围未知：可以保留展示，但**不能当成跨板兼容的证据**；`platform` 参数与 `platform_scope` 都不是官方兼容性认证。
+9. **展示名与精确名。** 结果带 `display_name`（如 `__SKILL_j6-plugin-__set-fake-quantize` 显示为 `j6-plugin-set-fake-quantize`），给用户看时用 display_name；`get_skill` 与安装命令一律用 `name` 字段的精确目录名，两个记录可能 display_name 相同但 `name` 不同，禁止用 display_name 查询或安装。
+10. 两个工具独立于文档工具：目录不可用时文档检索不受影响，反之亦然。
 
 ## 图片、长页与内容冲突（证据规则）
 

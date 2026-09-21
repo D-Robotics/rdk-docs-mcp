@@ -56,13 +56,15 @@ jsDelivr 不可用时，同一文件在：
 
 **Skill 发现（只读）**
 
-用户问「X5 40PIN GPIO 有没有现成 Skill」「X5 PTQ 量化部署怎么做」这类工具/工作流问题时，Agent 调 `search_skills`，再对候选调 `get_skill` 核对，最多推荐 1–2 个：
+用户问「X5 40PIN GPIO 有没有现成 Skill」「X5 PTQ 量化部署怎么做」「有没有现成量化好的模型」这类工具/工作流问题时，Agent 调 `search_skills`，再对候选调 `get_skill` 核对，最多推荐 1–2 个：
 
 - **目录里有 ≠ 本机已安装。** 两个工具只读：不安装、不执行上游脚本、不读写用户 Skill 目录。
 - flat 型 Skill 的安装入口是 `npx skills add d-robotics/rdk-skills --skill <name>`（装整个 Skill 目录）。
 - workspace 型（OE 工具链类）必须整包安装：交接 `rdk-pack-installer`、需要项目根目录、按 `verify_paths` 校验，不能只复制单个 SKILL.md。
-- 量化问题未指明 PTQ/QAT 时，工具返回的 `guidance` 要求先分流，不替用户决定。
-- 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单。
+- 自然语言按任务意图分流（中英文一致）：「现成/已量化/预训练模型、模型库」优先发现 Model Zoo 使用入口；「自己量化/把模型量化」才进入量化流程，未指明 PTQ/QAT 时按 `guidance` 先向用户分流，不替用户决定（无候选时同样保留澄清）。
+- 板卡范围：查询中点名的板卡与 `platform` 参数都会按已知 pack 板卡家族过滤（X5 结果不再混入 S 系列 pack），两者矛盾时返回 `guidance_kind=platform_conflict` 且无候选；范围未知的记录标 `platform_scope=unknown`，保留展示但不是兼容性证明。
+- 展示层用 `display_name`（清理生成器的 `__SKILL_<family>-__<slug>` 内部格式），`get_skill` 与安装命令仍用 `name` 精确名；同 display_name 的不同记录靠 `name` 区分。
+- 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单；pack 板卡家族映射取自该仓库 README 的 Supported Boards / Installation layers 表（快照 revision 溯源）。上游 canonical name 归一化（去掉 `__SKILL_` 前缀）需在 rdk-skills 侧规范，本 MCP 仅做展示层清理。
 
 ---
 

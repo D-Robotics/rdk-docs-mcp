@@ -150,18 +150,20 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "search_skills",
     {
       description:
-        "Search the D-Robotics/rdk-skills catalog for Skills matching a task (read-only). Results are catalog records from one snapshot revision: presence in the catalog does NOT mean the skill is installed locally. Recommend at most 1-2 after checking get_skill; official docs questions still go through search_docs/get_page first. platform is a text filter, not a hardware-compatibility guarantee.",
+        "Search the D-Robotics/rdk-skills catalog for Skills matching a task (read-only). Results are catalog records from one snapshot revision: presence in the catalog does NOT mean the skill is installed locally. Recommend at most 1-2 after checking get_skill; official docs questions still go through search_docs/get_page first. Natural language works in Chinese and English: describe the task as the user would (e.g. 现成的量化好的模型 is model consumption, 量化 alone stays undecided between PTQ/QAT). A board named in the query or the platform parameter scopes results by known pack board families (unknown scope is reported as platform_scope=unknown, never as compatibility); contradictory board inputs return guidance_kind=platform_conflict with no candidates.",
       inputSchema: {
         query: z
           .string()
           .describe(
-            "Task description or exact skill name, e.g. 'X5 40PIN GPIO', 'X5 PTQ 量化部署'. Non-empty after trimming, max 500 chars",
+            "Task description or exact skill name, e.g. 'X5 40PIN GPIO', 'X5 PTQ 量化部署', '现成的量化好的模型直接用'. Non-empty after trimming, max 500 chars",
           ),
         pack: z.string().optional().describe("Filter by pack name, e.g. 'OE Tool Chain (X5)'"),
         platform: z
           .string()
           .optional()
-          .describe("Board keyword text filter, e.g. 'x5' (drops skills scoped to other boards; text relevance only)"),
+          .describe(
+            "Board filter, e.g. 'x5' (drops packs known to target other board families; checked against boards named in the query — contradictions return platform_conflict, not a silent guess)",
+          ),
         install_type: z
           .enum(["flat", "workspace"])
           .optional()
@@ -182,9 +184,9 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "get_skill",
     {
       description:
-        "Get one skill's catalog detail and structured install guidance by its exact catalog name (from search_skills). flat returns an npx skills add command; workspace returns the full pack handoff (pack repo/ref/verify_paths plus the rdk-pack-installer acquisition command). Read-only: nothing is installed and no script runs; only proceed with installation when the user explicitly asks.",
+        "Get one skill's catalog detail and structured install guidance by its exact catalog name (from search_skills; display_name is for humans only — always fetch and install by the exact name field). flat returns an npx skills add command; workspace returns the full pack handoff (pack repo/ref/verify_paths plus the rdk-pack-installer acquisition command). Read-only: nothing is installed and no script runs; only proceed with installation when the user explicitly asks.",
       inputSchema: {
-        name: z.string().describe("Exact skill name from the catalog, e.g. 'rdk-gpio-40pin' (no fuzzy matching)"),
+        name: z.string().describe("Exact skill name from the catalog, e.g. 'rdk-gpio-40pin' or '__SKILL_j6-plugin-__set-fake-quantize' (no fuzzy matching, no display names)"),
       },
     },
     async (input) => {
