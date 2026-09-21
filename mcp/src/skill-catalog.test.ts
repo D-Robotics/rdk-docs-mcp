@@ -7,7 +7,10 @@ import {
   PACK_REGISTRY_PATH,
   SKILL_INDEX_PATH,
   SkillError,
+  defaultPackBoardFamilies,
   loadSkillCatalog,
+  packBoardFamilies,
+  packBoardFamilyIndex,
   resetSkillCatalogState,
   skillSourceUrl,
   hubUsageUrl,
@@ -326,6 +329,36 @@ describe("skill catalog: schema and loading", () => {
     expect(hubUsageUrl(snapshot)).toBe(
       `https://github.com/D-Robotics/rdk-skills/blob/${SHA}/docs/SKILL-USAGE.md`,
     );
+  });
+});
+
+describe("pack board families (retest 2026-09-21)", () => {
+  it("resolves the two known packs from the sourced name table", () => {
+    expect(packBoardFamilies({ name: "OE Tool Chain (X5)", workspace_dir: ".drobotics", catalog_dir: "oe-skills-x5" })).toEqual(["x5"]);
+    expect(packBoardFamilies({ name: "OE Tool Chain (S)", workspace_dir: ".horizon", catalog_dir: "oe-skills-s" })).toEqual(["s100", "s600"]);
+    expect(defaultPackBoardFamilies("OE Tool Chain (S)")).toEqual(["s100", "s600"]);
+  });
+
+  it("derives families from workspace_dir metadata for unknown pack names", () => {
+    expect(packBoardFamilies({ name: "Future X5 Pack", workspace_dir: ".drobotics", catalog_dir: "future-x5" })).toEqual(["x5"]);
+    expect(packBoardFamilies({ name: "Future S Pack", workspace_dir: ".horizon", catalog_dir: "future-s" })).toEqual(["s100", "s600"]);
+  });
+
+  it("falls back to board words in catalog_dir, and never guesses from bare letters", () => {
+    expect(packBoardFamilies({ name: "Some Pack", workspace_dir: ".custom", catalog_dir: "oe-skills-x3" })).toEqual(["x3"]);
+    // "S" alone or a j6 chip name is not board evidence.
+    expect(packBoardFamilies({ name: "OE Tool Chain", workspace_dir: ".custom", catalog_dir: "oe-skills-s" })).toBeUndefined();
+    expect(packBoardFamilies({ name: "j6 helpers", catalog_dir: "j6-only" })).toBeUndefined();
+  });
+
+  it("indexes only resolvable packs from a snapshot's pack records", () => {
+    const index = packBoardFamilyIndex([
+      ...PACKS,
+      { name: "Future Pack", repo: "D-Robotics/future-skills", ref: "v1", catalog_dir: "future", install_script: "setup.sh", workspace_dir: ".custom" },
+    ]);
+    expect(index.get("OE Tool Chain (X5)")).toEqual(["x5"]);
+    expect(index.get("OE Tool Chain (S)")).toEqual(["s100", "s600"]);
+    expect(index.get("Future Pack")).toBeUndefined();
   });
 });
 

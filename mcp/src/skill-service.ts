@@ -4,6 +4,7 @@ import {
   SkillError,
   hubUsageUrl,
   loadSkillCatalog,
+  packBoardFamilyIndex,
   skillSourceUrl,
   type CatalogResult,
   type InstallType,
@@ -29,6 +30,7 @@ export type SkillSearchInput = {
 
 export type SkillMatchView = {
   name: string;
+  display_name: string;
   description: string;
   pack: string;
   repo: string;
@@ -38,6 +40,8 @@ export type SkillMatchView = {
   score: number;
   matched_terms: string[];
   match_reason: string;
+  /** Board evidence relative to the active board constraint; never a compatibility claim. */
+  platform_scope: "matched-board" | "unknown" | "unconstrained";
 };
 
 export type SearchSkillsOutput = {
@@ -84,6 +88,7 @@ export type Installation = FlatInstallation | WorkspaceInstallation;
 
 export type GetSkillOutput = {
   name: string;
+  display_name: string;
   description: string;
   pack: string;
   repo: string;
@@ -102,6 +107,21 @@ export type SkillServiceDeps = {
 
 const MAX_QUERY_CHARS = 500;
 const FLAT_INSTALL_ARGS = ["skills", "add", "d-robotics/rdk-skills", "--skill"] as const;
+
+/**
+ * Readable display name for the hub generator's internal naming format
+ * (rdk-skills @08d0a46): `__SKILL_<family>-__<slug>` → `<family>-<slug>`.
+ * Strictly limited to that known format — `name` (the exact get_skill key and
+ * install argument) is never rewritten, and names outside the format keep
+ * display_name === name. Two records may share one display_name; they stay
+ * distinguishable and exactly fetchable by their distinct canonical names.
+ */
+const GENERATED_SKILL_NAME = /^__SKILL_([A-Za-z0-9._-]+?)-__([A-Za-z0-9._-]+)$/;
+
+export function skillDisplayName(name: string): string {
+  const match = GENERATED_SKILL_NAME.exec(name);
+  return match ? `${match[1]}-${match[2]}` : name;
+}
 
 /** POSIX-style single quoting for display commands; safe for any validated value. */
 export function shellQuote(argv: string[]): string {
@@ -162,11 +182,17 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
 
   const catalog = await loadCatalog(deps);
   const { snapshot, warnings } = catalog;
-  const outcome = searchSkillRecords(snapshot.skills, query, { pack, platform, installType, limit });
+  const outcome = searchSkillRecords(
+    snapshot.skills,
+    query,
+    { pack, platform, installType, limit },
+    packBoardFamilyIndex(snapshot.packs),
+  );
 
   return {
     matches: outcome.matches.map((match) => ({
       name: match.skill.name,
+      display_name: skillDisplayName(match.skill.name),
       description: match.skill.description,
       pack: match.skill.pack,
       repo: match.skill.repo,
@@ -176,6 +202,7 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
       score: match.score,
       matched_terms: match.matched_terms,
       match_reason: match.match_reason,
+      platform_scope: match.platform_scope,
     })),
     catalog_revision: snapshot.revision,
     fetched_at: snapshot.fetched_at,
@@ -263,6 +290,7 @@ export async function getSkillDetail(input: { name: string }, deps?: SkillServic
 
   return {
     name: skill.name,
+    display_name: skillDisplayName(skill.name),
     description: skill.description,
     pack: skill.pack,
     repo: skill.repo,
