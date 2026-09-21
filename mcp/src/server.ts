@@ -1,8 +1,22 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { listManuals } from "./catalog.js";
 import { fetchText } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
+
+/** Single source of truth for the advertised version: the package itself. */
+export const PACKAGE_VERSION = (() => {
+  try {
+    const manifest = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+    const parsed = JSON.parse(readFileSync(manifest, "utf8")) as { version?: string };
+    return parsed.version && typeof parsed.version === "string" ? parsed.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+})();
 
 function ok(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
@@ -19,14 +33,14 @@ function fail(error: unknown) {
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "rdk-docs",
-    version: "0.1.8",
+    version: PACKAGE_VERSION,
   });
 
   server.registerTool(
     "list_manuals",
     {
       description:
-        "List official RDK manuals only. Community posts are not in this catalog — GET https://forum.d-robotics.cc/search.json as described in the Skill.",
+        "List official RDK manuals only. Community forum content is not in this catalog; use search_docs with source=forum when the user asks for community experience.",
       inputSchema: {},
     },
     async () => {
@@ -52,7 +66,7 @@ export function createServer(): McpServer {
     "search_docs",
     {
       description:
-        "Search official RDK manuals. If a hit has role=official-start, open that URL with get_page first. Named manual searches that book only. Default is manuals only. Do not use this tool for community experience — GET https://forum.d-robotics.cc/search.json instead.",
+        "Search RDK sources through MCP. Default source is docs (official manuals only). Use source=forum or manual=forum for community experience; use source=all only when the user explicitly asks for community/forum input. manual=forum is a compatibility alias for source=forum. If evidence is insufficient, report that without inferring support or lack of support. Keep different product models separate, preserve version labels, and ask for missing parameters before searching.",
       inputSchema: {
         query: z.string().describe("Chinese or English search keywords"),
         manual: z
@@ -79,12 +93,12 @@ export function createServer(): McpServer {
     "get_page",
     {
       description:
-        "Fetch one official doc page as Markdown. Prefer developer.d-robotics.cc URLs from search_docs.",
+        "Fetch one official RDK documentation page or public community forum topic as Markdown. Prefer URLs returned by search_docs; forum content is read-only community experience, not official documentation.",
       inputSchema: {
         url: z
           .string()
           .describe(
-            "Official documentation URL on developer.d-robotics.cc",
+            "URL returned by search_docs: official documentation on developer.d-robotics.cc or a public read-only forum topic on forum.d-robotics.cc",
           ),
         maxChars: z.number().int().min(1000).max(40000).optional(),
       },

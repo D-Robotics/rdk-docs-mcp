@@ -49,7 +49,7 @@ jsDelivr 不可用时，同一文件在：
 **不覆盖**
 
 - 旧版资料 `https://developer.d-robotics.cc/information` 不在索引里。
-- 论坛走 Discourse 公开 JSON（全站搜索 + 两个主板块最近帖），不当官方规范。不要去爬论坛 HTML。
+- 论坛内容默认走 MCP：`search_docs` 带 `source=forum`（只要社区）或 `source=all`（手册为主、论坛补充）；`get_page` 可直接读公开论坛帖。MCP 论坛检索失败或 0 命中时，才直接 GET Discourse 公开 JSON 兜底。论坛帖子不当官方规范，不要爬论坛 HTML。
 - 不需要登录，也不写入文档站或论坛。
 
 ---
@@ -77,11 +77,17 @@ ln -sfn "$(pwd)" ~/.cursor/plugins/local/rdk-docs
 
 用户问 RDK / TROS / 烧录 / 量化等问题时：
 
-1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`；只要社区就 `manual=forum`）
+1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`；只要社区就 `source=forum`，兼容写法 `manual=forum`）
 2. 对 1–2 个命中 URL 调用 `get_page`（手册或 `forum.d-robotics.cc` 主题）
 3. 用原文回答，并附上官方文档或论坛链接
 
 不要凭记忆编 `apt` 包名、镜像版本或管脚复用。
+
+### 证据与限制（必读）
+
+- **含图的信息不算已读。** 部分页面（如 [管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)）把完整管脚表放在图片里，`get_page` 即使返回 `truncated=false` 的完整 Markdown，正文也没有逐针参数。涉及引脚 / 电平 / 电源时，要打开或展示页面里的官方图片，不要拿其他型号的针脚表推断。
+- **长页先看 `truncated` 字段。** `truncated=true` 表示正文被截断（末尾有截断提示）；需要后文就加大 `maxChars`（上限 40000）重读，仍不完整就明确说明只读到部分内容。
+- **官方页面之间的数值冲突不在 MCP 里裁决。** 已知一例：RDK X5 的 40PIN 电源负载，[硬件简介](https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5)写 1A @3.3V / 1A @5V，[管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)写 800mA @3.3V / 500mA @5V。MCP 忠实返回两处原文；Agent 应引用差异并建议以文档维护者的确认为准，不要自行下兼容性结论。此项已转交官方文档维护者核实。
 
 ---
 

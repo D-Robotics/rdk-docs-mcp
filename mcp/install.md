@@ -32,8 +32,8 @@ npx -y rdk-docs-mcp@latest --install
 |--------|-----|--------|
 | Cursor | `~/.cursor/mcp.json` | `~/.cursor/skills/<skill>/SKILL.md` |
 | ZCode | `~/.zcode/cli/config.json` 的 `mcp.servers.rdk-docs` | `~/.zcode/skills/<skill>/SKILL.md` 和 `~/.agents/skills/<skill>/SKILL.md` |
-| Claude Code | （Skill） | `~/.claude/skills/<skill>/SKILL.md` |
-| Codex | （Skill） | `~/.codex/skills/<skill>/SKILL.md` |
+| Claude Code | （Skill；MCP 需按第三节手动 `claude mcp add`，装完自检会提示） | `~/.claude/skills/<skill>/SKILL.md` |
+| Codex | `~/.codex/config.toml` 的 `[mcp_servers.rdk-docs]` | `~/.codex/skills/<skill>/SKILL.md` |
 | DeepSeek Harness | `~/.dsh/cordis.patch.yml` 挂 `@deepseek-ai/dsh-mcp-client` | `~/.dsh/skills/<skill>/SKILL.md` 和 `~/.agents/skills/<skill>/SKILL.md` |
 
 `<skill>` 为 `rdk-docs`、`forum-post`、`article-writer` 三个，每个目录各写一份 `SKILL.md`。
@@ -62,6 +62,13 @@ npx -y rdk-docs-mcp@latest --install
 - Cursor：`~/.cursor/mcp.json`（字段 `mcpServers`）
 - ZCode：`~/.zcode/cli/config.json` → `mcp.servers.rdk-docs`，并加上 `"type": "stdio"`
 - Claude Code：`claude mcp add --scope user --transport stdio rdk-docs -- npx -y rdk-docs-mcp@latest`
+- Codex：`codex mcp add rdk-docs -- npx -y rdk-docs-mcp@latest`，或合并进 `~/.codex/config.toml`：
+
+```toml
+[mcp_servers.rdk-docs]
+command = "npx"
+args = ["-y", "rdk-docs-mcp@latest"]
+```
 - VS Code / Copilot：用户 `mcp.json` 的 `servers` 字段，内容同上（`command` / `args`）
 - Claude Desktop：`~/Library/Application Support/Claude/claude_desktop_config.json` 的 `mcpServers`
 - DeepSeek Harness：合并进 `~/.dsh/cordis.patch.yml`（机器级，对所有 profile 生效）：
@@ -95,7 +102,7 @@ done
 
 ## 四、装完自检
 
-能调 MCP 的话，跑一次 `list_manuals`，确认返回里有 `rdk-x` / `rdk-s`。社区经验不在这个目录里，查 `https://forum.d-robotics.cc/search.json`。
+能调 MCP 的话，跑一次 `list_manuals`，确认返回里有 `rdk-x` / `rdk-s`。手册目录里没有论坛；社区经验用 `search_docs` 带 `source=forum` 检索。若报告里出现「No MCP client configuration was written」，说明当前客户端还要按第三节手动注册 MCP，装完不算完成。
 
 然后告诉用户可以这样问：
 

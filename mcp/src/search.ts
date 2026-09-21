@@ -1,5 +1,5 @@
 import { GLOSSARY_ALIASES } from "./glossary-aliases.js";
-import { soleBoard, urlLooksLikeBoard } from "./products.js";
+import { mentionedBoards, soleBoard, urlLooksLikeBoard } from "./products.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
 
 /** Question filler that carries no retrieval signal in Chinese queries. */
@@ -67,8 +67,13 @@ function cjkBigrams(query: string): string[] {
 export function tokens(query: string): string[] {
   const seen = new Set<string>();
   const lowered = query.trim().toLowerCase();
-  for (const match of lowered.matchAll(/[a-z][a-z0-9_.-]*|\d+/g)) {
+  for (const match of lowered.matchAll(/[a-z][a-z0-9_.-]*|\d+[a-z][a-z0-9_.-]*|\d+/g)) {
     seen.add(match[0]);
+  }
+  // Digit+letter interface names split by a separator ("40 pin", "40-PIN")
+  // must also match the joined form ("40pin") used in URLs and titles.
+  for (const match of lowered.matchAll(/(\d+)[\s-]+([a-z][a-z0-9_.-]*)/g)) {
+    seen.add(`${match[1]}${match[2]}`);
   }
   for (const gram of cjkBigrams(lowered)) {
     seen.add(gram);
@@ -93,11 +98,13 @@ function buildMatcher(token: string): Matcher {
     return { token, test: (text) => text.includes(token) };
   }
   const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // Short ascii tokens must stand alone ("ip" must not match "zip" or "chip");
-  // longer ones may extend to the right ("yolo" matches "yolov5", "swap" matches "swapfile").
+  // Short ascii tokens must stand alone against letters ("ip" must not match
+  // "zip" or "chip"); digits are allowed neighbours so interface names still
+  // match ("pin" inside "40pin", "usb" inside "usb2"). Longer tokens may extend
+  // to the right ("yolo" matches "yolov5", "swap" matches "swapfile").
   const pattern =
     token.length <= 3
-      ? new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`)
+      ? new RegExp(`(?<![a-z])${escaped}(?![a-z])`)
       : new RegExp(`(?<![a-z0-9])${escaped}`);
   return { token, test: (text) => pattern.test(text) };
 }
@@ -150,6 +157,7 @@ function scoreDoc(doc: IndexedDoc, matchers: Matcher[], query: string): number {
   const wantsInstall = queryTokens.some((token) => ["安装", "install"].includes(token));
   const wantsWifi = queryTokens.some((token) => ["wifi", "wi-fi", "无线"].includes(token));
   const wantsGpio = queryTokens.some((token) => token === "gpio");
+  const wantsPin = queryTokens.some((token) => token === "pin" || token === "40pin");
 
   const wantsCases = queryTokens.some((token) => token === "案例");
 
@@ -157,13 +165,24 @@ function scoreDoc(doc: IndexedDoc, matchers: Matcher[], query: string): number {
   if (wantsInstall && /install/.test(url) && !/cross_compile/.test(url)) score += 8;
   if (wantsWifi && /wifi|remote_login|wlan/.test(url)) score += 10;
   if (wantsGpio && /40pin|user_sample/.test(url) && /gpio/.test(url)) score += 8;
+  if (wantsPin && /40pin|user_sample/.test(url)) score += 8;
   if (wantsCases && (/\/case\/?$/.test(url) || title.includes("应用案例"))) score += 10;
   // Prefer the overview entry only among pages that already match the topic.
   if (titleMatched > 0 && (/\/overview(?:\.html)?$/.test(url) || title.includes("概述"))) score += 4;
   if (/\/faq\/|accessory|release_note|changelog|config_txt/.test(url)) score -= 6;
 
   const sole = soleBoard(query);
-  if (sole) {
+  const mentioned = mentionedBoards(query);
+  if (mentioned.length > 1) {
+    const matchesMentioned = mentioned.some((board) => urlLooksLikeBoard(doc.url, board) || urlLooksLikeBoard(doc.title, board));
+    const other = (["x3", "x5", "s100", "s600"] as const)
+      .filter((b) => !mentioned.includes(b))
+      .some((b) => urlLooksLikeBoard(doc.url, b) || urlLooksLikeBoard(doc.title, b));
+    const unrelatedFamily = (doc.manualId === "rdk-s" && mentioned.every(b => b === "x3" || b === "x5")) || (doc.manualId === "rdk-x" && mentioned.every(b => b === "s100" || b === "s600"));
+    if ((other && !matchesMentioned) || unrelatedFamily)
+      score = -1;
+  }
+  else if (sole) {
     const mine = urlLooksLikeBoard(doc.url, sole) || urlLooksLikeBoard(doc.title, sole);
     const other = (["x3", "x5", "s100", "s600"] as const)
       .filter((b) => b !== sole)

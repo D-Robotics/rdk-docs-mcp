@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse as parseToml } from "smol-toml";
 
 export const MCP_SERVER = {
   command: "npx",
@@ -45,12 +46,15 @@ type JsonObject = Record<string, unknown>;
 
 function readJson(path: string): JsonObject {
   if (!existsSync(path)) return {};
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as JsonObject) : {};
-  } catch {
-    return {};
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error(`Invalid JSON configuration at ${path}: expected an object`);
+  return parsed as JsonObject;
 }
 
 function writeJson(path: string, value: JsonObject): void {
@@ -138,6 +142,188 @@ export function ensureDshMcpPatch(path: string): boolean {
   return true;
 }
 
+/** Codex keeps MCP servers as TOML tables in ~/.codex/config.toml. */
+export const CODEX_MCP_BLOCK = `
+[mcp_servers.rdk-docs]
+command = "npx"
+args = ["-y", "rdk-docs-mcp@latest"]
+`;
+
+/** Launch keys only — used to complete an existing table that lacks them. */
+const CODEX_MCP_LAUNCH_KEYS = `command = "npx"
+args = ["-y", "rdk-docs-mcp@latest"]
+`;
+
+export type CodexMcpEnsureResult = {
+  registered: boolean;
+  /** Human-readable outcome; the reason whenever `registered` is false. */
+  detail: string;
+};
+
+/** Codex can launch a server over stdio (`command`) or HTTP (`url`). */
+function isUsableServerEntry(entry: unknown): boolean {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+  const { command, url } = entry as { command?: unknown; url?: unknown };
+  if (typeof command === "string" && command.trim() !== "") return true;
+  if (typeof url === "string" && url.trim() !== "") return true;
+  return false;
+}
+
+/** The mcp_servers.rdk-docs table of a parsed config, when it is a table. */
+function codexServerEntry(parsed: unknown): JsonObject | undefined {
+  const servers = (parsed as JsonObject | undefined)?.mcp_servers;
+  if (!servers || typeof servers !== "object" || Array.isArray(servers)) return undefined;
+  const entry = (servers as JsonObject)["rdk-docs"];
+  return entry && typeof entry === "object" && !Array.isArray(entry) ? (entry as JsonObject) : undefined;
+}
+
+/**
+ * Every key path of `original` must survive in `updated` with the same value.
+ * Extra keys in `updated` are fine — this is the append-only preservation check.
+ */
+function tomlCovers(original: unknown, updated: unknown): boolean {
+  if (original instanceof Date || updated instanceof Date) {
+    return original instanceof Date && updated instanceof Date && original.getTime() === updated.getTime();
+  }
+  if (Array.isArray(original)) {
+    return (
+      Array.isArray(updated) &&
+      updated.length >= original.length &&
+      original.every((value, index) => tomlCovers(value, updated[index]))
+    );
+  }
+  if (original && typeof original === "object") {
+    if (!updated || typeof updated !== "object" || Array.isArray(updated)) return false;
+    return Object.keys(original).every(
+      (key) => key in (updated as JsonObject) && tomlCovers((original as JsonObject)[key], (updated as JsonObject)[key]),
+    );
+  }
+  return Object.is(original, updated);
+}
+
+/** Parse TOML or throw with the parser's message (caller reports it verbatim). */
+function parseCodexConfig(toml: string): JsonObject {
+  const parsed = parseToml(toml);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("top-level value is not a table");
+  }
+  return parsed as JsonObject;
+}
+
+/** Write `body` to `path` via temp-file + rename so a crash never truncates it. */
+function writeTextAtomic(path: string, body: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  const tmp = `${path}.rdk-tmp`;
+  try {
+    writeFileSync(tmp, body);
+    renameSync(tmp, path);
+  } catch (error) {
+    try {
+      if (existsSync(tmp)) renameSync(tmp, `${tmp}.discarded`);
+    } catch {
+      /* best-effort cleanup */
+    }
+    throw error;
+  }
+}
+
+/**
+ * Register the rdk-docs MCP server in Codex's config.toml with real TOML
+ * semantics (quoted keys, dotted keys, inline tables, multi-line strings are
+ * all handled by the parser, not by header guessing):
+ *
+ * - a usable existing entry (command or url) is left byte-for-byte untouched;
+ * - a missing entry is appended; an entry that exists without launch keys is
+ *   completed only when appending at end-of-file provably lands the keys in
+ *   that table (verified by re-parsing the candidate content first);
+ * - the file is only ever appended to — never rewritten — and an invalid or
+ *   unfixable original is reported and left untouched;
+ * - writes are atomic and read back + re-parsed before success is claimed.
+ */
+export function ensureCodexMcpServer(path: string): CodexMcpEnsureResult {
+  const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
+
+  let parsed: JsonObject = {};
+  if (existing.trim() !== "") {
+    try {
+      parsed = parseCodexConfig(existing);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        registered: false,
+        detail: `Left ${path} untouched: it is not valid TOML (${message}).`,
+      };
+    }
+  }
+
+  const entry = codexServerEntry(parsed);
+  if (entry && isUsableServerEntry(entry)) {
+    return { registered: true, detail: `rdk-docs was already registered in ${path}; left untouched.` };
+  }
+
+  // Build the candidate content. When the table exists but cannot launch, the
+  // only lossless edit is appending the missing keys at end-of-file — which is
+  // correct only when that table is the last one in the file. The candidate
+  // re-parse below proves where the keys landed before anything is written.
+  let candidate: string;
+  if (entry) {
+    const separator = existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
+    candidate = `${existing}${separator}${CODEX_MCP_LAUNCH_KEYS}`;
+  } else {
+    const prefix = existing.length === 0 ? "" : existing.endsWith("\n") ? existing : `${existing}\n`;
+    candidate = existing.length === 0 ? CODEX_MCP_BLOCK.trimStart() : `${prefix}${CODEX_MCP_BLOCK}`;
+  }
+
+  let candidateParsed: JsonObject;
+  try {
+    candidateParsed = parseCodexConfig(candidate);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      registered: false,
+      detail: `Left ${path} untouched: adding the rdk-docs server would make it invalid TOML (${message}).`,
+    };
+  }
+  const candidateEntry = codexServerEntry(candidateParsed);
+  if (!candidateEntry || !isUsableServerEntry(candidateEntry) || !tomlCovers(parsed, candidateParsed)) {
+    return {
+      registered: false,
+      detail: `Left ${path} untouched: [mcp_servers.rdk-docs] exists without a usable command/url and completing it automatically is not safe.`,
+    };
+  }
+
+  try {
+    writeTextAtomic(path, candidate);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { registered: false, detail: `Could not write ${path}: ${message}.` };
+  }
+
+  // Read back and re-parse: only a verifiably usable on-disk state counts.
+  try {
+    const reread = readFileSync(path, "utf8");
+    const reparsed = parseCodexConfig(reread);
+    if (!isUsableServerEntry(codexServerEntry(reparsed))) {
+      throw new Error("the rdk-docs server entry is missing or not usable after writing");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    try {
+      writeTextAtomic(path, existing); // restore the pre-existing content
+    } catch {
+      /* best-effort restore */
+    }
+    return {
+      registered: false,
+      detail: `Verification of ${path} after writing failed (${message}); restored the original content.`,
+    };
+  }
+
+  return entry
+    ? { registered: true, detail: `Completed the launch keys of the existing [mcp_servers.rdk-docs] table in ${path}.` }
+    : { registered: true, detail: `Appended [mcp_servers.rdk-docs] to ${path}.` };
+}
+
 /**
  * Overwrite installed copies of every bundled skill on disk. A skill only lands
  * where it already exists (refresh updates, never installs fresh on startup).
@@ -218,6 +404,15 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
   const codex = join(home, ".codex");
   if (existsSync(codex)) {
     writeSkills(join(codex, "skills"));
+    const configPath = join(codex, "config.toml");
+    const codexResult = ensureCodexMcpServer(configPath);
+    if (codexResult.registered) {
+      result.mcp.push(configPath);
+    } else {
+      result.warnings.push(
+        `${codexResult.detail} Finish manually: codex mcp add rdk-docs -- npx -y rdk-docs-mcp@latest`,
+      );
+    }
   }
 
   const dsh = join(home, ".dsh");
@@ -241,6 +436,13 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
       "No Cursor / Claude / ZCode / Codex / DeepSeek Harness directory found. Create one, or merge the MCP snippet from install.md yourself.",
     );
   }
+  // Skills without MCP leave the agent with instructions but no tools; say so
+  // instead of ending silently (Claude Code has no file-based MCP registration).
+  if (result.mcp.length === 0 && result.skills.length > 0) {
+    result.warnings.push(
+      "Skills were written, but no MCP server configuration could be written for any client. Register the MCP manually (see install.md), or the rdk-docs tools stay unavailable.",
+    );
+  }
 
   return result;
 }
@@ -262,7 +464,9 @@ export function formatInstallReport(result: InstallResult): string {
     for (const warning of result.warnings) lines.push(`- ${warning}`);
     lines.push("");
   }
-  lines.push("Reload the Agent / MCP servers, then ask: 「RDK X5 怎么烧录？」");
+  if (result.mcp.length === 0)
+    lines.push("No MCP client configuration was written; Skills alone do not provide MCP tools.");
+  lines.push("Reload the Agent / MCP servers, then ask: `RDK X5 怎么烧录？`");
   lines.push("Open the `official-start` hit first. Do not clone the source repository.");
   return lines.join("\n");
 }

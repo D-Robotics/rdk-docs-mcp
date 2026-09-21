@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchText } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
-import { scoreCase, scoreForumToc, type EvalCase } from "./eval.js";
+import { inspectPage, scoreCase, scoreForumToc, type EvalCase } from "./eval.js";
 import { runUsabilityChecks } from "./eval-usability.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -26,7 +26,7 @@ async function main() {
     let markdown: string | undefined;
     if (hit) {
       const page = await getPage({ url: hit.url, maxChars: 8000 }, fetchText);
-      markdown = `${page.title}\n${page.markdown}`;
+      markdown = page.markdown;
     }
     const score = scoreCase(evalCase, search.hits, markdown);
     results.push({
@@ -51,7 +51,7 @@ async function main() {
 
   if (toc.pages[0]) {
     const topic = await getPage({ url: toc.pages[0].url, maxChars: 4000 }, fetchText);
-    const pageOk = Boolean(topic.markdown.trim()) && topic.url.includes("forum.d-robotics.cc");
+    const pageOk = inspectPage(topic.markdown).valid && topic.url.includes("forum.d-robotics.cc");
     const reason = pageOk
       ? `opened ${topic.title}`
       : `empty or invalid topic page: ${toc.pages[0].url}`;
@@ -99,7 +99,7 @@ async function main() {
   }
 
   const passed = results.filter((item) => item.pass).length;
-  console.log(`\n${passed}/${results.length} cases can answer the developer question`);
+  console.log(`\n${passed}/${results.length} retrieval checks passed; final answers were not evaluated`);
   if (passed < results.length) process.exitCode = 1;
 }
 
