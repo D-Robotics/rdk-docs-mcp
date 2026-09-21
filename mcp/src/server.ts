@@ -1,3 +1,4 @@
+import { TASKS, PLATFORMS } from "./skill-structured.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -150,19 +151,22 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "search_skills",
     {
       description:
-        "Search the D-Robotics/rdk-skills catalog for Skills matching a task (read-only). Results are catalog records from one snapshot revision: presence in the catalog does NOT mean the skill is installed locally. Recommend at most 1-2 after checking get_skill; official docs questions still go through search_docs/get_page first. Natural language works in Chinese and English: describe the task as the user would (e.g. 现成的量化好的模型 is model consumption, 量化 alone stays undecided between PTQ/QAT). A board named in the query or the platform parameter scopes results by known pack board families (unknown scope is reported as platform_scope=unknown, never as compatibility); contradictory board inputs return guidance_kind=platform_conflict with no candidates.",
+        "Find verified catalog candidates, not installed skills. The calling model MUST interpret user intent, exclusions, conditionals and split compound tasks first. Prefer task plus explicit platform/exclude_platforms/workflow. Query is short ranking text, NOT an instruction parser. ready_model means finding existing artifacts, model_conversion means creating them, model_maintenance means maintaining the catalog/samples. For model_conversion ask PTQ/QAT when undecided. For comparisons search each board separately. Query-only calls are legacy candidate retrieval; inspect get_skill before recommending 1-2. Hardware facts must use search_docs/get_page. Unknown metadata is not compatibility.",
       inputSchema: {
         query: z
           .string()
           .describe(
-            "Task description or exact skill name, e.g. 'X5 40PIN GPIO', 'X5 PTQ 量化部署', '现成的量化好的模型直接用'. Non-empty after trimming, max 500 chars",
+            "Short ranking keywords or canonical name. With task, prose never sets board/workflow constraints. Non-empty, max 500 chars",
           ),
-        pack: z.string().optional().describe("Filter by pack name, e.g. 'OE Tool Chain (X5)'"),
+        task: z.enum(TASKS).optional().describe("Caller-selected task. Split camera+GPIO etc into separate calls."),
+        exclude_platforms: z.array(z.enum(PLATFORMS)).max(6).optional().describe("Explicit exclusions; requires task. Do not include boards merely mentioned for comparison."),
+        workflow: z.enum(["ptq", "qat", "undecided"]).nullable().optional().describe("Only for model_conversion. Infer from explicit user intent, not the word training alone."),
+        pack: z.string().optional().describe("Exact catalog pack filter"),
         platform: z
           .string()
           .optional()
           .describe(
-            "Board filter, e.g. 'x5' (drops packs known to target other board families; checked against boards named in the query — contradictions return platform_conflict, not a silent guess)",
+            "Explicit target: x3, x5, s100, s100p, s600, ultra. With task this overrides prose board mentions; missing platform metadata stays unknown.",
           ),
         install_type: z
           .enum(["flat", "workspace"])

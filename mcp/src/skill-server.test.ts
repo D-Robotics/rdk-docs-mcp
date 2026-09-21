@@ -1,3 +1,4 @@
+import {readFileSync} from "node:fs";
 import { describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -317,3 +318,17 @@ describe("MCP server: skill tools over the protocol", () => {
     await client.close();
   });
 });
+
+ describe('structured MCP contract',()=>{
+ it('advertises constraints and carries metadata through search and detail',async()=>{
+  const skills=JSON.parse(readFileSync(new URL('./fixtures/skills-reviewed.json',import.meta.url),'utf8'));
+  const client=await withClient({skillDeps:{loadCatalog:async()=>({snapshot:{...SNAPSHOT,skills},warnings:[],from_cache:false})}});
+  try {
+   const tools=await client.listTools();expect(tools.tools.find(t=>t.name==='search_skills')?.inputSchema.properties).toHaveProperty('task');
+   const result=parseText(await client.callTool({name:'search_skills',arguments:{query:'X5 不是X3 相机',task:'camera',platform:'x5',exclude_platforms:['x3']}}));
+   expect(result.matches.length).toBeGreaterThan(0);
+   for(const m of result.matches){expect(m.classification.tasks).toContain('camera');const detail=parseText(await client.callTool({name:'get_skill',arguments:{name:m.name}}));expect(detail.classification).toEqual(m.classification);}
+   const bad=await client.callTool({name:'search_skills',arguments:{query:'camera',task:'camera',workflow:'qat'}});expect(bad.isError).toBe(true);
+  }finally{await client.close();}
+ });
+ });

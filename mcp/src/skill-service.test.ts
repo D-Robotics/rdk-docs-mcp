@@ -129,13 +129,13 @@ describe("search_skills service", () => {
     );
     expect(output.catalog_revision).toBe(SHA);
     expect(output.fetched_at).toBe(FETCHED_AT);
-    expect(output.warnings).toEqual([]);
+    expect(output.warnings).toEqual([expect.stringContaining("legacy_query")]);
     expect(output.guidance.length).toBeGreaterThan(0);
   });
 
   it("passes catalog warnings (e.g. cache_write_failed) through", async () => {
     const output = await searchSkills({ query: "GPIO" }, depsWith(snapshotWith(SKILLS), ["cache_write_failed: read-only"]));
-    expect(output.warnings).toEqual(["cache_write_failed: read-only"]);
+    expect(output.warnings).toEqual(["cache_write_failed: read-only", expect.stringContaining("legacy_query")]);
   });
 
   it("rejects invalid queries, limits, and install types", async () => {

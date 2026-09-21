@@ -70,6 +70,17 @@ async function main() {
     const missing = expected.filter((name) => !names.includes(name));
     record("tools-list", missing.length === 0, `advertised ${names.length} tools: ${names.join(", ")}`);
 
+    // Structured constraints are authoritative even when query prose mentions exclusions.
+    for (const args of [
+      {query:"X5 不是X3 相机配置",task:"camera",platform:"x5",exclude_platforms:["x3"]},
+      {query:"GPIO 电平转换",task:"gpio",platform:"s100"},
+      {query:"现成模型 必要时转换",task:"ready_model",platform:"x5"},
+      {query:"QAT 不要简化成PTQ",task:"model_conversion",workflow:"qat",platform:"s100"},
+    ]) {
+      const result=parseOk(await client.callTool({name:"search_skills",arguments:args}) as CallResult);
+      record(`structured-${args.task}`,result.matches.length>0 && result.matches.every((m:any)=>m.classification?.tasks.includes(args.task)) && (args.workflow!=="qat" || result.matches.every((m:any)=>m.classification?.workflows.includes("qat"))),JSON.stringify(result.matches.map((m:any)=>m.name)));
+    }
+
     // --- flat search (A2) ---------------------------------------------------
     const gpio = parseOk(
       (await client.callTool({ name: "search_skills", arguments: { query: "rdk-gpio-40pin" } })) as CallResult,

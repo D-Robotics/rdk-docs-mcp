@@ -1,3 +1,4 @@
+import { searchStructured, classificationFor, type Task } from "./skill-structured.js";
 import {
   HUB_REPO,
   PACK_INSTALLER_SKILL,
@@ -22,6 +23,9 @@ import { searchSkillRecords } from "./skill-search.js";
 
 export type SkillSearchInput = {
   query: string;
+  task?: Task;
+  exclude_platforms?: string[];
+  workflow?: "ptq" | "qat" | "undecided" | null;
   pack?: string;
   platform?: string;
   install_type?: InstallType;
@@ -29,6 +33,7 @@ export type SkillSearchInput = {
 };
 
 export type SkillMatchView = {
+  classification: ReturnType<typeof classificationFor> | null;
   name: string;
   display_name: string;
   description: string;
@@ -87,6 +92,7 @@ export type WorkspaceInstallation = {
 export type Installation = FlatInstallation | WorkspaceInstallation;
 
 export type GetSkillOutput = {
+  classification: ReturnType<typeof classificationFor> | null;
   name: string;
   display_name: string;
   description: string;
@@ -182,7 +188,8 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
 
   const catalog = await loadCatalog(deps);
   const { snapshot, warnings } = catalog;
-  const outcome = searchSkillRecords(
+  if (!input.task && (input.exclude_platforms !== undefined || input.workflow !== undefined)) throw new SkillError("invalid_input", "task is required with structured workflow/exclusions");
+  const outcome = input.task ? searchStructured(snapshot.skills, query, {task:input.task, platform, exclude_platforms:input.exclude_platforms, workflow:input.workflow, pack, installType, limit}) : searchSkillRecords(
     snapshot.skills,
     query,
     { pack, platform, installType, limit },
@@ -191,6 +198,7 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
 
   return {
     matches: outcome.matches.map((match) => ({
+      classification: classificationFor(match.skill) ?? null,
       name: match.skill.name,
       display_name: skillDisplayName(match.skill.name),
       description: match.skill.description,
@@ -206,7 +214,7 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
     })),
     catalog_revision: snapshot.revision,
     fetched_at: snapshot.fetched_at,
-    warnings: [...warnings],
+    warnings: [...warnings, ...(input.task ? [] : ["legacy_query: unstructured candidates only; use task and explicit constraints for recommendations"])],
     guidance: outcome.guidance,
     guidance_kind: outcome.guidance_kind,
   };
@@ -289,6 +297,7 @@ export async function getSkillDetail(input: { name: string }, deps?: SkillServic
   }
 
   return {
+    classification: classificationFor(skill) ?? null,
     name: skill.name,
     display_name: skillDisplayName(skill.name),
     description: skill.description,
