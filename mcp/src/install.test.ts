@@ -2,8 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse as parseToml } from "smol-toml";
 import { describe, expect, it } from "vitest";
-import { installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
+import { ensureCodexMcpServer, installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
 
 const skillBody = `---
 name: rdk-docs
@@ -191,6 +192,136 @@ describe("Codex MCP registration (issue #5)", () => {
     writeFileSync(join(root, ".cursor", "mcp.json"), "{ not valid json");
     expect(() => installRdkDocs({ home: root, skillSource: skillBody })).toThrow(/Invalid JSON configuration/);
     expect(readFileSync(join(root, ".cursor", "mcp.json"), "utf8")).toBe("{ not valid json");
+  });
+});
+
+describe("Codex MCP registration — TOML semantics (retest 2026-09-21)", () => {
+  /** Temp HOME with a ~/.codex/config.toml seeded with `initial` (if given). */
+  function codexConfig(initial?: string): string {
+    const root = mkdtempSync(join(tmpdir(), "rdk-docs-codex-"));
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    const config = join(root, ".codex", "config.toml");
+    if (initial !== undefined) writeFileSync(config, initial);
+    return config;
+  }
+
+  function serverEntry(toml: string): Record<string, unknown> {
+    const parsed = parseToml(toml) as { mcp_servers?: Record<string, Record<string, unknown>> };
+    return parsed.mcp_servers?.["rdk-docs"] ?? {};
+  }
+
+  it("treats a quoted table header as registered and never appends a duplicate", () => {
+    const initial = '["mcp_servers"."rdk-docs"]\ncommand = "custom"\nargs = []\n';
+    const config = codexConfig(initial);
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(true);
+    expect(readFileSync(config, "utf8")).toBe(initial);
+    expect(serverEntry(readFileSync(config, "utf8")).command).toBe("custom");
+  });
+
+  it("does not treat a pseudo header inside a multi-line string as registered", () => {
+    const initial = 'note = """\nlooks like [mcp_servers.rdk-docs] but is prose\n"""\n';
+    const config = codexConfig(initial);
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(true);
+    const toml = readFileSync(config, "utf8");
+    const parsed = parseToml(toml) as { note?: string; mcp_servers?: Record<string, Record<string, unknown>> };
+    expect((parsed.note as string).includes("[mcp_servers.rdk-docs]")).toBe(true);
+    expect(parsed.mcp_servers?.["rdk-docs"]?.command).toBe("npx");
+  });
+
+  it("completes an empty trailing [mcp_servers.rdk-docs] table with launch keys", () => {
+    const initial = 'model = "gpt-5"\n\n[mcp_servers.other]\ncommand = "foo"\n\n[mcp_servers.rdk-docs]\n';
+    const config = codexConfig(initial);
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(true);
+    const parsed = parseToml(readFileSync(config, "utf8")) as {
+      model?: string;
+      mcp_servers?: Record<string, Record<string, unknown>>;
+    };
+    expect(parsed.mcp_servers?.["rdk-docs"]?.command).toBe("npx");
+    expect(parsed.mcp_servers?.["rdk-docs"]?.args).toEqual(["-y", "rdk-docs-mcp@latest"]);
+    expect(parsed.mcp_servers?.other?.command).toBe("foo");
+    expect(parsed.model).toBe("gpt-5");
+  });
+
+  it("reports an entry it cannot safely complete instead of claiming success", () => {
+    // The empty rdk-docs table is NOT the last table, so appending launch keys
+    // would attach them to [mcp_servers.other]. This must be reported, not written.
+    const initial = '[mcp_servers.rdk-docs]\n\n[mcp_servers.other]\ncommand = "foo"\n';
+    const config = codexConfig(initial);
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(false);
+    expect(result.detail).toMatch(/command|url/);
+    expect(readFileSync(config, "utf8")).toBe(initial);
+  });
+
+  it("leaves an invalid TOML file untouched and reports the parse failure", () => {
+    const initial = "[mcp_servers.rdk-docs\ncommand = oops\n";
+    const config = codexConfig(initial);
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(false);
+    expect(result.detail).toMatch(/valid TOML/i);
+    expect(readFileSync(config, "utf8")).toBe(initial);
+  });
+
+  it("accepts a url-only entry as usable and leaves it alone", () => {
+    const initial = '[mcp_servers.rdk-docs]\nurl = "http://localhost:8080/mcp"\n';
+    const config = codexConfig(initial);
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(true);
+    expect(readFileSync(config, "utf8")).toBe(initial);
+  });
+
+  it("recognizes dotted-key and inline-table definitions without duplicating them", () => {
+    const dotted = 'model = "gpt-5"\nmcp_servers.rdk-docs.command = "custom-runner"\n';
+    const configDotted = codexConfig(dotted);
+    expect(ensureCodexMcpServer(configDotted).registered).toBe(true);
+    expect(readFileSync(configDotted, "utf8")).toBe(dotted);
+
+    const inline = 'mcp_servers = { "rdk-docs" = { command = "custom-runner" } }\n';
+    const configInline = codexConfig(inline);
+    expect(ensureCodexMcpServer(configInline).registered).toBe(true);
+    expect(readFileSync(configInline, "utf8")).toBe(inline);
+  });
+
+  it("appends a parseable block to a valid config and keeps every other entry", () => {
+    const initial = 'model = "gpt-5"\n\n# user comment\n[profiles.dev]\nverbose = true\n';
+    const config = codexConfig(initial);
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(true);
+    const toml = readFileSync(config, "utf8");
+    expect(toml.startsWith(initial)).toBe(true); // append-only, no rewrite
+    expect(toml).toContain("# user comment");
+    const parsed = parseToml(toml) as {
+      model?: string;
+      profiles?: Record<string, unknown>;
+      mcp_servers?: Record<string, Record<string, unknown>>;
+    };
+    expect(parsed.model).toBe("gpt-5");
+    expect((parsed.profiles?.dev as Record<string, unknown>)?.verbose).toBe(true);
+    expect(parsed.mcp_servers?.["rdk-docs"]?.command).toBe("npx");
+  });
+
+  it("creates a parseable config from scratch", () => {
+    const config = codexConfig();
+    const result = ensureCodexMcpServer(config);
+    expect(result.registered).toBe(true);
+    expect(serverEntry(readFileSync(config, "utf8")).command).toBe("npx");
+  });
+
+  it("warns through installRdkDocs when the codex config is invalid TOML", () => {
+    const root = mkdtempSync(join(tmpdir(), "rdk-docs-codex-"));
+    mkdirSync(join(root, ".codex"), { recursive: true });
+    const configPath = join(root, ".codex", "config.toml");
+    const initial = "[this is = not toml\n";
+    writeFileSync(configPath, initial);
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+    expect(result.mcp).not.toContain(configPath);
+    expect(result.warnings.join("\n")).toMatch(/valid TOML/);
+    expect(readFileSync(configPath, "utf8")).toBe(initial);
+    // skills are still installed for that client
+    expect(readFileSync(join(root, ".codex", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
   });
 });
 

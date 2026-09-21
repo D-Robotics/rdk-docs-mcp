@@ -31,6 +31,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.0",
     "node-html-parser": "^7.0.1",
+    "smol-toml": "^1.8.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
