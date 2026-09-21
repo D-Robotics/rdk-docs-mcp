@@ -37,6 +37,24 @@ const SKILLS: SkillRecord[] = [
     catalog_path: "skills/oe-skills-x5/skills/x5-router",
     install_type: "workspace",
   },
+  {
+    name: "x5-ptq-deploy",
+    description:
+      "编排 ONNX/Caffe 到 X5 bayes-e .bin 的 OE Mapper PTQ 全流程；当用户要求 checker、校准、YAML、makertbin、模型信息和 Runtime 验证形成闭环时使用。通过原子 Skills 执行，不接受 Plugin QAT .hbm/.hbir、HAT 或 S 系列流程。",
+    pack: "OE Tool Chain (X5)",
+    repo: "D-Robotics/oe-skills-x5",
+    catalog_path: "skills/oe-skills-x5/skills/x5-ptq-deploy",
+    install_type: "workspace",
+  },
+  {
+    name: "x5-qat-deploy",
+    description:
+      "编排 X5 horizon_plugin_pytorch calibration、QAT、定点转换与 Plugin 编译；当用户有可训练 PyTorch 模型、数据和浮点基线，希望得到 March.BAYES_E 的 .hbm/.hbir 及指标闭环时使用。明确排除 HAT，且不把 QAT 自动交给 hb_mapper makertbin。",
+    pack: "OE Tool Chain (X5)",
+    repo: "D-Robotics/oe-skills-x5",
+    catalog_path: "skills/oe-skills-x5/skills/x5-qat-deploy",
+    install_type: "workspace",
+  },
 ];
 
 const SNAPSHOT: SkillCatalogSnapshot = {
@@ -146,6 +164,35 @@ describe("MCP server: skill tools over the protocol", () => {
       (await client.callTool({ name: "search_skills", arguments: { query: "x".repeat(501) } })) as CallToolResult,
     );
     expect(tooLong.code).toBe("invalid_input");
+    await client.close();
+  });
+
+  it("excludes the mutually exclusive quantization path over the protocol (retest 2026-09-21)", async () => {
+    const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
+    const ptq = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "X5 PTQ 量化部署" } })) as CallToolResult,
+    );
+    const ptqNames = ptq.matches.map((match: { name: string }) => match.name);
+    expect(ptqNames).toContain("x5-ptq-deploy");
+    expect(ptqNames).not.toContain("x5-qat-deploy");
+
+    const qat = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "X5 QAT 量化部署" } })) as CallToolResult,
+    );
+    const qatNames = qat.matches.map((match: { name: string }) => match.name);
+    expect(qatNames).toContain("x5-qat-deploy");
+    expect(qatNames).not.toContain("x5-ptq-deploy");
+    await client.close();
+  });
+
+  it("reports zero-token queries as invalid_input over the protocol (retest 2026-09-21)", async () => {
+    const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
+    const parsed = parseText(
+      (await client.callTool({ name: "search_skills", arguments: { query: "!!!" } })) as CallToolResult,
+    );
+    expect(parsed.matches).toEqual([]);
+    expect(parsed.guidance_kind).toBe("invalid_input");
+    expect(parsed.guidance).toMatch(/no usable search terms/i);
     await client.close();
   });
 

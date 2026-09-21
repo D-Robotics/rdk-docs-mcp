@@ -24,7 +24,7 @@ export type RankedSkill = {
   match_reason: string;
 };
 
-export type GuidanceKind = "default" | "model_only" | "ambiguous_quant" | "no_match";
+export type GuidanceKind = "default" | "model_only" | "ambiguous_quant" | "no_match" | "invalid_input";
 
 export type SkillSearchOutcome = {
   matches: RankedSkill[];
@@ -152,11 +152,43 @@ function descriptionMatcher(description: string): DescriptionMatcher {
 // ---------------------------------------------------------------------------
 
 const QUANT_TOKENS = new Set(["量化", "quant"]);
-const PTQ_SIGNALS = new Set(["ptq"]);
-const QAT_SIGNALS = new Set(["qat", "训练", "training"]);
 
 function isQuantToken(token: string): boolean {
   return QUANT_TOKENS.has(token);
+}
+
+// ---------------------------------------------------------------------------
+// The PTQ/QAT decision implied by the query itself. A signal is only counted
+// when it is actually asserted: "不用 QAT，直接 PTQ" commits to PTQ, "not PTQ"
+// does not commit to PTQ, and a question mentioning both paths ("PTQ 和 QAT
+// 区别") commits to neither, so no mutual exclusion is applied.
+// ---------------------------------------------------------------------------
+
+type QuantPath = "ptq" | "qat";
+
+/** Negation cues that may sit immediately before a signal ("非/不用/not …"). */
+const QUERY_NEGATION_BEFORE =
+  /(?:不用|不要|不是|不选|不做|排除|拒绝|非|没有|无法)\s*$|(?:^|[\s(（,，、/])(?:not|no|without|except|rather than|excluding)[\s:-]*$/i;
+/** Cues that negate the signal from the right ("QAT 除外"). */
+const QUERY_NEGATION_AFTER = /^\s*(?:除外|就不要|就不用|不行)/;
+
+function hasEffectiveSignal(lowered: string, signal: string): boolean {
+  for (let index = lowered.indexOf(signal); index !== -1; index = lowered.indexOf(signal, index + 1)) {
+    const before = lowered.slice(Math.max(0, index - 16), index);
+    const after = lowered.slice(index + signal.length, index + signal.length + 6);
+    if (!QUERY_NEGATION_BEFORE.test(before) && !QUERY_NEGATION_AFTER.test(after)) return true;
+  }
+  return false;
+}
+
+/** The quantization path the query commits to, or null when undecided/both. */
+function decidedQuantPath(query: string): QuantPath | null {
+  const lowered = query.trim().toLowerCase();
+  const ptq = hasEffectiveSignal(lowered, "ptq");
+  const qat = ["qat", "训练", "training"].some((signal) => hasEffectiveSignal(lowered, signal));
+  if (ptq && !qat) return "ptq";
+  if (qat && !ptq) return "qat";
+  return null;
 }
 
 function isEntrySkill(skill: SkillRecord): boolean {
@@ -175,9 +207,12 @@ function isOrchestratorSkill(skill: SkillRecord): boolean {
   );
 }
 
-/** PTQ/QAT-specific records (token rule on name/path, not a name whitelist). */
-function isQuantPathSpecific(skill: SkillRecord): boolean {
-  return /(^|[-_])(ptq|qat)([-_]|$)/.test(skill.name.toLowerCase());
+/** Which quantization path a record is dedicated to (token rule on the name). */
+function quantPathOf(skill: SkillRecord): QuantPath | null {
+  const name = skill.name.toLowerCase();
+  if (/(^|[-_])ptq([-_]|$)/.test(name)) return "ptq";
+  if (/(^|[-_])qat([-_]|$)/.test(name)) return "qat";
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -321,20 +356,27 @@ const GUIDANCE_TEXT: Record<GuidanceKind, string> = {
     "Quantization path is ambiguous: PTQ (post-training quantization, calibration on ready models) and QAT (quantization-aware training on trainable models) are different workflows. Ask the user which one they mean; an entry/router skill can triage further. Do not present a PTQ or QAT sub-step as the decided answer for this query.",
   no_match:
     "No skill in the catalog snapshot matched. Do not invent skill names or install commands; ask the user to rephrase with the concrete task, and fall back to official docs where applicable.",
+  invalid_input:
+    "The query has no usable search terms (only punctuation, numbers, or filler words). Do not recommend any skill from this input; ask the user to rephrase with the concrete task or board model.",
 };
 
 /**
  * Rank catalog skills for a query. Throws no errors for content reasons —
- * zero matches are a valid outcome with no_match guidance.
+ * zero matches are a valid outcome with no_match guidance, and a query with
+ * zero usable tokens is reported as invalid_input instead of matching
+ * unrelated records through ranking bonuses.
  */
 export function searchSkillRecords(skills: SkillRecord[], query: string, filters: SearchFilters = {}): SkillSearchOutcome {
   const tokens = skillQueryTokens(query);
+  if (tokens.length === 0) {
+    return { matches: [], guidance: GUIDANCE_TEXT.invalid_input, guidance_kind: "invalid_input" };
+  }
   const taskMatchers = tokens.filter((token) => !MODEL_WORDS.has(token)).map(buildMatcher);
   const modelMatchers = tokens.filter((token) => MODEL_WORDS.has(token)).map(buildMatcher);
-  const ambiguousQuant =
-    tokens.some(isQuantToken) &&
-    !tokens.some((token) => PTQ_SIGNALS.has(token)) &&
-    !tokens.some((token) => QAT_SIGNALS.has(token));
+  // The PTQ/QAT path the query commits to; null while undecided (or when both
+  // paths are mentioned, e.g. a comparison question).
+  const decidedPath: QuantPath | null = decidedQuantPath(query);
+  const ambiguousQuant = tokens.some(isQuantToken) && decidedPath === null;
 
   const pool = skills.filter((skill) => {
     if (filters.installType && skill.install_type !== filters.installType) return false;
@@ -361,14 +403,25 @@ export function searchSkillRecords(skills: SkillRecord[], query: string, filters
       const rescuedEntry = ambiguousQuant && isEntrySkill(skill) && matchedModel > 0;
       included = rescuedEntry;
     }
+    if (included && taskMatchers.length === 0 && modelMatchers.length > 0 && matchedModel === 0) {
+      // A model-only query must genuinely match the model; ranking bonuses
+      // (e.g. the orchestrator bonus) never qualify a record on their own.
+      included = false;
+    }
     if (included && ambiguousQuant && quantMatched && !isEntrySkill(skill)) {
       // A sub-step that merely mentions quantization must not become the
       // decided answer while the PTQ/QAT choice is open.
       included = false;
     }
-    if (included && ambiguousQuant && isQuantPathSpecific(skill)) {
+    if (included && ambiguousQuant && quantPathOf(skill) !== null) {
       // Same for skills that are themselves PTQ- or QAT-specific: recommending
       // either one would decide the open PTQ-vs-QAT question for the user.
+      included = false;
+    }
+    if (included && decidedPath !== null && quantPathOf(skill) !== null && quantPathOf(skill) !== decidedPath) {
+      // The query committed to one quantization path; the opposite path's
+      // dedicated workflows are mutually exclusive and must not be
+      // recommended alongside it. Generic entries and helpers stay.
       included = false;
     }
     if (!included || score <= 0) continue;

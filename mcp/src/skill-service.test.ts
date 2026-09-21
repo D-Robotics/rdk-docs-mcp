@@ -30,6 +30,15 @@ const SKILLS: SkillRecord[] = [
     catalog_path: "skills/oe-skills-x5/skills/x5-ptq-deploy",
     install_type: "workspace",
   },
+  {
+    name: "x5-qat-deploy",
+    description:
+      "编排 X5 horizon_plugin_pytorch calibration、QAT、定点转换与 Plugin 编译；当用户有可训练 PyTorch 模型、数据和浮点基线，希望得到 March.BAYES_E 的 .hbm/.hbir 及指标闭环时使用。明确排除 HAT，且不把 QAT 自动交给 hb_mapper makertbin。",
+    pack: "OE Tool Chain (X5)",
+    repo: "D-Robotics/oe-skills-x5",
+    catalog_path: "skills/oe-skills-x5/skills/x5-qat-deploy",
+    install_type: "workspace",
+  },
 ];
 
 const PACKS = [
@@ -99,6 +108,20 @@ describe("search_skills service", () => {
     const output = await searchSkills({ query: "量子纠缠曲奇" }, deps);
     expect(output.matches).toEqual([]);
     expect(output.guidance).toContain("No skill");
+  });
+
+  it("surfaces invalid_input for a query with zero usable tokens (retest 2026-09-21)", async () => {
+    const output = await searchSkills({ query: "!!!" }, deps);
+    expect(output.matches).toEqual([]);
+    expect(output.guidance_kind).toBe("invalid_input");
+    expect(output.guidance).toMatch(/no usable search terms/i);
+  });
+
+  it("keeps the mutually exclusive QAT flow out of an explicit PTQ query (retest 2026-09-21)", async () => {
+    const output = await searchSkills({ query: "X5 PTQ 量化部署" }, deps);
+    const all = output.matches.map((match) => match.name);
+    expect(all).toContain("x5-ptq-deploy");
+    expect(all).not.toContain("x5-qat-deploy");
   });
 });
 

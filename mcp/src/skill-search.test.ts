@@ -99,6 +99,24 @@ const SKILLS: SkillRecord[] = [
     install_type: "workspace",
   },
   {
+    name: "x5-runtime-deploy",
+    description:
+      "编排 X5 Runtime 模型门禁、板端上传、命令行/C++ 推理、正确性、性能与资源验证；当用户要上板运行 X5 .bin、使用 hrt_model_exec 或 BPU SDK 时使用。Plugin .hbm/.hbir 只有在实际 Runtime 兼容证据充分时才接收；不使用 S 系列 UCP。",
+    pack: "OE Tool Chain (X5)",
+    repo: "D-Robotics/oe-skills-x5",
+    catalog_path: "skills/oe-skills-x5/skills/x5-runtime-deploy",
+    install_type: "workspace",
+  },
+  {
+    name: "x5-ptq-compile",
+    description:
+      "执行已验证 X5 YAML 的 hb_mapper checker/makertbin 并验证唯一 .bin 与 BPU march；当配置和环境已就绪、需要生成 bayes-e PTQ 产物时使用。不得处理 QAT .hbm/.hbir，也不得复用非空输出目录而未确认。",
+    pack: "OE Tool Chain (X5)",
+    repo: "D-Robotics/oe-skills-x5",
+    catalog_path: "skills/oe-skills-x5/skills/x5-ptq-compile",
+    install_type: "workspace",
+  },
+  {
     name: "x5-accuracy-diagnostics",
     description:
       "定位 X5 PTQ 或 Plugin QAT 的首次精度掉点阶段；当有浮点、校准、QAT、定点、编译或板端指标及固定输入时使用。只读比较并设计单变量实验，不自动重训或重编译。",
@@ -230,5 +248,85 @@ describe("skill search ranking", () => {
   it("matches Chinese natural-language queries against Chinese descriptions", () => {
     const result = searchSkillRecords(SKILLS, "训练感知量化");
     expect(names(result)).toContain("x5-qat-training");
+  });
+});
+
+describe("skill search ranking — retest 2026-09-21", () => {
+  it("keeps mutually exclusive QAT flows out of an explicit PTQ query (whole result set)", () => {
+    const result = searchSkillRecords(SKILLS, "X5 PTQ 量化部署", { limit: 5 });
+    const all = names(result);
+    // QAT-dedicated workflows are a different, mutually exclusive path.
+    expect(all).not.toContain("x5-qat-deploy");
+    expect(all).not.toContain("x5-qat-training");
+    // PTQ flow plus generic deploy/runtime/compile helpers stay available.
+    expect(all).toContain("x5-ptq-deploy");
+    expect(all).toContain("rdk-model-deploy");
+    expect(all).toContain("x5-runtime-deploy");
+    expect(all).toContain("x5-ptq-compile");
+    expect(result.matches[0]?.skill.name).toBe("x5-ptq-deploy");
+  });
+
+  it("keeps mutually exclusive PTQ flows out of an explicit QAT query (whole result set)", () => {
+    const result = searchSkillRecords(SKILLS, "X5 QAT 量化部署", { limit: 5 });
+    const all = names(result);
+    expect(all).not.toContain("x5-ptq-deploy");
+    expect(all).not.toContain("x5-ptq-compile");
+    expect(all).toContain("x5-qat-deploy");
+    expect(all).toContain("rdk-model-deploy");
+    expect(result.matches[0]?.skill.name).toBe("x5-qat-deploy");
+  });
+
+  it("does not exclude either path for a PTQ-vs-QAT comparison question", () => {
+    const result = searchSkillRecords(SKILLS, "PTQ 和 QAT 有什么区别");
+    const all = names(result);
+    expect(all).toContain("x5-ptq-deploy");
+    expect(all).toContain("x5-qat-deploy");
+    expect(result.guidance_kind).not.toBe("ambiguous_quant");
+  });
+
+  it("honors a negated QAT mention: 不用 QAT 直接 PTQ 量化 keeps the PTQ path", () => {
+    const result = searchSkillRecords(SKILLS, "不用 QAT，直接 PTQ 量化部署");
+    const all = names(result);
+    expect(all).not.toContain("x5-qat-deploy");
+    expect(all).not.toContain("x5-qat-training");
+    expect(all).toContain("x5-ptq-deploy");
+  });
+
+  it("honors a negated PTQ mention: not PTQ, QAT 部署 keeps the QAT path", () => {
+    const result = searchSkillRecords(SKILLS, "not PTQ: X5 QAT 量化部署");
+    const all = names(result);
+    expect(all).not.toContain("x5-ptq-deploy");
+    expect(all).toContain("x5-qat-deploy");
+  });
+
+  it("returns invalid_input for a query with zero usable tokens", () => {
+    const result = searchSkillRecords(SKILLS, "!!!");
+    expect(result.matches).toEqual([]);
+    expect(result.guidance_kind).toBe("invalid_input");
+    expect(result.guidance).toMatch(/no usable search terms/i);
+  });
+
+  it("returns invalid_input for digit-only and stopword-only queries", () => {
+    for (const query of ["12345", "怎么样？", "？？？吗呢啊"]) {
+      const result = searchSkillRecords(SKILLS, query);
+      expect(result.matches).toEqual([]);
+      expect(result.guidance_kind).toBe("invalid_input");
+    }
+  });
+
+  it("requires a real model hit for model-only queries — orchestrator bonus alone never qualifies", () => {
+    // No fixture mentions J6, so a J6-only query must not return deploy-named
+    // entries riding on the orchestrator bonus.
+    const orphan = searchSkillRecords(SKILLS, "J6");
+    expect(orphan.matches).toEqual([]);
+    expect(orphan.guidance_kind).toBe("no_match");
+
+    // A model that does exist returns only records that actually match it.
+    const x5 = searchSkillRecords(SKILLS, "X5");
+    expect(x5.guidance_kind).toBe("model_only");
+    expect(x5.matches.length).toBeGreaterThan(0);
+    for (const match of x5.matches) {
+      expect(match.matched_terms).toContain("x5");
+    }
   });
 });

@@ -46,6 +46,8 @@ export type SearchSkillsOutput = {
   fetched_at: string;
   warnings: string[];
   guidance: string;
+  /** Machine-readable guidance kind, e.g. invalid_input for zero-token queries. */
+  guidance_kind: string;
 };
 
 export type FlatInstallation = {
@@ -179,6 +181,7 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
     fetched_at: snapshot.fetched_at,
     warnings: [...warnings],
     guidance: outcome.guidance,
+    guidance_kind: outcome.guidance_kind,
   };
 }
 
