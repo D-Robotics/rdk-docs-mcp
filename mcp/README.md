@@ -1,6 +1,6 @@
 # rdk-docs-mcp
 
-检索 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/) 的 MCP Server。
+检索 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/)，并在 [D-Robotics/rdk-skills](https://github.com/D-Robotics/rdk-skills) 目录里发现 Skill（只读）的 MCP Server。共六个工具：`list_manuals`、`search_docs`、`get_page`、`list_toc`、`search_skills`、`get_skill`。
 
 给 Agent 这一句：
 

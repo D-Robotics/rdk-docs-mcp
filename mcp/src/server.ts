@@ -5,6 +5,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { listManuals } from "./catalog.js";
 import { fetchText } from "./http.js";
+import { SkillError } from "./skill-catalog.js";
+import { getSkillDetail, searchSkills, type SkillServiceDeps } from "./skill-service.js";
 import { getPage, listToc, searchDocs } from "./service.js";
 
 /** Single source of truth for the advertised version: the package itself. */
@@ -30,7 +32,20 @@ function fail(error: unknown) {
   };
 }
 
-export function createServer(): McpServer {
+/** Skill tools report a stable {code, message} pair (issue #4 §4). */
+function failSkill(error: unknown) {
+  if (error instanceof SkillError) {
+    return {
+      content: [
+        { type: "text" as const, text: JSON.stringify({ error: { code: error.code, message: error.message } }, null, 2) },
+      ],
+      isError: true,
+    };
+  }
+  return fail(error);
+}
+
+export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): McpServer {
   const server = new McpServer({
     name: "rdk-docs",
     version: PACKAGE_VERSION,
@@ -127,6 +142,56 @@ export function createServer(): McpServer {
         return ok(await listToc({ manual, query }, fetchText));
       } catch (error) {
         return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "search_skills",
+    {
+      description:
+        "Search the D-Robotics/rdk-skills catalog for Skills matching a task (read-only). Results are catalog records from one snapshot revision: presence in the catalog does NOT mean the skill is installed locally. Recommend at most 1-2 after checking get_skill; official docs questions still go through search_docs/get_page first. platform is a text filter, not a hardware-compatibility guarantee.",
+      inputSchema: {
+        query: z
+          .string()
+          .describe(
+            "Task description or exact skill name, e.g. 'X5 40PIN GPIO', 'X5 PTQ 量化部署'. Non-empty after trimming, max 500 chars",
+          ),
+        pack: z.string().optional().describe("Filter by pack name, e.g. 'OE Tool Chain (X5)'"),
+        platform: z
+          .string()
+          .optional()
+          .describe("Board keyword text filter, e.g. 'x5' (drops skills scoped to other boards; text relevance only)"),
+        install_type: z
+          .enum(["flat", "workspace"])
+          .optional()
+          .describe("flat = single skill install via npx skills add; workspace = whole pack via rdk-pack-installer handoff"),
+        limit: z.number().int().min(1).max(20).optional().describe("Max matches, default 5"),
+      },
+    },
+    async (input) => {
+      try {
+        return ok(await searchSkills(input, options.skillDeps));
+      } catch (error) {
+        return failSkill(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_skill",
+    {
+      description:
+        "Get one skill's catalog detail and structured install guidance by its exact catalog name (from search_skills). flat returns an npx skills add command; workspace returns the full pack handoff (pack repo/ref/verify_paths plus the rdk-pack-installer acquisition command). Read-only: nothing is installed and no script runs; only proceed with installation when the user explicitly asks.",
+      inputSchema: {
+        name: z.string().describe("Exact skill name from the catalog, e.g. 'rdk-gpio-40pin' (no fuzzy matching)"),
+      },
+    },
+    async (input) => {
+      try {
+        return ok(await getSkillDetail(input, options.skillDeps));
+      } catch (error) {
+        return failSkill(error);
       }
     },
   );
