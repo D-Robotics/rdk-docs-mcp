@@ -175,6 +175,102 @@ describe("searchDocs", () => {
     const result = await searchDocs({ query: "量化", manual: "forum" }, emptySearch);
     expect(result.hits[0]?.url).toBe("https://forum.d-robotics.cc/t/topic/35610");
   });
+
+  it("filters X5-only camera pages from an explicit X3 search while keeping shared pages", async () => {
+    const mixedIndex = JSON.stringify([
+      {
+        documents: [
+          {
+            t: "RDK X5 USB 摄像头配置",
+            u: "/rdk_x_doc/Advanced_development/rdk_x5/camera/usb_camera",
+          },
+          {
+            t: "RDK X3 摄像头接入",
+            u: "/rdk_x_doc/Basic_Application/rdk_x3/camera",
+          },
+          {
+            t: "摄像头通用排障",
+            u: "/rdk_x_doc/Basic_Application/camera/troubleshooting",
+          },
+        ],
+      },
+    ]);
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/rdk_x_doc/search-index.json")) return mixedIndex;
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    const result = await searchDocs({ query: "X3 摄像头", manual: "rdk-x", limit: 10 }, mock);
+    expect(result.hits.some((hit) => hit.url.includes("rdk_x3"))).toBe(true);
+    expect(result.hits.some((hit) => hit.url.includes("camera/troubleshooting"))).toBe(true);
+    expect(result.hits.some((hit) => hit.url.includes("rdk_x5"))).toBe(false);
+  });
+
+  it("does not re-inject an S600 official route after filtering an X3 case search", async () => {
+    const x3Cases = JSON.stringify([
+      {
+        documents: [
+          {
+            t: "RDK X3 应用案例",
+            u: "/rdk_x_doc/Basic_Application/rdk_x3/case",
+          },
+          {
+            t: "应用案例通用说明",
+            u: "/rdk_x_doc/Basic_Application/case/overview",
+          },
+        ],
+      },
+    ]);
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/rdk_x_doc/search-index.json")) return x3Cases;
+      if (url.endsWith("search-index.json")) return "[]";
+      throw new Error(`unavailable ${url}`);
+    };
+
+    const result = await searchDocs({ query: "X3 案例", limit: 10 }, mock);
+    expect(result.hits.some((hit) => hit.url.includes("/rdk_x_doc/Basic_Application/case/overview"))).toBe(true);
+    expect(result.hits.some((hit) => hit.url.includes("/case_doc/case"))).toBe(false);
+    expect(result.hits.some((hit) => hit.role === "official-start" && hit.manual === "case-s600")).toBe(false);
+  });
+
+  it("uses an explicit board alias as scope even when the query omits the board", async () => {
+    const mixedIndex = JSON.stringify([
+      {
+        documents: [
+          {
+            t: "RDK X5 摄像头配置",
+            u: "/rdk_x_doc/Advanced_development/rdk_x5/camera",
+          },
+          {
+            t: "RDK X3 摄像头接入",
+            u: "/rdk_x_doc/Basic_Application/rdk_x3/camera",
+          },
+          {
+            t: "摄像头通用排障",
+            u: "/rdk_x_doc/Basic_Application/camera/troubleshooting",
+          },
+        ],
+      },
+    ]);
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/rdk_x_doc/search-index.json")) return mixedIndex;
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    const result = await searchDocs({ query: "摄像头", manual: "x3", limit: 10 }, mock);
+    expect(result.hits.some((hit) => hit.url.includes("rdk_x3"))).toBe(true);
+    expect(result.hits.some((hit) => hit.url.includes("camera/troubleshooting"))).toBe(true);
+    expect(result.hits.some((hit) => hit.url.includes("rdk_x5"))).toBe(false);
+  });
+
+  it("rejects a query board that conflicts with an explicit board alias", async () => {
+    const never: HttpGet = async (url) => {
+      throw new Error(`should not fetch ${url}`);
+    };
+    await expect(searchDocs({ query: "X5 摄像头", manual: "x3" }, never)).rejects.toThrow(
+      /board conflict.*x3.*x5/i,
+    );
+  });
 });
 
 describe("listToc", () => {
@@ -207,6 +303,13 @@ describe("getPage", () => {
     );
     expect(page.title).toBe("PoE 供电使用");
     expect(page.markdown).toContain("电压与功率");
+    expect(page.content_source).toBe("html");
+    expect(page.evidence_notes).toContain(
+      "Images are preserved as links; their visual content is not extracted or verified.",
+    );
+    expect(page).toMatchObject({ offset: 0, next_offset: null, truncated: false });
+    expect(page.total_chars).toBe(page.markdown.length);
+    expect(page.content_hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("reads Rspress CSR pages from the search index instead of the empty shell", async () => {
@@ -216,6 +319,28 @@ describe("getPage", () => {
     );
     expect(page.title).toBe("BEV多任务模型训练");
     expect(page.markdown).toContain("Horizon Torch");
+    expect(page.content_source).toBe("search_index");
+    expect(page.evidence_notes.join(" ")).toMatch(/search index/i);
+  });
+
+  it("marks a nonempty Rspress loading shell unavailable when index recovery fails", async () => {
+    const url = "https://developer.d-robotics.cc/oe_s_doc/guide/missing";
+    const loadingShell = `
+      <html>
+        <head><meta name="generator" content="Rspress v1.23.1" /></head>
+        <body><div id="__rspress_root">Loading...</div></body>
+      </html>
+    `;
+    const mock: HttpGet = async (requested) => {
+      if (requested === url || requested === `${url}/`) return loadingShell;
+      throw new Error(`index unavailable ${requested}`);
+    };
+
+    const page = await getPage({ url }, mock);
+    expect(page.content_source).toBe("unavailable");
+    expect(page.markdown).toContain("这是现网空壳页");
+    expect(page.markdown).not.toContain("Loading...");
+    expect(page.evidence_notes.join(" ")).toMatch(/no page body/i);
   });
 
   it("renders a Discourse topic from the forum JSON API", async () => {
@@ -223,6 +348,8 @@ describe("getPage", () => {
     expect(page.title).toBe("RDK S100没有wifi");
     expect(page.markdown).toContain("@RiChouu");
     expect(page.markdown).toContain("wifi");
+    expect(page.content_source).toBe("forum");
+    expect(page.evidence_notes.join(" ")).toMatch(/community/i);
   });
 
   it("lists recent topics when given a forum category URL", async () => {
@@ -289,6 +416,8 @@ describe("getPage", () => {
     expect(page.markdown.startsWith("这是现网空壳页")).toBe(true);
     expect(page.markdown).toContain(x3HardwareUrl);
     expect(page.markdown.length).toBeGreaterThan(0);
+    expect(page.content_source).toBe("unavailable");
+    expect(page.evidence_notes.join(" ")).toMatch(/no page body/i);
   });
 
   it("restores S100 kit text from the search index when the live page is an S-series shell", async () => {
@@ -336,5 +465,59 @@ describe("getPage", () => {
     );
     expect(requested.some((url) => url.includes("/rdk_doc/"))).toBe(false);
   });
-});
 
+  it("returns hash-guarded page windows that reassemble without truncation markers", async () => {
+    const first = await getPage(
+      {
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE",
+        maxChars: 12,
+      },
+      http,
+    );
+    expect(first.truncated).toBe(true);
+    expect(first.next_offset).toBe(12);
+    expect(first.markdown).not.toContain("[truncated]");
+
+    const second = await getPage(
+      {
+        url: first.url,
+        offset: first.next_offset ?? 0,
+        maxChars: 1000,
+        expected_content_hash: first.content_hash,
+      },
+      http,
+    );
+    expect(first.markdown + second.markdown).toContain("电压与功率因标准而异。");
+    expect(second.content_hash).toBe(first.content_hash);
+    expect(second.offset).toBe(12);
+    expect(second.next_offset).toBeNull();
+  });
+
+  it("rejects page continuation when the fetched body changed", async () => {
+    let body = html;
+    const changing: HttpGet = async (url) => {
+      if (url.includes("/POE")) return body;
+      throw new Error(`unexpected url ${url}`);
+    };
+    const first = await getPage(
+      {
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE",
+        maxChars: 12,
+      },
+      changing,
+    );
+    body = html.replace("电压与功率因标准而异。", "页面内容已更新。");
+
+    await expect(
+      getPage(
+        {
+          url: first.url,
+          offset: first.next_offset ?? 0,
+          maxChars: 12,
+          expected_content_hash: first.content_hash,
+        },
+        changing,
+      ),
+    ).rejects.toThrow(/content.*changed/i);
+  });
+});

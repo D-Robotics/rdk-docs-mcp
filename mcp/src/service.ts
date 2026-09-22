@@ -1,6 +1,12 @@
 import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
-import { mentionedBoards, urlLooksLikeBoard } from "./products.js";
+import {
+  isClearlyIncompatibleBoardDoc,
+  mentionedBoards,
+  type BoardId,
+  urlLooksLikeBoard,
+} from "./products.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
+import { sliceContent } from "./content-window.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
@@ -9,7 +15,7 @@ import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } fr
 import { applyOfficialPath, matchOfficialPath, searchGuidance } from "./routes.js";
 import { rankHits } from "./search.js";
 import { compactSphinxIndex } from "./sphinx.js";
-import type { IndexedDoc, SearchHit } from "./types.js";
+import type { IndexedDoc, PageContentSource, PageResult, SearchHit } from "./types.js";
 
 export type SearchSource = "docs" | "forum" | "all";
 
@@ -28,6 +34,8 @@ export type TocInput = {
 export type PageInput = {
   url: string;
   maxChars?: number;
+  offset?: number;
+  expected_content_hash?: string;
 };
 
 function requireManual(idOrAlias: string): Manual {
@@ -43,6 +51,30 @@ function resolveSource(manual?: string, source?: SearchSource): SearchSource {
   if (manual && isForumRef(manual)) return "forum";
   if (manual) return "docs";
   return "docs";
+}
+
+function resolveBoardConstraint(query: string, manual?: string): BoardId | undefined {
+  const queryBoards = mentionedBoards(query);
+  const manualBoards = manual ? mentionedBoards(manual) : [];
+  const manualBoard = manualBoards.length === 1 ? manualBoards[0] : undefined;
+  if (manualBoard && (queryBoards.length > 1 || (queryBoards.length === 1 && queryBoards[0] !== manualBoard))) {
+    throw new Error(
+      `Board conflict: manual alias ${manual} scopes the search to ${manualBoard}, but query names ${queryBoards.join(", ")}.`,
+    );
+  }
+  return manualBoard ?? (queryBoards.length === 1 ? queryBoards[0] : undefined);
+}
+
+function officialMatchesBoard(
+  official: ReturnType<typeof matchOfficialPath>,
+  boardConstraint: BoardId | undefined,
+  query: string,
+): boolean {
+  if (!official) return false;
+  return !isClearlyIncompatibleBoardDoc(
+    { manualId: official.manual, title: official.title, url: official.url },
+    boardConstraint ?? query,
+  );
 }
 
 function mergeHits(docs: SearchHit[], forum: SearchHit[], limit: number): SearchHit[] {
@@ -130,6 +162,7 @@ export async function searchDocs(
   }
   const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
   const source = resolveSource(input.manual, input.source);
+  const boardConstraint = resolveBoardConstraint(query, input.manual);
   const includeDocs = source === "docs" || source === "all";
   const includeForum = source === "forum" || source === "all";
   const warnings: string[] = [];
@@ -161,19 +194,29 @@ export async function searchDocs(
       loaded.flatMap((item) => item.docs),
       query,
       limit,
+      boardConstraint,
     ).map((hit) => ({ ...hit, source: "docs" as const }));
   }
 
   let forumHits: SearchHit[] = [];
   if (includeForum) {
     try {
-      forumHits = await searchForum(query, http, limit);
+      forumHits = (await searchForum(query, http, limit)).filter((hit) =>
+        !boardConstraint ||
+        !isClearlyIncompatibleBoardDoc(
+          { manualId: hit.manual, title: hit.title, url: hit.url },
+          boardConstraint,
+        ),
+      );
     } catch (error) {
       warnings.push(`Failed to search forum: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  const official = includeDocs ? matchOfficialPath(query, input.manual) : undefined;
+  const matchedOfficial = includeDocs ? matchOfficialPath(query, input.manual) : undefined;
+  const official = officialMatchesBoard(matchedOfficial, boardConstraint, query)
+    ? matchedOfficial
+    : undefined;
   if (mentioned.length > 1 && docHits.length > 0) {
     const missing = mentioned.filter((board) => !docHits.some((hit) => urlLooksLikeBoard(hit.url, board) || urlLooksLikeBoard(hit.title, board)));
     if (missing.length > 0)
@@ -223,33 +266,42 @@ export async function listToc(
 export async function getPage(
   input: PageInput,
   http: HttpGet,
-): Promise<{ title: string; url: string; markdown: string; truncated: boolean }> {
+): Promise<PageResult> {
   const url = canonicalizeDocUrl(resolveDocUrl(input.url));
   if (new URL(url).hostname === "forum.d-robotics.cc") {
     const page = await getForumTopic(url, http);
-    const maxChars = input.maxChars ?? 16_000;
-    if (page.markdown.length <= maxChars) {
-      return { ...page, truncated: false };
-    }
-    return {
-      ...page,
-      markdown: `${page.markdown.slice(0, maxChars)}\n\n…[truncated]`,
-      truncated: true,
-    };
+    return windowPage(page, "forum", input);
   }
   const html = await http(url);
   let page = htmlToMarkdown(html, url);
+  let contentSource: PageContentSource = "html";
   if (isRspressShell(html, page.markdown)) {
     const fromIndex = await rspressPageFromIndex(url, http);
-    if (fromIndex) page = fromIndex;
+    if (fromIndex) {
+      page = fromIndex;
+      contentSource = "search_index";
+    } else {
+      page = {
+        ...page,
+        title: page.title || url,
+        markdown: emptyShellNotice(url),
+      };
+      contentSource = "unavailable";
+    }
   }
   if (isDocusaurusShell(html, page.markdown)) {
     const fromIndex = await docusaurusPageFromIndex(url, http);
-    page = fromIndex ?? {
-      ...page,
-      title: page.title || url,
-      markdown: emptyShellNotice(url),
-    };
+    if (fromIndex) {
+      page = fromIndex;
+      contentSource = "search_index";
+    } else {
+      page = {
+        ...page,
+        title: page.title || url,
+        markdown: emptyShellNotice(url),
+      };
+      contentSource = "unavailable";
+    }
   }
   if (!page.markdown.trim()) {
     page = {
@@ -257,15 +309,50 @@ export async function getPage(
       title: page.title || url,
       markdown: emptyShellNotice(url),
     };
+    contentSource = "unavailable";
   }
-  const maxChars = input.maxChars ?? 16_000;
-  if (page.markdown.length <= maxChars) {
-    return { ...page, truncated: false };
+  return windowPage(page, contentSource, input);
+}
+
+const IMAGE_EVIDENCE_NOTE =
+  "Images are preserved as links; their visual content is not extracted or verified.";
+
+function evidenceNotes(source: PageContentSource, truncated: boolean): string[] {
+  const notes = [IMAGE_EVIDENCE_NOTE];
+  if (source === "search_index") {
+    notes.push("Content was recovered from the search index; formatting, images, and surrounding context may be incomplete.");
+  } else if (source === "forum") {
+    notes.push("Community content is supplemental evidence and is not official documentation.");
+  } else if (source === "unavailable") {
+    notes.push("No page body was available from HTML or the search index; the Markdown is a retrieval notice, not page evidence.");
   }
+  if (truncated) {
+    notes.push("Content is truncated to this window; continue with next_offset and expected_content_hash.");
+  }
+  return notes;
+}
+
+function windowPage(
+  page: { title: string; url: string; markdown: string },
+  contentSource: PageContentSource,
+  input: PageInput,
+): PageResult {
+  const window = sliceContent(page.markdown, {
+    offset: input.offset,
+    maxChars: input.maxChars,
+    expectedContentHash: input.expected_content_hash,
+  });
   return {
-    ...page,
-    markdown: `${page.markdown.slice(0, maxChars)}\n\n…[truncated]`,
-    truncated: true,
+    title: page.title,
+    url: page.url,
+    markdown: window.text,
+    content_source: contentSource,
+    evidence_notes: evidenceNotes(contentSource, window.truncated),
+    offset: window.offset,
+    next_offset: window.next_offset,
+    total_chars: window.total_chars,
+    content_hash: window.content_hash,
+    truncated: window.truncated,
   };
 }
 

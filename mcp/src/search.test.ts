@@ -433,6 +433,45 @@ describe("rankHits", () => {
     expect(hits[0]?.url).not.toContain("rdk_x5");
   });
 
+  it("excludes clearly other-board camera pages while retaining X3 and shared evidence", () => {
+    const cameraDocs: IndexedDoc[] = [
+      {
+        manualId: "rdk-x",
+        title: "RDK X5 USB 摄像头完整配置指南",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/rdk_x5/camera/usb_camera",
+        kind: "page",
+        text: "X5 摄像头 camera USB camera 配置、标定、排障、视频采集",
+      },
+      {
+        manualId: "rdk-s",
+        title: "S100 摄像头使用指南",
+        url: "https://developer.d-robotics.cc/rdk_s_doc/Basic_Application/Camera/s100_camera",
+        kind: "page",
+        text: "S100 摄像头 camera USB camera 配置",
+      },
+      {
+        manualId: "rdk-x",
+        title: "RDK X3 摄像头接入",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/rdk_x3/camera",
+        kind: "page",
+        text: "X3 摄像头接入",
+      },
+      {
+        manualId: "stereo-camera",
+        title: "双目摄像头连接说明",
+        url: "https://developer.d-robotics.cc/accessories_stereo_camera_doc/connect",
+        kind: "page",
+        text: "摄像头连接与取流的通用说明",
+      },
+    ];
+
+    const hits = rankHits(cameraDocs, "X3 摄像头", 10);
+    expect(hits.some((hit) => hit.url.includes("rdk_x3"))).toBe(true);
+    expect(hits.some((hit) => hit.manual === "stereo-camera")).toBe(true);
+    expect(hits.some((hit) => hit.url.includes("rdk_x5"))).toBe(false);
+    expect(hits.some((hit) => hit.manual === "rdk-s")).toBe(false);
+  });
+
   it("fills snippet from breadcrumbs or text when the index left it blank", () => {
     const hits = rankHits(
       [

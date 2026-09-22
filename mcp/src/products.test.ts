@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { mentionedBoards, soleBoard, urlLooksLikeBoard } from "./products.js";
+import {
+  documentBoardScope,
+  isClearlyIncompatibleBoardDoc,
+  mentionedBoards,
+  soleBoard,
+  urlLooksLikeBoard,
+} from "./products.js";
 
 describe("mentionedBoards", () => {
   it("reads explicit board names and treats Module / S100P as the family", () => {
@@ -49,5 +55,18 @@ describe("urlLooksLikeBoard", () => {
     ).toBe(true);
     expect(urlLooksLikeBoard("RDK X5 HDMI", "x5")).toBe(true);
     expect(urlLooksLikeBoard("RDK X5 HDMI", "x3")).toBe(false);
+  });
+});
+
+describe("documentBoardScope", () => {
+  it("keeps combined S100/S600 pages shared inside the S family", () => {
+    const page = {
+      manualId: "rdk-s",
+      title: "RDK S100/S600 摄像头说明",
+      url: "https://developer.d-robotics.cc/rdk_s_doc/camera",
+    };
+    expect(documentBoardScope(page).sort()).toEqual(["s100", "s600"]);
+    expect(isClearlyIncompatibleBoardDoc(page, "S100 摄像头")).toBe(false);
+    expect(isClearlyIncompatibleBoardDoc(page, "X3 摄像头")).toBe(true);
   });
 });

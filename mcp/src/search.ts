@@ -1,5 +1,11 @@
 import { GLOSSARY_ALIASES } from "./glossary-aliases.js";
-import { mentionedBoards, soleBoard, urlLooksLikeBoard } from "./products.js";
+import {
+  isClearlyIncompatibleBoardDoc,
+  mentionedBoards,
+  soleBoard,
+  type BoardId,
+  urlLooksLikeBoard,
+} from "./products.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
 
 /** Question filler that carries no retrieval signal in Chinese queries. */
@@ -117,7 +123,12 @@ function haystack(doc: IndexedDoc): { title: string; extra: string; url: string 
   };
 }
 
-function scoreDoc(doc: IndexedDoc, matchers: Matcher[], query: string): number {
+function scoreDoc(
+  doc: IndexedDoc,
+  matchers: Matcher[],
+  query: string,
+  boardConstraint?: BoardId,
+): number {
   const { title, extra, url } = haystack(doc);
   const queryTokens = matchers.map((m) => m.token);
   let score = 0;
@@ -171,8 +182,8 @@ function scoreDoc(doc: IndexedDoc, matchers: Matcher[], query: string): number {
   if (titleMatched > 0 && (/\/overview(?:\.html)?$/.test(url) || title.includes("概述"))) score += 4;
   if (/\/faq\/|accessory|release_note|changelog|config_txt/.test(url)) score -= 6;
 
-  const sole = soleBoard(query);
-  const mentioned = mentionedBoards(query);
+  const sole = boardConstraint ?? soleBoard(query);
+  const mentioned = boardConstraint ? [boardConstraint] : mentionedBoards(query);
   if (mentioned.length > 1) {
     const matchesMentioned = mentioned.some((board) => urlLooksLikeBoard(doc.url, board) || urlLooksLikeBoard(doc.title, board));
     const other = (["x3", "x5", "s100", "s600"] as const)
@@ -209,7 +220,12 @@ function fillSnippet(doc: IndexedDoc): string {
   return filled.trim() || lastUrlSegment(doc.url);
 }
 
-export function rankHits(docs: IndexedDoc[], query: string, limit: number): SearchHit[] {
+export function rankHits(
+  docs: IndexedDoc[],
+  query: string,
+  limit: number,
+  boardConstraint?: BoardId,
+): SearchHit[] {
   const queryTokens = tokens(query);
   if (queryTokens.length === 0) return [];
   const matchers = queryTokens.map(buildMatcher);
@@ -217,7 +233,8 @@ export function rankHits(docs: IndexedDoc[], query: string, limit: number): Sear
   const best = new Map<string, SearchHit>();
   const titleFromPage = new Map<string, boolean>();
   for (const doc of docs) {
-    const score = scoreDoc(doc, matchers, query);
+    if (isClearlyIncompatibleBoardDoc(doc, boardConstraint ?? query)) continue;
+    const score = scoreDoc(doc, matchers, query, boardConstraint);
     if (score <= 0) continue;
     const url = canonicalUrl(doc.url);
     const hit: SearchHit = {
