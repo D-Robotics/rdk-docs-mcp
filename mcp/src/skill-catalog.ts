@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { z } from "zod";
 import { cacheDir, cacheTtlMs } from "./http.js";
+import { mentionedBoards, type BoardId } from "./products.js";
 
 /**
  * Read-only skill-catalog access for the D-Robotics/rdk-skills hub (issue #4).
@@ -460,6 +461,70 @@ export async function loadSkillCatalog(deps: CatalogLoadDeps = {}): Promise<Cata
 /** Blob URL of a skill's SKILL.md inside the hub at the snapshot revision. */
 export function skillSourceUrl(snapshot: SkillCatalogSnapshot, catalogPath: string): string {
   return `https://github.com/${HUB_REPO}/blob/${snapshot.revision}/${catalogPath}/SKILL.md`;
+}
+
+// ---------------------------------------------------------------------------
+// Pack → board-family resolution (retest 2026-09-21 P1/P2). The hub pack
+// registry carries no platform field, and a j6 chip name inside a pack's
+// skills never means "board-agnostic". Resolution therefore prefers explicit,
+// sourced pack names, then pack-registry metadata (workspace_dir, then board
+// words in catalog_dir), and returns undefined rather than guessing from
+// letters like "S" or "j6" — an unknown scope stays visible in results but is
+// never treated as proven cross-board compatibility.
+//
+// Sources for the explicit table (D-Robotics/rdk-skills @ 08d0a46): README
+// "Supported Boards" + "Installation layers" (OE X5 pack → RDK X5 with
+// TARGET_PROJECT/.drobotics; OE S pack → S-series S100/S100P/S600 with
+// TARGET_PROJECT/.horizon), pack-registry.json workspace_dir values, and the
+// routers' own scope lines (x5-router: 不执行 … S 系列工作流).
+// ---------------------------------------------------------------------------
+
+const PACK_NAME_BOARD_FAMILIES: Readonly<Record<string, readonly BoardId[]>> = {
+  "OE Tool Chain (X5)": ["x5"],
+  "OE Tool Chain (S)": ["s100", "s600"],
+};
+
+const WORKSPACE_DIR_BOARD_FAMILIES: Readonly<Record<string, readonly BoardId[]>> = {
+  ".drobotics": ["x5"],
+  ".horizon": ["s100", "s600"],
+};
+
+export function packBoardFamilies(pack: {
+  name: string;
+  workspace_dir?: string;
+  catalog_dir?: string;
+}): readonly BoardId[] | undefined {
+  const byName = PACK_NAME_BOARD_FAMILIES[pack.name];
+  if (byName) return byName;
+  if (pack.workspace_dir) {
+    const byDir = WORKSPACE_DIR_BOARD_FAMILIES[pack.workspace_dir];
+    if (byDir) return byDir;
+  }
+  if (pack.catalog_dir) {
+    const derived = mentionedBoards(pack.catalog_dir.toLowerCase());
+    if (derived.length > 0) return derived;
+  }
+  return undefined;
+}
+
+/** pack name → resolved board families, for packs whose scope could be resolved. */
+export type PackBoardFamilyIndex = ReadonlyMap<string, readonly BoardId[]>;
+
+export function packBoardFamilyIndex(
+  packs: Array<Pick<PackRecord, "name" | "workspace_dir" | "catalog_dir">>,
+): PackBoardFamilyIndex {
+  const index = new Map<string, readonly BoardId[]>();
+  for (const pack of packs) {
+    if (index.has(pack.name)) continue;
+    const families = packBoardFamilies(pack);
+    if (families) index.set(pack.name, families);
+  }
+  return index;
+}
+
+/** Fallback for callers holding only a pack name (e.g. pure ranking tests). */
+export function defaultPackBoardFamilies(packName: string): readonly BoardId[] | undefined {
+  return PACK_NAME_BOARD_FAMILIES[packName];
 }
 
 /** Hub install/usage doc pinned to the snapshot revision. */

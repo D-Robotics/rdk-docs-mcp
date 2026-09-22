@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SkillError, type SkillCatalogSnapshot, type SkillRecord } from "./skill-catalog.js";
-import { getSkillDetail, searchSkills, shellQuote, type SkillServiceDeps } from "./skill-service.js";
+import { getSkillDetail, searchSkills, shellQuote, skillDisplayName, type SkillServiceDeps } from "./skill-service.js";
 
 const SHA = "08d0a466413f11bbc045ba5e51f626bdb0346373";
 const FETCHED_AT = "2026-09-20T08:00:00.000Z";
@@ -23,6 +23,15 @@ const SKILLS: SkillRecord[] = [
     install_type: "flat",
   },
   {
+    name: "rdk-model-zoo",
+    description:
+      "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+    pack: "RDK Model Zoo Skills",
+    repo: "D-Robotics/rdk_model_zoo",
+    catalog_path: "skills/rdk-model-zoo",
+    install_type: "flat",
+  },
+  {
     name: "x5-ptq-deploy",
     description: "编排 ONNX/Caffe 到 X5 bayes-e .bin 的 OE Mapper PTQ 全流程；当用户要求 checker、校准、YAML、makertbin、模型信息和 Runtime 验证形成闭环时使用。",
     pack: "OE Tool Chain (X5)",
@@ -39,6 +48,34 @@ const SKILLS: SkillRecord[] = [
     catalog_path: "skills/oe-skills-x5/skills/x5-qat-deploy",
     install_type: "workspace",
   },
+  {
+    name: "__SKILL_j6-plugin-__set-fake-quantize",
+    description:
+      "在适配 horizon_plugin_pytorch 的量化流程中，为模型设置 fake quantize 状态（QAT/CALIBRATION/VALIDATION）。只添加/调用 set_fake_quantize，不做其他修改。",
+    pack: "OE Tool Chain (S)",
+    repo: "D-Robotics/oe-skills-s",
+    catalog_path: "skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize",
+    install_type: "workspace",
+  },
+  {
+    name: "__SKILL_j6-plugin-__prepare",
+    description:
+      "在适配 horizon_plugin_pytorch 的过程中对浮点模型执行 prepare（仅添加 prepare 调用；qconfig_setter 固定为全部双 int8 模板；不包含 dynamic_block 相关修改）。",
+    pack: "OE Tool Chain (S)",
+    repo: "D-Robotics/oe-skills-s",
+    catalog_path: "skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-prepare",
+    install_type: "workspace",
+  },
+  {
+    // Synthetic counterpart for the display-name collision case only: a future
+    // flat skill whose canonical name equals the cleaned display name above.
+    name: "j6-plugin-prepare",
+    description: "Hypothetical flat helper for j6 plugin prepare checks (synthetic collision fixture).",
+    pack: "RDK Device Skills",
+    repo: "D-Robotics/rdk-device-skills",
+    catalog_path: "skills/j6-plugin-prepare",
+    install_type: "flat",
+  },
 ];
 
 const PACKS = [
@@ -50,6 +87,15 @@ const PACKS = [
     install_script: "setup.sh",
     workspace_dir: ".drobotics",
     verify_paths: [".drobotics/X5.md", ".drobotics/VERSION", ".drobotics/skills/x5-router/SKILL.md"],
+  },
+  {
+    name: "OE Tool Chain (S)",
+    repo: "D-Robotics/oe-skills-s",
+    ref: "v1.0.0",
+    catalog_dir: "oe-skills-s",
+    install_script: "setup.sh",
+    workspace_dir: ".horizon",
+    verify_paths: [".horizon/HORIZON.md", ".horizon/VERSION", ".horizon/skills/horizon-router/SKILL.md"],
   },
 ];
 
@@ -83,13 +129,13 @@ describe("search_skills service", () => {
     );
     expect(output.catalog_revision).toBe(SHA);
     expect(output.fetched_at).toBe(FETCHED_AT);
-    expect(output.warnings).toEqual([]);
+    expect(output.warnings).toEqual([expect.stringContaining("legacy_query")]);
     expect(output.guidance.length).toBeGreaterThan(0);
   });
 
   it("passes catalog warnings (e.g. cache_write_failed) through", async () => {
     const output = await searchSkills({ query: "GPIO" }, depsWith(snapshotWith(SKILLS), ["cache_write_failed: read-only"]));
-    expect(output.warnings).toEqual(["cache_write_failed: read-only"]);
+    expect(output.warnings).toEqual(["cache_write_failed: read-only", expect.stringContaining("legacy_query")]);
   });
 
   it("rejects invalid queries, limits, and install types", async () => {
@@ -122,6 +168,32 @@ describe("search_skills service", () => {
     const all = output.matches.map((match) => match.name);
     expect(all).toContain("x5-ptq-deploy");
     expect(all).not.toContain("x5-qat-deploy");
+  });
+
+  it("excludes the S-series pack for a query naming X5 and for an explicit platform (retest 2026-09-21)", async () => {
+    const byQuery = await searchSkills({ query: "X5 上把模型量化后部署" }, deps);
+    expect(byQuery.matches.map((match) => match.name)).not.toContain("__SKILL_j6-plugin-__set-fake-quantize");
+
+    const byPlatform = await searchSkills({ query: "量化模型 PTQ", platform: "x5" }, deps);
+    const names = byPlatform.matches.map((match) => match.name);
+    expect(names).not.toContain("__SKILL_j6-plugin-__set-fake-quantize");
+    expect(names).not.toContain("__SKILL_j6-plugin-__prepare");
+    expect(names[0]).toBe("x5-ptq-deploy");
+  });
+
+  it("returns platform_conflict with no candidates when the query and platform disagree", async () => {
+    const output = await searchSkills({ query: "X5 PTQ", platform: "s100" }, deps);
+    expect(output.matches).toEqual([]);
+    expect(output.guidance_kind).toBe("platform_conflict");
+    expect(output.guidance).toContain("X5");
+    expect(output.guidance).toContain("S100");
+  });
+
+  it("routes a ready-model ask to the Model Zoo entry without PTQ/QAT disambiguation (retest 2026-09-21)", async () => {
+    const output = await searchSkills({ query: "现成的量化好的模型直接用" }, deps);
+    expect(output.matches[0]?.name).toBe("rdk-model-zoo");
+    expect(output.guidance_kind).not.toBe("ambiguous_quant");
+    expect(typeof output.matches[0]?.platform_scope).toBe("string");
   });
 });
 
@@ -180,6 +252,44 @@ describe("get_skill service", () => {
   it("passes catalog warnings through", async () => {
     const output = await getSkillDetail({ name: "rdk-gpio-40pin" }, depsWith(snapshotWith(SKILLS), ["cache_write_failed: ro"]));
     expect(output.warnings).toEqual(["cache_write_failed: ro"]);
+  });
+});
+
+describe("display names keep canonical identity (retest 2026-09-21)", () => {
+  it("adds a display_name for generated __SKILL_ names while keeping name exact", async () => {
+    const detail = await getSkillDetail({ name: "__SKILL_j6-plugin-__set-fake-quantize" }, deps);
+    expect(detail.name).toBe("__SKILL_j6-plugin-__set-fake-quantize");
+    expect(detail.display_name).toBe("j6-plugin-set-fake-quantize");
+    // The workspace handoff keeps using the canonical name nowhere visible to
+    // users directly, and the canonical name must remain the exact key.
+    expect(detail.installation.type).toBe("workspace");
+
+    // Searching by the exact canonical name keeps working and returns the
+    // cleaned display name alongside.
+    const search = await searchSkills({ query: "__SKILL_j6-plugin-__set-fake-quantize" }, deps);
+    expect(search.matches[0]?.name).toBe("__SKILL_j6-plugin-__set-fake-quantize");
+    expect(search.matches[0]?.display_name).toBe("j6-plugin-set-fake-quantize");
+  });
+
+  it("leaves names outside the generator format unchanged", async () => {
+    const detail = await getSkillDetail({ name: "rdk-gpio-40pin" }, deps);
+    expect(detail.display_name).toBe("rdk-gpio-40pin");
+    expect(skillDisplayName("__SKILL_weird")).toBe("__SKILL_weird");
+    expect(skillDisplayName("x5-ptq-deploy")).toBe("x5-ptq-deploy");
+  });
+
+  it("returns both records that share one display_name, each exactly gettable by canonical name", async () => {
+    const search = await searchSkills({ query: "prepare" }, deps);
+    const pair = search.matches.filter((match) => match.display_name === "j6-plugin-prepare");
+    expect(pair.map((match) => match.name).sort()).toEqual(["__SKILL_j6-plugin-__prepare", "j6-plugin-prepare"]);
+
+    const generated = await getSkillDetail({ name: "__SKILL_j6-plugin-__prepare" }, deps);
+    expect(generated.display_name).toBe("j6-plugin-prepare");
+    expect(generated.installation.type).toBe("workspace");
+
+    const flat = await getSkillDetail({ name: "j6-plugin-prepare" }, deps);
+    expect(flat.display_name).toBe("j6-plugin-prepare");
+    expect(flat.installation.type).toBe("flat");
   });
 });
 

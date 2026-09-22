@@ -1,0 +1,935 @@
+[
+  {
+    "args": {
+      "query": "X5 ONNX INT8 PTQ 校准 编译 部署",
+      "task": "model_conversion",
+      "platform": "x5",
+      "workflow": "ptq",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "aa88095ddef2a22bcedeb79eadbe441066d0ac8fac86391d73e19de504aaec09",
+            "tasks": [
+              "model_conversion"
+            ],
+            "workflows": [
+              "ptq"
+            ],
+            "platforms": [
+              "x5"
+            ],
+            "role": "workflow",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md"
+          },
+          "name": "x5-ptq-deploy",
+          "display_name": "x5-ptq-deploy",
+          "description": "编排 ONNX/Caffe 到 X5 bayes-e .bin 的 OE Mapper PTQ 全流程；当用户要求 checker、校准、YAML、makertbin、模型信息和 Runtime 验证形成闭环时使用。通过原子 Skills 执行，不接受 Plugin QAT .hbm/.hbir、HAT 或 S 系列流程。",
+          "pack": "OE Tool Chain (X5)",
+          "repo": "D-Robotics/oe-skills-x5",
+          "catalog_path": "skills/oe-skills-x5/skills/x5-ptq-deploy",
+          "install_type": "workspace",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md",
+          "score": 24,
+          "matched_terms": [
+            "x5",
+            "onnx",
+            "ptq",
+            "校准",
+            "deploy"
+          ],
+          "match_reason": "reviewed task=model_conversion; role=workflow; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md",
+          "platform_scope": "matched-board"
+        },
+        {
+          "classification": {
+            "fingerprint": "9382197c3b8afb957612f050dc702046336543e565b97dbe7d05df97e763f50a",
+            "tasks": [
+              "model_conversion"
+            ],
+            "workflows": [
+              "ptq"
+            ],
+            "platforms": [
+              "x5"
+            ],
+            "role": "step",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md"
+          },
+          "name": "x5-ptq-compile",
+          "display_name": "x5-ptq-compile",
+          "description": "执行已验证 X5 YAML 的 hb_mapper checker/makertbin 并验证唯一 .bin 与 BPU march；当配置和环境已就绪、需要生成 bayes-e PTQ 产物时使用。不得处理 QAT .hbm/.hbir，也不得复用非空输出目录而未确认。",
+          "pack": "OE Tool Chain (X5)",
+          "repo": "D-Robotics/oe-skills-x5",
+          "catalog_path": "skills/oe-skills-x5/skills/x5-ptq-compile",
+          "install_type": "workspace",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md",
+          "score": 18,
+          "matched_terms": [
+            "x5",
+            "ptq",
+            "compile"
+          ],
+          "match_reason": "reviewed task=model_conversion; role=step; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md",
+          "platform_scope": "matched-board"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "x5-ptq-deploy",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"aa88095ddef2a22bcedeb79eadbe441066d0ac8fac86391d73e19de504aaec09\",\n    \"tasks\": [\n      \"model_conversion\"\n    ],\n    \"workflows\": [\n      \"ptq\"\n    ],\n    \"platforms\": [\n      \"x5\"\n    ],\n    \"role\": \"workflow\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md\"\n  },\n  \"name\": \"x5-ptq-deploy\",\n  \"display_name\": \"x5-ptq-deploy\",\n  \"description\": \"编排 ONNX/Caffe 到 X5 bayes-e .bin 的 OE Mapper PTQ 全流程；当用户要求 checker、校准、YAML、makertbin、模型信息和 Runtime 验证形成闭环时使用。通过原子 Skills 执行，不接受 Plugin QAT .hbm/.hbir、HAT 或 S 系列流程。\",\n  \"pack\": \"OE Tool Chain (X5)\",\n  \"repo\": \"D-Robotics/oe-skills-x5\",\n  \"catalog_path\": \"skills/oe-skills-x5/skills/x5-ptq-deploy\",\n  \"install_type\": \"workspace\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"workspace\",\n    \"handoff_skill\": \"rdk-pack-installer\",\n    \"installer\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"skills\",\n        \"add\",\n        \"d-robotics/rdk-skills\",\n        \"--skill\",\n        \"rdk-pack-installer\"\n      ],\n      \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-pack-installer\"\n    },\n    \"pack\": {\n      \"name\": \"OE Tool Chain (X5)\",\n      \"repo\": \"D-Robotics/oe-skills-x5\",\n      \"ref\": \"v1.0.0\",\n      \"catalog_dir\": \"oe-skills-x5\",\n      \"install_script\": \"setup.sh\",\n      \"workspace_dir\": \".drobotics\",\n      \"verify_paths\": [\n        \".drobotics/X5.md\",\n        \".drobotics/VERSION\",\n        \".drobotics/skill-index.json\",\n        \".drobotics/skills/x5-router/SKILL.md\"\n      ]\n    },\n    \"requires_project_root\": true,\n    \"requires_user_request\": true,\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either.\"\n  }\n}"
+            }
+          ]
+        }
+      },
+      {
+        "name": "x5-ptq-compile",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"9382197c3b8afb957612f050dc702046336543e565b97dbe7d05df97e763f50a\",\n    \"tasks\": [\n      \"model_conversion\"\n    ],\n    \"workflows\": [\n      \"ptq\"\n    ],\n    \"platforms\": [\n      \"x5\"\n    ],\n    \"role\": \"step\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md\"\n  },\n  \"name\": \"x5-ptq-compile\",\n  \"display_name\": \"x5-ptq-compile\",\n  \"description\": \"执行已验证 X5 YAML 的 hb_mapper checker/makertbin 并验证唯一 .bin 与 BPU march；当配置和环境已就绪、需要生成 bayes-e PTQ 产物时使用。不得处理 QAT .hbm/.hbir，也不得复用非空输出目录而未确认。\",\n  \"pack\": \"OE Tool Chain (X5)\",\n  \"repo\": \"D-Robotics/oe-skills-x5\",\n  \"catalog_path\": \"skills/oe-skills-x5/skills/x5-ptq-compile\",\n  \"install_type\": \"workspace\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"workspace\",\n    \"handoff_skill\": \"rdk-pack-installer\",\n    \"installer\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"skills\",\n        \"add\",\n        \"d-robotics/rdk-skills\",\n        \"--skill\",\n        \"rdk-pack-installer\"\n      ],\n      \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-pack-installer\"\n    },\n    \"pack\": {\n      \"name\": \"OE Tool Chain (X5)\",\n      \"repo\": \"D-Robotics/oe-skills-x5\",\n      \"ref\": \"v1.0.0\",\n      \"catalog_dir\": \"oe-skills-x5\",\n      \"install_script\": \"setup.sh\",\n      \"workspace_dir\": \".drobotics\",\n      \"verify_paths\": [\n        \".drobotics/X5.md\",\n        \".drobotics/VERSION\",\n        \".drobotics/skill-index.json\",\n        \".drobotics/skills/x5-router/SKILL.md\"\n      ]\n    },\n    \"requires_project_root\": true,\n    \"requires_user_request\": true,\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "S100 PyTorch QAT 量化训练 部署",
+      "task": "model_conversion",
+      "platform": "s100",
+      "workflow": "qat",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "1ead4c04d9f0c7b4d232fe412cd02250ae65b147c94c6762287039366771d0e1",
+            "tasks": [
+              "model_conversion"
+            ],
+            "workflows": [
+              "qat"
+            ],
+            "platforms": [
+              "s100",
+              "s100p",
+              "s600"
+            ],
+            "role": "workflow",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md"
+          },
+          "name": "__SKILL_j6-plugin-__quantization",
+          "display_name": "j6-plugin-quantization",
+          "description": "为基础网络结构生成量化流程代码（set_march → 插入 Quant/DeQuant → 配置量化参数 → prepare → 校准 → QAT 训练）。务必在用户提到模型量化、量化流程、QAT 校准、Horizon 量化适配、HistogramObserver/MinMaxObserver 配置、量化参数配置、校准训练、QuantStub 插入时触发此 skill，即使用户只问其中一个步骤，只要涉及 Horizon 量化流程的任何环节都应触发。",
+          "pack": "OE Tool Chain (S)",
+          "repo": "D-Robotics/oe-skills-s",
+          "catalog_path": "skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization",
+          "install_type": "workspace",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md",
+          "score": 14,
+          "matched_terms": [
+            "qat",
+            "量化",
+            "训练",
+            "quant"
+          ],
+          "match_reason": "reviewed task=model_conversion; role=workflow; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md",
+          "platform_scope": "matched-board"
+        },
+        {
+          "classification": {
+            "fingerprint": "a2fa6eb66a5ec54860b0abb095b9b208dc3637c9c17a3323a7643dcb99086c9e",
+            "tasks": [
+              "model_conversion"
+            ],
+            "workflows": [
+              "qat"
+            ],
+            "platforms": [
+              "s100",
+              "s100p",
+              "s600"
+            ],
+            "role": "step",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md"
+          },
+          "name": "__SKILL_j6-plugin-__set-fake-quantize",
+          "display_name": "j6-plugin-set-fake-quantize",
+          "description": "在适配 horizon_plugin_pytorch 的量化流程中，为模型设置 fake quantize 状态（QAT/CALIBRATION/VALIDATION）。只添加/调用 set_fake_quantize，不做其他修改。",
+          "pack": "OE Tool Chain (S)",
+          "repo": "D-Robotics/oe-skills-s",
+          "catalog_path": "skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize",
+          "install_type": "workspace",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md",
+          "score": 12,
+          "matched_terms": [
+            "pytorch",
+            "qat",
+            "量化",
+            "quant"
+          ],
+          "match_reason": "reviewed task=model_conversion; role=step; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md",
+          "platform_scope": "matched-board"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "__SKILL_j6-plugin-__quantization",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"1ead4c04d9f0c7b4d232fe412cd02250ae65b147c94c6762287039366771d0e1\",\n    \"tasks\": [\n      \"model_conversion\"\n    ],\n    \"workflows\": [\n      \"qat\"\n    ],\n    \"platforms\": [\n      \"s100\",\n      \"s100p\",\n      \"s600\"\n    ],\n    \"role\": \"workflow\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md\"\n  },\n  \"name\": \"__SKILL_j6-plugin-__quantization\",\n  \"display_name\": \"j6-plugin-quantization\",\n  \"description\": \"为基础网络结构生成量化流程代码（set_march → 插入 Quant/DeQuant → 配置量化参数 → prepare → 校准 → QAT 训练）。务必在用户提到模型量化、量化流程、QAT 校准、Horizon 量化适配、HistogramObserver/MinMaxObserver 配置、量化参数配置、校准训练、QuantStub 插入时触发此 skill，即使用户只问其中一个步骤，只要涉及 Horizon 量化流程的任何环节都应触发。\",\n  \"pack\": \"OE Tool Chain (S)\",\n  \"repo\": \"D-Robotics/oe-skills-s\",\n  \"catalog_path\": \"skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization\",\n  \"install_type\": \"workspace\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"workspace\",\n    \"handoff_skill\": \"rdk-pack-installer\",\n    \"installer\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"skills\",\n        \"add\",\n        \"d-robotics/rdk-skills\",\n        \"--skill\",\n        \"rdk-pack-installer\"\n      ],\n      \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-pack-installer\"\n    },\n    \"pack\": {\n      \"name\": \"OE Tool Chain (S)\",\n      \"repo\": \"D-Robotics/oe-skills-s\",\n      \"ref\": \"v1.0.0\",\n      \"catalog_dir\": \"oe-skills-s\",\n      \"install_script\": \"setup.sh\",\n      \"workspace_dir\": \".horizon\",\n      \"verify_paths\": [\n        \".horizon/HORIZON.md\",\n        \".horizon/VERSION\",\n        \".horizon/skill-index.json\",\n        \".horizon/skills/horizon-router/SKILL.md\"\n      ]\n    },\n    \"requires_project_root\": true,\n    \"requires_user_request\": true,\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either.\"\n  }\n}"
+            }
+          ]
+        }
+      },
+      {
+        "name": "__SKILL_j6-plugin-__set-fake-quantize",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"a2fa6eb66a5ec54860b0abb095b9b208dc3637c9c17a3323a7643dcb99086c9e\",\n    \"tasks\": [\n      \"model_conversion\"\n    ],\n    \"workflows\": [\n      \"qat\"\n    ],\n    \"platforms\": [\n      \"s100\",\n      \"s100p\",\n      \"s600\"\n    ],\n    \"role\": \"step\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md\"\n  },\n  \"name\": \"__SKILL_j6-plugin-__set-fake-quantize\",\n  \"display_name\": \"j6-plugin-set-fake-quantize\",\n  \"description\": \"在适配 horizon_plugin_pytorch 的量化流程中，为模型设置 fake quantize 状态（QAT/CALIBRATION/VALIDATION）。只添加/调用 set_fake_quantize，不做其他修改。\",\n  \"pack\": \"OE Tool Chain (S)\",\n  \"repo\": \"D-Robotics/oe-skills-s\",\n  \"catalog_path\": \"skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize\",\n  \"install_type\": \"workspace\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"workspace\",\n    \"handoff_skill\": \"rdk-pack-installer\",\n    \"installer\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"skills\",\n        \"add\",\n        \"d-robotics/rdk-skills\",\n        \"--skill\",\n        \"rdk-pack-installer\"\n      ],\n      \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-pack-installer\"\n    },\n    \"pack\": {\n      \"name\": \"OE Tool Chain (S)\",\n      \"repo\": \"D-Robotics/oe-skills-s\",\n      \"ref\": \"v1.0.0\",\n      \"catalog_dir\": \"oe-skills-s\",\n      \"install_script\": \"setup.sh\",\n      \"workspace_dir\": \".horizon\",\n      \"verify_paths\": [\n        \".horizon/HORIZON.md\",\n        \".horizon/VERSION\",\n        \".horizon/skill-index.json\",\n        \".horizon/skills/horizon-router/SKILL.md\"\n      ]\n    },\n    \"requires_project_root\": true,\n    \"requires_user_request\": true,\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "X3 现成目标检测模型 Model Zoo",
+      "task": "ready_model",
+      "platform": "x3",
+      "exclude_platforms": [
+        "x5",
+        "s100"
+      ],
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be",
+            "tasks": [
+              "ready_model"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md"
+          },
+          "name": "rdk-model-zoo",
+          "display_name": "rdk-model-zoo",
+          "description": "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "score": 19,
+          "matched_terms": [
+            "model",
+            "zoo",
+            "现成",
+            "模型"
+          ],
+          "match_reason": "reviewed task=ready_model; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "platform_scope": "unknown"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be\",\n    \"tasks\": [\n      \"ready_model\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo\",\n  \"display_name\": \"rdk-model-zoo\",\n  \"description\": \"Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "X5 现成语义分割模型 Model Zoo",
+      "task": "ready_model",
+      "platform": "x5",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be",
+            "tasks": [
+              "ready_model"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md"
+          },
+          "name": "rdk-model-zoo",
+          "display_name": "rdk-model-zoo",
+          "description": "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "score": 19,
+          "matched_terms": [
+            "model",
+            "zoo",
+            "现成",
+            "模型"
+          ],
+          "match_reason": "reviewed task=ready_model; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "platform_scope": "unknown"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be\",\n    \"tasks\": [\n      \"ready_model\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo\",\n  \"display_name\": \"rdk-model-zoo\",\n  \"description\": \"Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "Model Zoo 模型库维护 提交修订 版本核对",
+      "task": "model_maintenance",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "8ea604439ab68b7478d4096ad57e7a320cf7daa991ebd7af878095983763ca89",
+            "tasks": [
+              "model_maintenance"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "workflow",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md"
+          },
+          "name": "rdk-model-zoo-develop",
+          "display_name": "rdk-model-zoo-develop",
+          "description": "Use when adding or modifying maintained RDK Model Zoo samples, shared utilities, sample docs, tests, or repository conventions, including bug fixes. 触发词：开发样例、新增模型、修复 sample、公共工具。Do not use as the primary skill for read-only review, ready-made use, or toolchain quantization.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo-develop",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md",
+          "score": 16,
+          "matched_terms": [
+            "model",
+            "zoo",
+            "模型"
+          ],
+          "match_reason": "reviewed task=model_maintenance; role=workflow; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md",
+          "platform_scope": "unconstrained"
+        },
+        {
+          "classification": {
+            "fingerprint": "9b54d138c781874dd3a4f049813515e88f406016dc18385d4432b448e9483752",
+            "tasks": [
+              "model_maintenance"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "workflow",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-release/SKILL.md"
+          },
+          "name": "rdk-model-zoo-release",
+          "display_name": "rdk-model-zoo-release",
+          "description": "Use when preparing or checking RDK Model Zoo model releases, Skills Pack releases, manifests, Hub registration migration, tags, or release isolation. 触发词：模型发版、Skills 发版、Hub 接入、Tag 兼容。Do not use for routine sample development, OE Pack releases, or publishing without explicit authorization.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo-release",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-release/SKILL.md",
+          "score": 16,
+          "matched_terms": [
+            "model",
+            "zoo",
+            "模型"
+          ],
+          "match_reason": "reviewed task=model_maintenance; role=workflow; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-release/SKILL.md",
+          "platform_scope": "unconstrained"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo-develop",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"8ea604439ab68b7478d4096ad57e7a320cf7daa991ebd7af878095983763ca89\",\n    \"tasks\": [\n      \"model_maintenance\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"workflow\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo-develop\",\n  \"display_name\": \"rdk-model-zoo-develop\",\n  \"description\": \"Use when adding or modifying maintained RDK Model Zoo samples, shared utilities, sample docs, tests, or repository conventions, including bug fixes. 触发词：开发样例、新增模型、修复 sample、公共工具。Do not use as the primary skill for read-only review, ready-made use, or toolchain quantization.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo-develop\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo-develop\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo-develop\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      },
+      {
+        "name": "rdk-model-zoo-release",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"9b54d138c781874dd3a4f049813515e88f406016dc18385d4432b448e9483752\",\n    \"tasks\": [\n      \"model_maintenance\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"workflow\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-release/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo-release\",\n  \"display_name\": \"rdk-model-zoo-release\",\n  \"description\": \"Use when preparing or checking RDK Model Zoo model releases, Skills Pack releases, manifests, Hub registration migration, tags, or release isolation. 触发词：模型发版、Skills 发版、Hub 接入、Tag 兼容。Do not use for routine sample development, OE Pack releases, or publishing without explicit authorization.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo-release\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-release/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo-release\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo-release\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "S100 ONNX 自定义算子 PTQ 转换",
+      "task": "model_conversion",
+      "platform": "s100",
+      "workflow": "ptq",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "b56c5ba4597057e303c200a0ad1a3a3b9510e3817b4fc45bcdf62d29c737a457",
+            "tasks": [
+              "model_conversion"
+            ],
+            "workflows": [
+              "ptq"
+            ],
+            "platforms": [
+              "s100",
+              "s100p",
+              "s600"
+            ],
+            "role": "workflow",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hmct/SKILL.md"
+          },
+          "name": "hmct-workflow",
+          "display_name": "hmct-workflow",
+          "description": "HMCT 模型转换与 PTQ 量化总入口——优先使用 hb_compile + YAML 配置方式。 根据用户意图自动路由： (1) 提供了校准数据 → 使用 hb_config_generator 生成 YAML 配置，再调用 j6-hbdk-compile 执行编译； (2) 未提供校准数据 → 使用 hb_config_generator 生成快速验证配置，再调用 j6-hbdk-compile 验证； (3) 用户希望进行精度调优 → 转交 j6-hmct-cosine-similarity-tuning SKILL 执行多阶段调优； (4) 用户希望进行单项精度 debug 分析（节点灵敏度、数据分布、累积误差等）→ 调用 hmct-debugger CLI 执行对应分析工具。 当用户提示词中出现 HMCT、模型转换、模型量化、PTQ、hb_compile、YAML 配置、精度调优、cosine similarity、节点灵敏度、数据分布、累积误差、debug 等关键词时应触发此 Skill。\n",
+          "pack": "OE Tool Chain (S)",
+          "repo": "D-Robotics/oe-skills-s",
+          "catalog_path": "skills/oe-skills-s/skills/hmct",
+          "install_type": "workspace",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hmct/SKILL.md",
+          "score": 6,
+          "matched_terms": [
+            "ptq",
+            "转换"
+          ],
+          "match_reason": "reviewed task=model_conversion; role=workflow; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hmct/SKILL.md",
+          "platform_scope": "matched-board"
+        },
+        {
+          "classification": {
+            "fingerprint": "df7347b9c2bd044f52e2819934f588c347a16a886dec9c2e999b5f9ff59a633b",
+            "tasks": [
+              "model_conversion"
+            ],
+            "workflows": [
+              "ptq"
+            ],
+            "platforms": [
+              "s100",
+              "s100p",
+              "s600"
+            ],
+            "role": "step",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hbdk/j6-hbdk-compile/SKILL.md"
+          },
+          "name": "j6-hbdk-compile",
+          "display_name": "j6-hbdk-compile",
+          "description": "通用模型编译 skill。基于 YAML 配置文件驱动，支持 ONNX 和 BC 模型格式。支持从 PTQ config 自动提取输入预处理参数。工作流：生成配置 -> 默认必须经用户确认 -> 再执行编译与报告。Use when the user mentions 模型编译、compile、导出 hbm、生成上板产物、pyramid 输入、resizer 输入。",
+          "pack": "OE Tool Chain (S)",
+          "repo": "D-Robotics/oe-skills-s",
+          "catalog_path": "skills/oe-skills-s/skills/hbdk/j6-hbdk-compile",
+          "install_type": "workspace",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hbdk/j6-hbdk-compile/SKILL.md",
+          "score": 4,
+          "matched_terms": [
+            "onnx",
+            "ptq"
+          ],
+          "match_reason": "reviewed task=model_conversion; role=step; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hbdk/j6-hbdk-compile/SKILL.md",
+          "platform_scope": "matched-board"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "hmct-workflow",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"b56c5ba4597057e303c200a0ad1a3a3b9510e3817b4fc45bcdf62d29c737a457\",\n    \"tasks\": [\n      \"model_conversion\"\n    ],\n    \"workflows\": [\n      \"ptq\"\n    ],\n    \"platforms\": [\n      \"s100\",\n      \"s100p\",\n      \"s600\"\n    ],\n    \"role\": \"workflow\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hmct/SKILL.md\"\n  },\n  \"name\": \"hmct-workflow\",\n  \"display_name\": \"hmct-workflow\",\n  \"description\": \"HMCT 模型转换与 PTQ 量化总入口——优先使用 hb_compile + YAML 配置方式。 根据用户意图自动路由： (1) 提供了校准数据 → 使用 hb_config_generator 生成 YAML 配置，再调用 j6-hbdk-compile 执行编译； (2) 未提供校准数据 → 使用 hb_config_generator 生成快速验证配置，再调用 j6-hbdk-compile 验证； (3) 用户希望进行精度调优 → 转交 j6-hmct-cosine-similarity-tuning SKILL 执行多阶段调优； (4) 用户希望进行单项精度 debug 分析（节点灵敏度、数据分布、累积误差等）→ 调用 hmct-debugger CLI 执行对应分析工具。 当用户提示词中出现 HMCT、模型转换、模型量化、PTQ、hb_compile、YAML 配置、精度调优、cosine similarity、节点灵敏度、数据分布、累积误差、debug 等关键词时应触发此 Skill。\\n\",\n  \"pack\": \"OE Tool Chain (S)\",\n  \"repo\": \"D-Robotics/oe-skills-s\",\n  \"catalog_path\": \"skills/oe-skills-s/skills/hmct\",\n  \"install_type\": \"workspace\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hmct/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"workspace\",\n    \"handoff_skill\": \"rdk-pack-installer\",\n    \"installer\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"skills\",\n        \"add\",\n        \"d-robotics/rdk-skills\",\n        \"--skill\",\n        \"rdk-pack-installer\"\n      ],\n      \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-pack-installer\"\n    },\n    \"pack\": {\n      \"name\": \"OE Tool Chain (S)\",\n      \"repo\": \"D-Robotics/oe-skills-s\",\n      \"ref\": \"v1.0.0\",\n      \"catalog_dir\": \"oe-skills-s\",\n      \"install_script\": \"setup.sh\",\n      \"workspace_dir\": \".horizon\",\n      \"verify_paths\": [\n        \".horizon/HORIZON.md\",\n        \".horizon/VERSION\",\n        \".horizon/skill-index.json\",\n        \".horizon/skills/horizon-router/SKILL.md\"\n      ]\n    },\n    \"requires_project_root\": true,\n    \"requires_user_request\": true,\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either.\"\n  }\n}"
+            }
+          ]
+        }
+      },
+      {
+        "name": "j6-hbdk-compile",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"df7347b9c2bd044f52e2819934f588c347a16a886dec9c2e999b5f9ff59a633b\",\n    \"tasks\": [\n      \"model_conversion\"\n    ],\n    \"workflows\": [\n      \"ptq\"\n    ],\n    \"platforms\": [\n      \"s100\",\n      \"s100p\",\n      \"s600\"\n    ],\n    \"role\": \"step\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hbdk/j6-hbdk-compile/SKILL.md\"\n  },\n  \"name\": \"j6-hbdk-compile\",\n  \"display_name\": \"j6-hbdk-compile\",\n  \"description\": \"通用模型编译 skill。基于 YAML 配置文件驱动，支持 ONNX 和 BC 模型格式。支持从 PTQ config 自动提取输入预处理参数。工作流：生成配置 -> 默认必须经用户确认 -> 再执行编译与报告。Use when the user mentions 模型编译、compile、导出 hbm、生成上板产物、pyramid 输入、resizer 输入。\",\n  \"pack\": \"OE Tool Chain (S)\",\n  \"repo\": \"D-Robotics/oe-skills-s\",\n  \"catalog_path\": \"skills/oe-skills-s/skills/hbdk/j6-hbdk-compile\",\n  \"install_type\": \"workspace\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hbdk/j6-hbdk-compile/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"workspace\",\n    \"handoff_skill\": \"rdk-pack-installer\",\n    \"installer\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"skills\",\n        \"add\",\n        \"d-robotics/rdk-skills\",\n        \"--skill\",\n        \"rdk-pack-installer\"\n      ],\n      \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-pack-installer\"\n    },\n    \"pack\": {\n      \"name\": \"OE Tool Chain (S)\",\n      \"repo\": \"D-Robotics/oe-skills-s\",\n      \"ref\": \"v1.0.0\",\n      \"catalog_dir\": \"oe-skills-s\",\n      \"install_script\": \"setup.sh\",\n      \"workspace_dir\": \".horizon\",\n      \"verify_paths\": [\n        \".horizon/HORIZON.md\",\n        \".horizon/VERSION\",\n        \".horizon/skill-index.json\",\n        \".horizon/skills/horizon-router/SKILL.md\"\n      ]\n    },\n    \"requires_project_root\": true,\n    \"requires_user_request\": true,\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "S100 现成量化 Transformer 模型库部署",
+      "task": "ready_model",
+      "platform": "s100",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be",
+            "tasks": [
+              "ready_model"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md"
+          },
+          "name": "rdk-model-zoo",
+          "display_name": "rdk-model-zoo",
+          "description": "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "score": 9,
+          "matched_terms": [
+            "现成",
+            "模型",
+            "quant"
+          ],
+          "match_reason": "reviewed task=ready_model; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "platform_scope": "unknown"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be\",\n    \"tasks\": [\n      \"ready_model\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo\",\n  \"display_name\": \"rdk-model-zoo\",\n  \"description\": \"Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "X5 TensorFlow SavedModel BPU 转换",
+      "task": "model_conversion",
+      "platform": "x5",
+      "workflow": "undecided",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "8241560539f5048fe968c6e6bc43391a01e5eedff4854acecff07012ced10f10",
+            "tasks": [
+              "model_conversion"
+            ],
+            "workflows": [],
+            "platforms": [
+              "x5"
+            ],
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md"
+          },
+          "name": "x5-router",
+          "display_name": "x5-router",
+          "description": "路由 X5 环境、OE Mapper PTQ、Plugin QAT、Runtime、板端 Python 和诊断请求；当目标芯片明确为 X5 或请求包含 bayes-e、hb_mapper、X5 .bin、March.BAYES_E 时使用。只选择一个主 Skill 并生成 route.json；不执行 HAT、X3 或 S 系列工作流。",
+          "pack": "OE Tool Chain (X5)",
+          "repo": "D-Robotics/oe-skills-x5",
+          "catalog_path": "skills/oe-skills-x5/skills/x5-router",
+          "install_type": "workspace",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md",
+          "score": 9,
+          "matched_terms": [
+            "x5"
+          ],
+          "match_reason": "reviewed task=model_conversion; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md",
+          "platform_scope": "matched-board"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Clarify PTQ versus QAT from user context; only workflow entry skills are returned. Do not guess from query words.",
+      "guidance_kind": "ambiguous_quant"
+    },
+    "details": [
+      {
+        "name": "x5-router",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"8241560539f5048fe968c6e6bc43391a01e5eedff4854acecff07012ced10f10\",\n    \"tasks\": [\n      \"model_conversion\"\n    ],\n    \"workflows\": [],\n    \"platforms\": [\n      \"x5\"\n    ],\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md\"\n  },\n  \"name\": \"x5-router\",\n  \"display_name\": \"x5-router\",\n  \"description\": \"路由 X5 环境、OE Mapper PTQ、Plugin QAT、Runtime、板端 Python 和诊断请求；当目标芯片明确为 X5 或请求包含 bayes-e、hb_mapper、X5 .bin、March.BAYES_E 时使用。只选择一个主 Skill 并生成 route.json；不执行 HAT、X3 或 S 系列工作流。\",\n  \"pack\": \"OE Tool Chain (X5)\",\n  \"repo\": \"D-Robotics/oe-skills-x5\",\n  \"catalog_path\": \"skills/oe-skills-x5/skills/x5-router\",\n  \"install_type\": \"workspace\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"workspace\",\n    \"handoff_skill\": \"rdk-pack-installer\",\n    \"installer\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"skills\",\n        \"add\",\n        \"d-robotics/rdk-skills\",\n        \"--skill\",\n        \"rdk-pack-installer\"\n      ],\n      \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-pack-installer\"\n    },\n    \"pack\": {\n      \"name\": \"OE Tool Chain (X5)\",\n      \"repo\": \"D-Robotics/oe-skills-x5\",\n      \"ref\": \"v1.0.0\",\n      \"catalog_dir\": \"oe-skills-x5\",\n      \"install_script\": \"setup.sh\",\n      \"workspace_dir\": \".drobotics\",\n      \"verify_paths\": [\n        \".drobotics/X5.md\",\n        \".drobotics/VERSION\",\n        \".drobotics/skill-index.json\",\n        \".drobotics/skills/x5-router/SKILL.md\"\n      ]\n    },\n    \"requires_project_root\": true,\n    \"requires_user_request\": true,\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "X3 检测模型 Model Zoo 部署",
+      "task": "ready_model",
+      "platform": "x3",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be",
+            "tasks": [
+              "ready_model"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md"
+          },
+          "name": "rdk-model-zoo",
+          "display_name": "rdk-model-zoo",
+          "description": "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "score": 17,
+          "matched_terms": [
+            "model",
+            "zoo",
+            "模型"
+          ],
+          "match_reason": "reviewed task=ready_model; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "platform_scope": "unknown"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be\",\n    \"tasks\": [\n      \"ready_model\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo\",\n  \"display_name\": \"rdk-model-zoo\",\n  \"description\": \"Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "X5 检测模型 Model Zoo 部署",
+      "task": "ready_model",
+      "platform": "x5",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be",
+            "tasks": [
+              "ready_model"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md"
+          },
+          "name": "rdk-model-zoo",
+          "display_name": "rdk-model-zoo",
+          "description": "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "score": 17,
+          "matched_terms": [
+            "model",
+            "zoo",
+            "模型"
+          ],
+          "match_reason": "reviewed task=ready_model; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "platform_scope": "unknown"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be\",\n    \"tasks\": [\n      \"ready_model\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo\",\n  \"display_name\": \"rdk-model-zoo\",\n  \"description\": \"Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "维护 RDK 模型清单 版本 平台 量化状态 下载链接",
+      "task": "model_maintenance",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "8ea604439ab68b7478d4096ad57e7a320cf7daa991ebd7af878095983763ca89",
+            "tasks": [
+              "model_maintenance"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "workflow",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md"
+          },
+          "name": "rdk-model-zoo-develop",
+          "display_name": "rdk-model-zoo-develop",
+          "description": "Use when adding or modifying maintained RDK Model Zoo samples, shared utilities, sample docs, tests, or repository conventions, including bug fixes. 触发词：开发样例、新增模型、修复 sample、公共工具。Do not use as the primary skill for read-only review, ready-made use, or toolchain quantization.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo-develop",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md",
+          "score": 12,
+          "matched_terms": [
+            "rdk",
+            "模型",
+            "quant"
+          ],
+          "match_reason": "reviewed task=model_maintenance; role=workflow; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md",
+          "platform_scope": "unconstrained"
+        },
+        {
+          "classification": {
+            "fingerprint": "9041cbe35525d5e3b689482fc689e2e80a5034e6d64291cfac747d478a59dfcf",
+            "tasks": [
+              "model_maintenance"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md"
+          },
+          "name": "rdk-model-zoo-repo",
+          "display_name": "rdk-model-zoo-repo",
+          "description": "Use to establish an RDK Model Zoo checkout's platform, version, layout, conventions, dirty or untracked files, affected samples, and development entrypoints. 触发词：仓库上下文、工作区盘点、开发入口、分支规范。Workspace inventory belongs here; assessing code correctness, standards compliance or delivery readiness belongs to review. Do not use as primary for ready-made model lookup or quantization.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo-repo",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+          "score": 11,
+          "matched_terms": [
+            "rdk",
+            "quant"
+          ],
+          "match_reason": "reviewed task=model_maintenance; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+          "platform_scope": "unconstrained"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo-develop",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"8ea604439ab68b7478d4096ad57e7a320cf7daa991ebd7af878095983763ca89\",\n    \"tasks\": [\n      \"model_maintenance\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"workflow\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo-develop\",\n  \"display_name\": \"rdk-model-zoo-develop\",\n  \"description\": \"Use when adding or modifying maintained RDK Model Zoo samples, shared utilities, sample docs, tests, or repository conventions, including bug fixes. 触发词：开发样例、新增模型、修复 sample、公共工具。Do not use as the primary skill for read-only review, ready-made use, or toolchain quantization.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo-develop\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo-develop\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo-develop\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      },
+      {
+        "name": "rdk-model-zoo-repo",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"9041cbe35525d5e3b689482fc689e2e80a5034e6d64291cfac747d478a59dfcf\",\n    \"tasks\": [\n      \"model_maintenance\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo-repo\",\n  \"display_name\": \"rdk-model-zoo-repo\",\n  \"description\": \"Use to establish an RDK Model Zoo checkout's platform, version, layout, conventions, dirty or untracked files, affected samples, and development entrypoints. 触发词：仓库上下文、工作区盘点、开发入口、分支规范。Workspace inventory belongs here; assessing code correctness, standards compliance or delivery readiness belongs to review. Do not use as primary for ready-made model lookup or quantization.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo-repo\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo-repo\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo-repo\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "args": {
+      "query": "X5 现成姿态模型 Model Zoo",
+      "task": "ready_model",
+      "platform": "x5",
+      "limit": 2
+    },
+    "data": {
+      "matches": [
+        {
+          "classification": {
+            "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be",
+            "tasks": [
+              "ready_model"
+            ],
+            "workflows": [],
+            "platforms": null,
+            "role": "entry",
+            "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md"
+          },
+          "name": "rdk-model-zoo",
+          "display_name": "rdk-model-zoo",
+          "description": "Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.",
+          "pack": "RDK Model Zoo Skills",
+          "repo": "D-Robotics/rdk_model_zoo",
+          "catalog_path": "skills/rdk-model-zoo",
+          "install_type": "flat",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "score": 19,
+          "matched_terms": [
+            "model",
+            "zoo",
+            "现成",
+            "模型"
+          ],
+          "match_reason": "reviewed task=ready_model; role=entry; source=https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "platform_scope": "unknown"
+        }
+      ],
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-21T07:19:34.118Z",
+      "warnings": [],
+      "guidance": "Candidates satisfy reviewed task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. No match may mean metadata is missing or stale; fall back to official docs, never relax explicit constraints silently.",
+      "guidance_kind": "default"
+    },
+    "details": [
+      {
+        "name": "rdk-model-zoo",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"classification\": {\n    \"fingerprint\": \"2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be\",\n    \"tasks\": [\n      \"ready_model\"\n    ],\n    \"workflows\": [],\n    \"platforms\": null,\n    \"role\": \"entry\",\n    \"source\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\"\n  },\n  \"name\": \"rdk-model-zoo\",\n  \"display_name\": \"rdk-model-zoo\",\n  \"description\": \"Use when asking about ready-made RDK Model Zoo models, matching branches, downloads, sample execution, or published benchmarks. 触发词：现成模型、跑示例、模型目录、帧率查询。Do not use as the primary skill for PR review, repository development, custom quantization, or fresh performance measurement.\",\n  \"pack\": \"RDK Model Zoo Skills\",\n  \"repo\": \"D-Robotics/rdk_model_zoo\",\n  \"catalog_path\": \"skills/rdk-model-zoo\",\n  \"install_type\": \"flat\",\n  \"source_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md\",\n  \"catalog_revision\": \"08d0a466413f11bbc045ba5e51f626bdb0346373\",\n  \"fetched_at\": \"2026-09-21T07:19:34.118Z\",\n  \"warnings\": [],\n  \"installation\": {\n    \"type\": \"flat\",\n    \"command\": \"npx\",\n    \"args\": [\n      \"skills\",\n      \"add\",\n      \"d-robotics/rdk-skills\",\n      \"--skill\",\n      \"rdk-model-zoo\"\n    ],\n    \"display_command\": \"npx skills add d-robotics/rdk-skills --skill rdk-model-zoo\",\n    \"requires_user_request\": true,\n    \"version_policy\": \"installer_default_not_catalog_pinned\",\n    \"docs_url\": \"https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md\",\n    \"note\": \"Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install.\"\n  }\n}"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

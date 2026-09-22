@@ -58,9 +58,16 @@ GET https://forum.d-robotics.cc/t/{id}.json
 3. **目录里有 ≠ 本机已安装。** 这两个工具只读：不安装、不执行脚本、不检查本机安装状态。只有用户明确要求安装时才进入客户端安装流程。
 4. flat 型返回 `npx skills add d-robotics/rdk-skills --skill <name>`（安装整个 Skill 目录，含 references/scripts，不是单个 SKILL.md）。
 5. workspace 型（OE 工具链类）是**整包安装**：交接给 `rdk-pack-installer`，需要项目根目录，按 `verify_paths` 校验；不能把单个 SKILL.md 复制进全局目录当作装好。`catalog_revision`（目录快照）与 Pack `ref`（上游发布版本）是两个概念，`npx skills add` 不锁定到目录 SHA。
-6. 量化类问题：用户没指明 PTQ 还是 QAT 时，按返回的 `guidance` 先向用户分流，不要替用户决定；明确 PTQ 指向 PTQ 工作流，明确 QAT 指向 QAT 入口。
-7. `platform` 参数只是文本筛选（去掉明确属于其他板型的记录），不是官方兼容性认证；描述里的「不要用于…」也不能当成正向推荐依据（排序已处理，引用时仍需注意）。
-8. 两个工具独立于文档工具：目录不可用时文档检索不受影响，反之亦然。
+6. **由调用方理解需求，再发结构化查询。** 先从上下文确定任务、目标板卡、明确排除项；不要把整段指令交给关键词搜索器解释。`task` 可选 camera/gpio/uart/ready_model/model_conversion/model_deploy/model_maintenance/environment/diagnostics/bsp；每次只检索一个任务。未知分类用文档查询或旧 query 候选检索，不能伪造类别。
+7. 找现成模型用 `task=ready_model`，不要求用户选择 PTQ/QAT。自己转换/量化用 `task=model_conversion`，明确路径时传 `workflow=ptq/qat`，未明确时用 `undecided` 并向用户澄清。模型库维护用 `model_maintenance`。优先现成、必要时转换应先查现成模型，不能把备选路径作为当前任务。
+8. `platform` 只填正向目标；`exclude_platforms` 填明确排除的板卡。例如「X5，不是 X3」传 `platform=x5, exclude_platforms=[x3]`。比较多板卡分别调用，复合 camera/GPIO/UART 需求拆开调用。不要把提到的所有型号都当目标。结构化条件优先于 query；query 仅是简短的排序文本。`classification=null` 表示分类缺失或源内容已变化；`platform_scope=unknown` 不代表硬件兼容。先读 get_skill 和官方资料再做判断。
+
+示例：用户「X5 相机掉帧，不是 X3，帮我找排查工具」→ `search_skills({query:"相机掉帧 采集",task:"camera",platform:"x5",exclude_platforms:["x3"]})` → 读取候选 get_skill，确认相机/采集范围后推荐。用户问引脚电压等纯事实时仍先查官方文档，不必推荐 Skill。
+
+旧 query-only 调用仅供候选发现，会返回 legacy_query 警告；不能将排名当成已确定的意图。结构化筛选无结果可能是分类尚未覆盖或已失效，报告限制并查官方文档，不静默放宽板卡/工作流约束。
+
+9. **展示名与精确名。** 结果带 `display_name`（如 `__SKILL_j6-plugin-__set-fake-quantize` 显示为 `j6-plugin-set-fake-quantize`），给用户看时用 display_name；`get_skill` 与安装命令一律用 `name` 字段的精确目录名，两个记录可能 display_name 相同但 `name` 不同，禁止用 display_name 查询或安装。
+10. 两个工具独立于文档工具：目录不可用时文档检索不受影响，反之亦然。
 
 ## 图片、长页与内容冲突（证据规则）
 

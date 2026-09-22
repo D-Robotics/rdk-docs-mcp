@@ -56,13 +56,18 @@ jsDelivr 不可用时，同一文件在：
 
 **Skill 发现（只读）**
 
-用户问「X5 40PIN GPIO 有没有现成 Skill」「X5 PTQ 量化部署怎么做」这类工具/工作流问题时，Agent 调 `search_skills`，再对候选调 `get_skill` 核对，最多推荐 1–2 个：
+用户问「X5 40PIN GPIO 有没有现成 Skill」「X5 PTQ 量化部署怎么做」「有没有现成量化好的模型」这类工具/工作流问题时，Agent 调 `search_skills`，再对候选调 `get_skill` 核对，最多推荐 1–2 个：
 
 - **目录里有 ≠ 本机已安装。** 两个工具只读：不安装、不执行上游脚本、不读写用户 Skill 目录。
 - flat 型 Skill 的安装入口是 `npx skills add d-robotics/rdk-skills --skill <name>`（装整个 Skill 目录）。
 - workspace 型（OE 工具链类）必须整包安装：交接 `rdk-pack-installer`、需要项目根目录、按 `verify_paths` 校验，不能只复制单个 SKILL.md。
-- 量化问题未指明 PTQ/QAT 时，工具返回的 `guidance` 要求先分流，不替用户决定。
-- 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单。
+- 调用方模型负责理解目标、排除、条件和复合任务，再传 `task`、`platform`、`exclude_platforms`、`workflow`；query 仅排序。纯事实仍查官方文档。复合任务分开检索，多板卡分别调用。
+- `task`: camera/gpio/uart/ready_model/model_conversion/model_deploy/model_maintenance/environment/diagnostics/bsp。`workflow`: ptq/qat/undecided，仅适用于 model_conversion；不确定时只返回入口并澄清。
+- 分类表 `mcp/src/skill-taxonomy-data.ts` 是带来源的本地目录补充，不是排序白名单。对完整记录指纹校验，源内容变化后分类失效，严格任务查询不返回未分类记录；详情中 classification=null 表示未知。上游目前无标准分类字段，本 PR 不依赖未发布的上游修改。
+- 平台明确时使用分类表已审核的系列范围，缺失则 platform_scope=unknown；范围匹配不是电气/型号兼容保证。平台支持 x3/x5/s100/s100p/s600/ultra，比较请求拆分。目标与显式排除冲突才报 platform_conflict，正文不会覆盖结构化条件。
+- 旧 query-only 接口保留原有候选检索行为，并返回 legacy_query 警告；不再承诺理解复杂自然语言。新流程不能回退到旧接口绕过明确约束。
+- 展示层用 `display_name`（清理生成器的 `__SKILL_<family>-__<slug>` 内部格式），`get_skill` 与安装命令仍用 `name` 精确名；同 display_name 的不同记录靠 `name` 区分。
+- 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单；pack 板卡家族映射取自该仓库 README 的 Supported Boards / Installation layers 表（快照 revision 溯源）。上游 canonical name 归一化（去掉 `__SKILL_` 前缀）需在 rdk-skills 侧规范，本 MCP 仅做展示层清理。
 
 ---
 
