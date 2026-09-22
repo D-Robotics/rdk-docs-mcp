@@ -95,8 +95,10 @@ expect(result.guidance_kind).toBe('category_only');
 - [x] Run representative ready-model/quantize/compile/network/camera/unknown/negation scenarios against the MCP protocol; assertions check constraints, source and metadata status, not just top name.
 - [x] Live-test X3/X5 camera/GPIO and pinned Skill content, report failures/limitations separately from offline tests.
 - [x] Obtain fresh independent whole-branch review; fix substantive findings and re-run affected tests. Complete one full final test/build/pack validation after all changes.
-- [ ] Commit focused changes, push repair branch and create/attach a reviewable PR (existing task authorization includes PR delivery). Do not merge or publish npm. Record actual remaining limits and upstream metadata adoption work.
+- [x] Commit focused changes, push repair branch and create/attach a reviewable PR (existing task authorization includes PR delivery). Do not merge or publish npm. Record actual remaining limits and upstream metadata adoption work.
 
 ## Execution ledger
 
 Plan approved for immediate execution by the user's request. Tasks 1–3 are independent by file ownership and run in parallel; Tasks 4–5 integrate their outputs; Task 6 gates delivery. The controller reviews each workstream and a fresh reviewer checks the integrated branch. Progress and concrete verification evidence will be recorded in the acceptance report.
+
+Delivered for review as PR #9: https://github.com/D-Robotics/rdk-docs-mcp/pull/9. Implementation and local acceptance complete; remote platform status is recorded by the PR checks. No merge or npm publication performed.
