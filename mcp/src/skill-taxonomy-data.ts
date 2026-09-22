@@ -1,5 +1,15 @@
 // Reviewed catalog overlay. Exact content fingerprint prevents stale classifications.
 // Classification is search scope, not proof of hardware compatibility.
+// 2026-09-22 additions reviewed against skills-reviewed.json descriptions at 08d0a46:
+// x5-ptq-compile: checker/makertbin produces verified bayes-e .bin artifacts.
+// x5-qat-compile: trace/check_model/compile_model/export_hbir produces .hbm/.hbir.
+// j6-hbdk-compile: generic YAML-driven ONNX/BC model compilation.
+// j6-hbdk-export-compile: export/convert/compile of already-quantized models.
+// rdk-network-remote: SSH, WiFi, wired network and remote-access diagnostics;
+//   description names no exact board set, so platform scope remains unknown.
+// x5-board-monitor: explicit X5 resource snapshots and performance anomalies.
+// j6-board-monitor: explicit S-series BPU/DDR/memory monitoring (reviewed S pack).
+// These additions extend only the reviewed subset; they do not cover the catalog.
 export const TAXONOMY_DATA = [
   {
     "name": "__SKILL_j6-plugin-__adaptation",
@@ -367,7 +377,8 @@ export const TAXONOMY_DATA = [
     "name": "j6-hbdk-compile",
     "fingerprint": "df7347b9c2bd044f52e2819934f588c347a16a886dec9c2e999b5f9ff59a633b",
     "tasks": [
-      "model_conversion"
+      "model_conversion",
+      "model_compile"
     ],
     "workflows": [
       "ptq"
@@ -384,7 +395,8 @@ export const TAXONOMY_DATA = [
     "name": "j6-hbdk-export-compile",
     "fingerprint": "fee308e3600d94711d07300f98c679b72101eeb2353f186790b1f24230602b2b",
     "tasks": [
-      "model_conversion"
+      "model_conversion",
+      "model_compile"
     ],
     "workflows": [
       "qat"
@@ -810,7 +822,8 @@ export const TAXONOMY_DATA = [
     "name": "x5-ptq-compile",
     "fingerprint": "9382197c3b8afb957612f050dc702046336543e565b97dbe7d05df97e763f50a",
     "tasks": [
-      "model_conversion"
+      "model_conversion",
+      "model_compile"
     ],
     "workflows": [
       "ptq"
@@ -870,7 +883,8 @@ export const TAXONOMY_DATA = [
     "name": "x5-qat-compile",
     "fingerprint": "353a6998137c7564f24a9eef188436aacc7e421940763c5e58fe9de96a2aabfa",
     "tasks": [
-      "model_conversion"
+      "model_conversion",
+      "model_compile"
     ],
     "workflows": [
       "qat"
@@ -949,5 +963,45 @@ export const TAXONOMY_DATA = [
     ],
     "role": "workflow",
     "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-runtime-deploy/SKILL.md"
+  },
+  {
+    "name": "rdk-network-remote",
+    "fingerprint": "09704b9a1e6009e5e039d37da01d3da7f550749e82b89df8378567f86d9667df",
+    "tasks": [
+      "network",
+      "diagnostics"
+    ],
+    "workflows": [],
+    "platforms": null,
+    "role": "entry",
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md"
+  },
+  {
+    "name": "x5-board-monitor",
+    "fingerprint": "021943abaca2adef325b5d47883dad20c303b6be640a9061a2fd1aa62f1cf4a8",
+    "tasks": [
+      "diagnostics"
+    ],
+    "workflows": [],
+    "platforms": [
+      "x5"
+    ],
+    "role": "step",
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-board-monitor/SKILL.md"
+  },
+  {
+    "name": "j6-board-monitor",
+    "fingerprint": "749f33b95e8366611926be13e2ff87f6785ac097a21ad0f97362554c9c0fcab7",
+    "tasks": [
+      "diagnostics"
+    ],
+    "workflows": [],
+    "platforms": [
+      "s100",
+      "s100p",
+      "s600"
+    ],
+    "role": "step",
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/ucp/j6-board-monitor/SKILL.md"
   }
 ] as const;

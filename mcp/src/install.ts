@@ -1,7 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { parse as parseToml } from "smol-toml";
 
 export const MCP_SERVER = {
@@ -58,17 +70,51 @@ function readJson(path: string): JsonObject {
 }
 
 function writeJson(path: string, value: JsonObject): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+  writeTextAtomic(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function writeText(path: string, body: string): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, body);
+  writeTextAtomic(path, body);
 }
 
-function asObject(value: unknown): JsonObject {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+function objectProperty(parent: JsonObject, key: string, path: string, label: string): JsonObject | undefined {
+  const value = parent[key];
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${label} must be an object`);
+  }
+  return value as JsonObject;
+}
+
+function preservedCustomWarning(path: string): string {
+  return `Preserved existing custom rdk-docs MCP server configuration in ${path}; update it deliberately if a different launch is required.`;
+}
+
+function completeJsonServerEntry(entry: JsonObject | undefined, defaults: JsonObject): JsonObject {
+  if (!entry) return { ...defaults };
+  return { ...defaults, ...entry };
+}
+
+function validateJsonServerEntry(
+  entry: JsonObject,
+  path: string,
+  label: string,
+  requireUsable: boolean = false,
+): void {
+  for (const key of ["command", "url"] as const) {
+    if (key in entry && (typeof entry[key] !== "string" || entry[key].trim() === "")) {
+      throw new Error(`Invalid JSON configuration at ${path}: ${label}.${key} must be a non-empty string`);
+    }
+  }
+  if (
+    "args" in entry &&
+    (!Array.isArray(entry.args) || !entry.args.every((argument) => typeof argument === "string"))
+  ) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${label}.args must be an array of strings`);
+  }
+  if (requireUsable && !isUsableServerEntry(entry)) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${label} must have a usable command or url`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -213,13 +259,15 @@ function parseCodexConfig(toml: string): JsonObject {
 /** Write `body` to `path` via temp-file + rename so a crash never truncates it. */
 function writeTextAtomic(path: string, body: string): void {
   mkdirSync(dirname(path), { recursive: true });
-  const tmp = `${path}.rdk-tmp`;
+  const mode = existsSync(path) ? statSync(path).mode & 0o777 : 0o600;
+  const tmp = `${path}.${process.pid}.${randomUUID()}.rdk-tmp`;
   try {
-    writeFileSync(tmp, body);
+    writeFileSync(tmp, body, { flag: "wx", mode });
+    chmodSync(tmp, mode);
     renameSync(tmp, path);
   } catch (error) {
     try {
-      if (existsSync(tmp)) renameSync(tmp, `${tmp}.discarded`);
+      unlinkSync(tmp);
     } catch {
       /* best-effort cleanup */
     }
@@ -372,10 +420,18 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
   if (existsSync(cursor)) {
     const mcpPath = join(cursor, "mcp.json");
     const mcp = readJson(mcpPath);
-    const servers = asObject(mcp.mcpServers);
-    servers["rdk-docs"] = { ...MCP_SERVER };
-    mcp.mcpServers = servers;
-    writeJson(mcpPath, mcp);
+    const servers = objectProperty(mcp, "mcpServers", mcpPath, "mcpServers") ?? {};
+    const existing = objectProperty(servers, "rdk-docs", mcpPath, 'mcpServers["rdk-docs"]');
+    if (existing) validateJsonServerEntry(existing, mcpPath, 'mcpServers["rdk-docs"]');
+    if (existing && isUsableServerEntry(existing)) {
+      if (!isDeepStrictEqual(existing, MCP_SERVER)) result.warnings.push(preservedCustomWarning(mcpPath));
+    } else {
+      const completed = completeJsonServerEntry(existing, { ...MCP_SERVER });
+      validateJsonServerEntry(completed, mcpPath, 'mcpServers["rdk-docs"]', true);
+      servers["rdk-docs"] = completed;
+      mcp.mcpServers = servers;
+      writeJson(mcpPath, mcp);
+    }
     result.mcp.push(mcpPath);
     writeSkills(join(cursor, "skills"));
   }
@@ -389,12 +445,21 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
   if (existsSync(zcode)) {
     const configPath = join(zcode, "cli", "config.json");
     const config = readJson(configPath);
-    const mcp = asObject(config.mcp);
-    const servers = asObject(mcp.servers);
-    servers["rdk-docs"] = { type: "stdio", ...MCP_SERVER };
-    mcp.servers = servers;
-    config.mcp = mcp;
-    writeJson(configPath, config);
+    const mcp = objectProperty(config, "mcp", configPath, "mcp") ?? {};
+    const servers = objectProperty(mcp, "servers", configPath, "mcp.servers") ?? {};
+    const existing = objectProperty(servers, "rdk-docs", configPath, 'mcp.servers["rdk-docs"]');
+    const defaults = { type: "stdio", ...MCP_SERVER };
+    if (existing) validateJsonServerEntry(existing, configPath, 'mcp.servers["rdk-docs"]');
+    if (existing && isUsableServerEntry(existing)) {
+      if (!isDeepStrictEqual(existing, defaults)) result.warnings.push(preservedCustomWarning(configPath));
+    } else {
+      const completed = completeJsonServerEntry(existing, defaults);
+      validateJsonServerEntry(completed, configPath, 'mcp.servers["rdk-docs"]', true);
+      servers["rdk-docs"] = completed;
+      mcp.servers = servers;
+      config.mcp = mcp;
+      writeJson(configPath, config);
+    }
     result.mcp.push(configPath);
     writeSkills(join(zcode, "skills"));
     // ZCode also reads the shared agents dir.

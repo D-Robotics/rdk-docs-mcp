@@ -1,8 +1,8 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.1.12",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Search D-Robotics RDK official manuals and the community forum, and discover RDK skills, via MCP.",
+  "description": "RDK Assistant MCP: official documentation, verified Skill discovery, and installation guidance.",
   "bin": {
     "rdk-docs-mcp": "dist/index.js"
   },
@@ -21,9 +21,11 @@
     "test:watch": "vitest",
     "eval:live": "npm run build && node dist/eval-live.js",
     "eval:skills": "npm run build && node dist/eval-skills-live.js",
-    "verify": "npm test && npm run eval:live",
-    "prepack": "rm -rf ./skills && cp -R ../skills ./skills && cp ../skills/rdk-docs/SKILL.md ./SKILL.md",
-    "prepublishOnly": "npm test && npm run build && npm run prepack"
+    "verify": "npm test && npm run build",
+    "prepack": "node scripts/prepack.mjs",
+    "prepublishOnly": "npm test && npm run build && npm run prepack",
+    "verify:live": "npm run eval:live && npm run eval:skills",
+    "verify:package": "npm run build && node scripts/verify-package.mjs"
   },
   "engines": {
     "node": ">=20"

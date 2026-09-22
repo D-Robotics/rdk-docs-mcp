@@ -131,13 +131,14 @@ function parseError(result: CallToolResult): { code: string; message: string } {
 }
 
 describe("MCP server: skill tools over the protocol", () => {
-  it("advertises six tools: the original four plus search_skills and get_skill", async () => {
+  it("advertises compatible discovery tools plus read-only diagnostics", async () => {
     const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
     const tools = await client.listTools();
     const names = tools.tools.map((tool) => tool.name).sort();
     expect(names).toEqual([
       "get_page",
       "get_skill",
+      "get_status",
       "list_manuals",
       "list_toc",
       "search_docs",

@@ -1,0 +1,2374 @@
+{
+  "mode": "live catalog through alternative transport: git ls-remote HEAD plus raw JSON pinned to SHA; default anonymous GitHub API failed HTTP403",
+  "revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+  "catalog_provenance": {
+    "fetched_at": "2026-09-22T14:11:11.270Z",
+    "warnings": [],
+    "from_cache": false
+  },
+  "cases": [
+    {
+      "id": "ready",
+      "user": "X5 想直接跑现成 YOLO，实在没有再考虑自己量化。",
+      "args": {
+        "query": "YOLO 模型库",
+        "task": "ready_model",
+        "platform": "x5"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "ready_model"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "entry",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+              "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be"
+            },
+            "name": "rdk-model-zoo",
+            "display_name": "rdk-model-zoo",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+            "matched_terms": [
+              "模型"
+            ],
+            "platform_scope": "unknown"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "rdk-model-zoo"
+      ]
+    },
+    {
+      "id": "ptq",
+      "user": "I need an end-to-end PTQ conversion workflow for RDK X5.",
+      "args": {
+        "query": "PTQ conversion",
+        "task": "model_conversion",
+        "platform": "x5",
+        "workflow": "ptq",
+        "role": "workflow"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [
+                "ptq"
+              ],
+              "platforms": [
+                "x5"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md",
+              "fingerprint": "aa88095ddef2a22bcedeb79eadbe441066d0ac8fac86391d73e19de504aaec09"
+            },
+            "name": "x5-ptq-deploy",
+            "display_name": "x5-ptq-deploy",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md",
+            "matched_terms": [
+              "ptq"
+            ],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "x5-ptq-deploy"
+      ]
+    },
+    {
+      "id": "compile",
+      "user": "已有量化产物，只要编译成 X5 可部署文件，不要重新量化。",
+      "args": {
+        "query": "compile 编译",
+        "task": "model_compile",
+        "platform": "x5"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion",
+                "model_compile"
+              ],
+              "workflows": [
+                "qat"
+              ],
+              "platforms": [
+                "x5"
+              ],
+              "role": "step",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-compile/SKILL.md",
+              "fingerprint": "353a6998137c7564f24a9eef188436aacc7e421940763c5e58fe9de96a2aabfa"
+            },
+            "name": "x5-qat-compile",
+            "display_name": "x5-qat-compile",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-compile/SKILL.md",
+            "matched_terms": [
+              "compile",
+              "编译"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion",
+                "model_compile"
+              ],
+              "workflows": [
+                "ptq"
+              ],
+              "platforms": [
+                "x5"
+              ],
+              "role": "step",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md",
+              "fingerprint": "9382197c3b8afb957612f050dc702046336543e565b97dbe7d05df97e763f50a"
+            },
+            "name": "x5-ptq-compile",
+            "display_name": "x5-ptq-compile",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md",
+            "matched_terms": [
+              "compile"
+            ],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "x5-qat-compile"
+      ]
+    },
+    {
+      "id": "network",
+      "user": "X5 连不上 Wi-Fi，帮我找板端网络配置工具。",
+      "args": {
+        "query": "Wi-Fi 网络",
+        "task": "network",
+        "platform": "x5"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "network",
+                "diagnostics"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "entry",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md",
+              "fingerprint": "09704b9a1e6009e5e039d37da01d3da7f550749e82b89df8378567f86d9667df"
+            },
+            "name": "rdk-network-remote",
+            "display_name": "rdk-network-remote",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md",
+            "matched_terms": [
+              "网络"
+            ],
+            "platform_scope": "unknown"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "rdk-network-remote"
+      ]
+    },
+    {
+      "id": "environment",
+      "user": "Set up the X5 model toolchain on my host.",
+      "args": {
+        "query": "toolchain setup",
+        "task": "environment",
+        "platform": "x5"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "environment"
+              ],
+              "workflows": [],
+              "platforms": [
+                "x5"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-setup/SKILL.md",
+              "fingerprint": "d4d031bc5e8bcbe4d8d426c37d82ccb69edbe92b227771fc161b0036da904177"
+            },
+            "name": "x5-environment-setup",
+            "display_name": "x5-environment-setup",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-setup/SKILL.md",
+            "matched_terms": [
+              "setup"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "environment"
+              ],
+              "workflows": [],
+              "platforms": [
+                "x5"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-install/SKILL.md",
+              "fingerprint": "a742a9b4fe261ffdb4558a107fd51d24ffd0b3f2def5a5c79812dcb06771f5fe"
+            },
+            "name": "x5-environment-install",
+            "display_name": "x5-environment-install",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-install/SKILL.md",
+            "matched_terms": [],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "environment"
+              ],
+              "workflows": [],
+              "platforms": [
+                "x5"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-probe/SKILL.md",
+              "fingerprint": "faa903324258ecee4c18e12320972e5d8c458ea6a4d6e502a4b3c6159ed06f09"
+            },
+            "name": "x5-environment-probe",
+            "display_name": "x5-environment-probe",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-probe/SKILL.md",
+            "matched_terms": [],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "x5-environment-setup"
+      ]
+    },
+    {
+      "id": "exclude",
+      "user": "X5 相机掉帧，不是 X3，找采集排查 Skill。",
+      "args": {
+        "query": "相机 掉帧 采集",
+        "task": "camera",
+        "platform": "x5",
+        "exclude_platforms": [
+          "x3"
+        ]
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "camera"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "entry",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-camera-setup/SKILL.md",
+              "fingerprint": "00413c20ce2d29a75684cc4738683f1649141af2602342732c7e6d7ec29b912a"
+            },
+            "name": "rdk-camera-setup",
+            "display_name": "rdk-camera-setup",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-camera-setup/SKILL.md",
+            "matched_terms": [
+              "相机"
+            ],
+            "platform_scope": "unknown"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "camera"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-accessories/SKILL.md",
+              "fingerprint": "cb786538a749c3cc01ef2c2a84ee22a1f93eaaa5b4e48a793c7b2695106521be"
+            },
+            "name": "rdk-accessories",
+            "display_name": "rdk-accessories",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-accessories/SKILL.md",
+            "matched_terms": [
+              "相机"
+            ],
+            "platform_scope": "unknown"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "camera"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-multimedia/SKILL.md",
+              "fingerprint": "f57d6a9b2511eedb0a13e96e60279eec0b95b9b5b6375236479776bb3e1ca84a"
+            },
+            "name": "rdk-multimedia",
+            "display_name": "rdk-multimedia",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-multimedia/SKILL.md",
+            "matched_terms": [],
+            "platform_scope": "unknown"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "rdk-camera-setup"
+      ]
+    },
+    {
+      "id": "ambiguous",
+      "user": "我要把自己的模型量化后在 X5 上运行，找个工具。",
+      "args": {
+        "query": "量化 模型",
+        "task": "model_conversion",
+        "platform": "x5",
+        "workflow": "undecided"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [],
+              "platforms": [
+                "x5"
+              ],
+              "role": "entry",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md",
+              "fingerprint": "8241560539f5048fe968c6e6bc43391a01e5eedff4854acecff07012ced10f10"
+            },
+            "name": "x5-router",
+            "display_name": "x5-router",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md",
+            "matched_terms": [],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "These are task-category candidates only: none has lexical evidence for this query. Clarify the concrete request before recommending. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently. Clarify PTQ versus QAT before selecting a workflow.",
+        "guidance_kind": "category_only"
+      },
+      "checked_exact_names": [
+        "x5-router"
+      ]
+    },
+    {
+      "id": "missing",
+      "user": "Find a skill for X5 audio speech recognition; do not invent a taxonomy category.",
+      "args": {
+        "query": "语音 speech audio",
+        "platform": "x5"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "missing",
+              "origin": null,
+              "issues": [
+                "No declared discovery metadata or reviewed overlay."
+              ]
+            },
+            "classification": null,
+            "name": "rdk-llm-deployment",
+            "display_name": "rdk-llm-deployment",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-llm-deployment/SKILL.md",
+            "matched_terms": [
+              "语音"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "gpio",
+                "uart"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-peripheral-cookbook/SKILL.md",
+              "fingerprint": "be0c93a9fc5421627263c76555bfb80e685f11d51bc877fa9d9f60544efbd9d7"
+            },
+            "name": "rdk-peripheral-cookbook",
+            "display_name": "rdk-peripheral-cookbook",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-peripheral-cookbook/SKILL.md",
+            "matched_terms": [
+              "audio"
+            ],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [
+          "legacy_query: unstructured candidates only; use task and explicit constraints for recommendations"
+        ],
+        "guidance": "Matches come from the D-Robotics/rdk-skills catalog snapshot; presence in the catalog does not mean the skill is installed locally. Confirm the exact record with get_skill before recommending, keep to 1-2 recommendations, and only treat installation as authorized when the user explicitly asks.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "rdk-llm-deployment"
+      ]
+    },
+    {
+      "id": "unknown",
+      "user": "Find an X5 diagnostics helper, but distinguish unknown board support.",
+      "args": {
+        "query": "diagnostics 排查",
+        "task": "diagnostics",
+        "platform": "x5"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "diagnostics"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-diagnostic/SKILL.md",
+              "fingerprint": "13d987fc054a08edd20262fc2e02599fb0ef5901f6a8d7aaa1cf29044cf38ce2"
+            },
+            "name": "rdk-diagnostic",
+            "display_name": "rdk-diagnostic",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-diagnostic/SKILL.md",
+            "matched_terms": [
+              "diagnostic"
+            ],
+            "platform_scope": "unknown"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "diagnostics"
+              ],
+              "workflows": [],
+              "platforms": [
+                "x5"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-accuracy-diagnostics/SKILL.md",
+              "fingerprint": "3d21f74d79ffa053de8e440ffe55a71580542cddaaacd26c3b443c0b9fdc7ca2"
+            },
+            "name": "x5-accuracy-diagnostics",
+            "display_name": "x5-accuracy-diagnostics",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-accuracy-diagnostics/SKILL.md",
+            "matched_terms": [
+              "diagnostic"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "diagnostics"
+              ],
+              "workflows": [],
+              "platforms": [
+                "x5"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-consistency-diagnostics/SKILL.md",
+              "fingerprint": "7b9bc464ec951291abdb6e9fe15e8160bc5609e96a8fa5511b446c294aa4b866"
+            },
+            "name": "x5-consistency-diagnostics",
+            "display_name": "x5-consistency-diagnostics",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-consistency-diagnostics/SKILL.md",
+            "matched_terms": [
+              "diagnostic"
+            ],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "rdk-diagnostic"
+      ]
+    },
+    {
+      "id": "step",
+      "user": "S100 我只做 QAT 的 fake quantize 这一步，别给整个流程。",
+      "args": {
+        "query": "fake quantize",
+        "task": "model_conversion",
+        "platform": "s100",
+        "workflow": "qat",
+        "role": "step"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [
+                "qat"
+              ],
+              "platforms": [
+                "s100",
+                "s100p",
+                "s600"
+              ],
+              "role": "step",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md",
+              "fingerprint": "a2fa6eb66a5ec54860b0abb095b9b208dc3637c9c17a3323a7643dcb99086c9e"
+            },
+            "name": "__SKILL_j6-plugin-__set-fake-quantize",
+            "display_name": "j6-plugin-set-fake-quantize",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md",
+            "matched_terms": [
+              "fake",
+              "quant"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [
+                "qat"
+              ],
+              "platforms": [
+                "s100",
+                "s100p",
+                "s600"
+              ],
+              "role": "step",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-insert-quant-dequant/SKILL.md",
+              "fingerprint": "5ecd1d462565ff17e720a5adc7fb13bc3fdb8c727a664777f67a88c3e930d57f"
+            },
+            "name": "__SKILL_j6-plugin-__insert-quant-dequant",
+            "display_name": "j6-plugin-insert-quant-dequant",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-insert-quant-dequant/SKILL.md",
+            "matched_terms": [
+              "quant"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [
+                "qat"
+              ],
+              "platforms": [
+                "s100",
+                "s100p",
+                "s600"
+              ],
+              "role": "step",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-consistency-debug/SKILL.md",
+              "fingerprint": "4257c242928d3ea369093cb18a995bf27e370618b877661c1ff69f493b960968"
+            },
+            "name": "__SKILL_j6-plugin-__consistency-debug",
+            "display_name": "j6-plugin-consistency-debug",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-consistency-debug/SKILL.md",
+            "matched_terms": [
+              "quant"
+            ],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "__SKILL_j6-plugin-__set-fake-quantize"
+      ]
+    },
+    {
+      "id": "workflow",
+      "user": "S100 给我完整 QAT 工作流。",
+      "args": {
+        "query": "QAT workflow",
+        "task": "model_conversion",
+        "platform": "s100",
+        "workflow": "qat",
+        "role": "workflow"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [
+                "qat"
+              ],
+              "platforms": [
+                "s100",
+                "s100p",
+                "s600"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/SKILL.md",
+              "fingerprint": "e0019e63a20dcb8f5c3b2eea6c2507e2dc8b13506c65c3aa42abdb586c3e7e9f"
+            },
+            "name": "__SKILL_j6-plugin-__adaptation",
+            "display_name": "j6-plugin-adaptation",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/SKILL.md",
+            "matched_terms": [
+              "qat"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [
+                "qat"
+              ],
+              "platforms": [
+                "s100",
+                "s100p",
+                "s600"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/SKILL.md",
+              "fingerprint": "5d90ab778ed02e46c8fab553b6ee62015157e037f6577b42b93adead094ffd9b"
+            },
+            "name": "__SKILL_j6-plugin-__hbdk-generating",
+            "display_name": "j6-plugin-hbdk-generating",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/SKILL.md",
+            "matched_terms": [
+              "qat"
+            ],
+            "platform_scope": "matched-board"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_conversion"
+              ],
+              "workflows": [
+                "qat"
+              ],
+              "platforms": [
+                "s100",
+                "s100p",
+                "s600"
+              ],
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md",
+              "fingerprint": "1ead4c04d9f0c7b4d232fe412cd02250ae65b147c94c6762287039366771d0e1"
+            },
+            "name": "__SKILL_j6-plugin-__quantization",
+            "display_name": "j6-plugin-quantization",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md",
+            "matched_terms": [
+              "qat"
+            ],
+            "platform_scope": "matched-board"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "__SKILL_j6-plugin-__adaptation"
+      ]
+    },
+    {
+      "id": "maintenance",
+      "user": "Help me maintain the X5 model catalog and samples, not convert a model.",
+      "args": {
+        "query": "model catalog samples",
+        "task": "model_maintenance",
+        "platform": "x5"
+      },
+      "result": {
+        "metadata_health": {
+          "total": 97,
+          "classified": 71,
+          "missing": 26,
+          "stale": 0,
+          "invalid": 0,
+          "unknown_platform": 20
+        },
+        "matches": [
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_maintenance"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "entry",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+              "fingerprint": "9041cbe35525d5e3b689482fc689e2e80a5034e6d64291cfac747d478a59dfcf"
+            },
+            "name": "rdk-model-zoo-repo",
+            "display_name": "rdk-model-zoo-repo",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+            "matched_terms": [
+              "model",
+              "samples"
+            ],
+            "platform_scope": "unknown"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_maintenance"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md",
+              "fingerprint": "8ea604439ab68b7478d4096ad57e7a320cf7daa991ebd7af878095983763ca89"
+            },
+            "name": "rdk-model-zoo-develop",
+            "display_name": "rdk-model-zoo-develop",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md",
+            "matched_terms": [
+              "model",
+              "samples"
+            ],
+            "platform_scope": "unknown"
+          },
+          {
+            "metadata_evidence": {
+              "status": "classified",
+              "origin": "reviewed_overlay",
+              "issues": []
+            },
+            "classification": {
+              "tasks": [
+                "model_maintenance"
+              ],
+              "workflows": [],
+              "platforms": null,
+              "role": "workflow",
+              "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-integrate/SKILL.md",
+              "fingerprint": "99dc16d35cdd18e3a851390fd3bb51cc261988661a54a39105daeb8d9f1b8f9d"
+            },
+            "name": "rdk-model-zoo-integrate",
+            "display_name": "rdk-model-zoo-integrate",
+            "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-integrate/SKILL.md",
+            "matched_terms": [
+              "model"
+            ],
+            "platform_scope": "unknown"
+          }
+        ],
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "fetched_at": "2026-09-22T14:11:11.270Z",
+        "warnings": [],
+        "guidance": "Candidates satisfy validated task metadata. Read get_skill before recommending. Unknown platform scope is not verified compatibility. Never relax explicit constraints silently.",
+        "guidance_kind": "default"
+      },
+      "checked_exact_names": [
+        "rdk-model-zoo-repo"
+      ]
+    }
+  ],
+  "details": {
+    "rdk-model-zoo": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 3400,
+        "content_hash": "86564fe7a8545edf97e58e62b4c685004c16f02b9041596d91e5786c2ad2b064",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 3400
+      },
+      "classification": {
+        "tasks": [
+          "ready_model"
+        ],
+        "workflows": [],
+        "platforms": null,
+        "role": "entry",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+        "fingerprint": "2ca0cce663894a74a619ef920d7b36470cf1c7f44a78dcb93c10dd1d9eb897be"
+      },
+      "name": "rdk-model-zoo",
+      "display_name": "rdk-model-zoo",
+      "pack": "RDK Model Zoo Skills",
+      "repo": "D-Robotics/rdk_model_zoo",
+      "catalog_path": "skills/rdk-model-zoo",
+      "install_type": "flat",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "flat",
+        "command": "npx",
+        "args": [
+          "skills",
+          "add",
+          "d-robotics/rdk-skills",
+          "--skill",
+          "rdk-model-zoo"
+        ],
+        "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-model-zoo",
+        "requires_user_request": true,
+        "version_policy": "installer_default_not_catalog_pinned",
+        "verification": {
+          "required": true,
+          "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md",
+          "note": "Check the actual installed source revision and Skill content before use; installer defaults do not guarantee this catalog revision."
+        },
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install."
+      }
+    },
+    "x5-ptq-deploy": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 1668,
+        "content_hash": "84ca96d576ef2320c7505c015d0da9a96dd77b02e4ebd9dbbddbaf340faffb13",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 1668
+      },
+      "classification": {
+        "tasks": [
+          "model_conversion"
+        ],
+        "workflows": [
+          "ptq"
+        ],
+        "platforms": [
+          "x5"
+        ],
+        "role": "workflow",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md",
+        "fingerprint": "aa88095ddef2a22bcedeb79eadbe441066d0ac8fac86391d73e19de504aaec09"
+      },
+      "name": "x5-ptq-deploy",
+      "display_name": "x5-ptq-deploy",
+      "pack": "OE Tool Chain (X5)",
+      "repo": "D-Robotics/oe-skills-x5",
+      "catalog_path": "skills/oe-skills-x5/skills/x5-ptq-deploy",
+      "install_type": "workspace",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "workspace",
+        "handoff_skill": "rdk-pack-installer",
+        "installer": {
+          "command": "npx",
+          "args": [
+            "skills",
+            "add",
+            "d-robotics/rdk-skills",
+            "--skill",
+            "rdk-pack-installer"
+          ],
+          "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-pack-installer"
+        },
+        "pack": {
+          "name": "OE Tool Chain (X5)",
+          "repo": "D-Robotics/oe-skills-x5",
+          "ref": "v1.0.0",
+          "catalog_dir": "oe-skills-x5",
+          "install_script": "setup.sh",
+          "workspace_dir": ".drobotics",
+          "verify_paths": [
+            ".drobotics/X5.md",
+            ".drobotics/VERSION",
+            ".drobotics/skill-index.json",
+            ".drobotics/skills/x5-router/SKILL.md"
+          ]
+        },
+        "requires_project_root": true,
+        "requires_user_request": true,
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either."
+      }
+    },
+    "x5-qat-compile": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-compile/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 1507,
+        "content_hash": "6a7eef4760458558256f4beb34956b71b05a66c5fcee09cae94d3dd918abead8",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 1507
+      },
+      "classification": {
+        "tasks": [
+          "model_conversion",
+          "model_compile"
+        ],
+        "workflows": [
+          "qat"
+        ],
+        "platforms": [
+          "x5"
+        ],
+        "role": "step",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-compile/SKILL.md",
+        "fingerprint": "353a6998137c7564f24a9eef188436aacc7e421940763c5e58fe9de96a2aabfa"
+      },
+      "name": "x5-qat-compile",
+      "display_name": "x5-qat-compile",
+      "pack": "OE Tool Chain (X5)",
+      "repo": "D-Robotics/oe-skills-x5",
+      "catalog_path": "skills/oe-skills-x5/skills/x5-qat-compile",
+      "install_type": "workspace",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-compile/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "workspace",
+        "handoff_skill": "rdk-pack-installer",
+        "installer": {
+          "command": "npx",
+          "args": [
+            "skills",
+            "add",
+            "d-robotics/rdk-skills",
+            "--skill",
+            "rdk-pack-installer"
+          ],
+          "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-pack-installer"
+        },
+        "pack": {
+          "name": "OE Tool Chain (X5)",
+          "repo": "D-Robotics/oe-skills-x5",
+          "ref": "v1.0.0",
+          "catalog_dir": "oe-skills-x5",
+          "install_script": "setup.sh",
+          "workspace_dir": ".drobotics",
+          "verify_paths": [
+            ".drobotics/X5.md",
+            ".drobotics/VERSION",
+            ".drobotics/skill-index.json",
+            ".drobotics/skills/x5-router/SKILL.md"
+          ]
+        },
+        "requires_project_root": true,
+        "requires_user_request": true,
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either."
+      }
+    },
+    "rdk-network-remote": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 3994,
+        "content_hash": "1f5fd0f4efe5b48cf0c2ba950beb24cc201ad7a3f525955232eba62f8ca07c5c",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 3994
+      },
+      "classification": {
+        "tasks": [
+          "network",
+          "diagnostics"
+        ],
+        "workflows": [],
+        "platforms": null,
+        "role": "entry",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md",
+        "fingerprint": "09704b9a1e6009e5e039d37da01d3da7f550749e82b89df8378567f86d9667df"
+      },
+      "name": "rdk-network-remote",
+      "display_name": "rdk-network-remote",
+      "pack": "RDK Device Skills",
+      "repo": "D-Robotics/rdk-device-skills",
+      "catalog_path": "skills/rdk-network-remote",
+      "install_type": "flat",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "flat",
+        "command": "npx",
+        "args": [
+          "skills",
+          "add",
+          "d-robotics/rdk-skills",
+          "--skill",
+          "rdk-network-remote"
+        ],
+        "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-network-remote",
+        "requires_user_request": true,
+        "version_policy": "installer_default_not_catalog_pinned",
+        "verification": {
+          "required": true,
+          "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md",
+          "note": "Check the actual installed source revision and Skill content before use; installer defaults do not guarantee this catalog revision."
+        },
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install."
+      }
+    },
+    "x5-environment-setup": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-setup/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 1165,
+        "content_hash": "17fb1b04efda98b65f5bceb817bdd4dc3fe49e7426a392808e7def47b734818d",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 1165
+      },
+      "classification": {
+        "tasks": [
+          "environment"
+        ],
+        "workflows": [],
+        "platforms": [
+          "x5"
+        ],
+        "role": "workflow",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-setup/SKILL.md",
+        "fingerprint": "d4d031bc5e8bcbe4d8d426c37d82ccb69edbe92b227771fc161b0036da904177"
+      },
+      "name": "x5-environment-setup",
+      "display_name": "x5-environment-setup",
+      "pack": "OE Tool Chain (X5)",
+      "repo": "D-Robotics/oe-skills-x5",
+      "catalog_path": "skills/oe-skills-x5/skills/x5-environment-setup",
+      "install_type": "workspace",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-setup/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "workspace",
+        "handoff_skill": "rdk-pack-installer",
+        "installer": {
+          "command": "npx",
+          "args": [
+            "skills",
+            "add",
+            "d-robotics/rdk-skills",
+            "--skill",
+            "rdk-pack-installer"
+          ],
+          "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-pack-installer"
+        },
+        "pack": {
+          "name": "OE Tool Chain (X5)",
+          "repo": "D-Robotics/oe-skills-x5",
+          "ref": "v1.0.0",
+          "catalog_dir": "oe-skills-x5",
+          "install_script": "setup.sh",
+          "workspace_dir": ".drobotics",
+          "verify_paths": [
+            ".drobotics/X5.md",
+            ".drobotics/VERSION",
+            ".drobotics/skill-index.json",
+            ".drobotics/skills/x5-router/SKILL.md"
+          ]
+        },
+        "requires_project_root": true,
+        "requires_user_request": true,
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either."
+      }
+    },
+    "rdk-camera-setup": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-camera-setup/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 3281,
+        "content_hash": "e33c443e70c52dba8a130f52192ea995f6518a003aa6e98f39dd23ac5c17192d",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 3281
+      },
+      "classification": {
+        "tasks": [
+          "camera"
+        ],
+        "workflows": [],
+        "platforms": null,
+        "role": "entry",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-camera-setup/SKILL.md",
+        "fingerprint": "00413c20ce2d29a75684cc4738683f1649141af2602342732c7e6d7ec29b912a"
+      },
+      "name": "rdk-camera-setup",
+      "display_name": "rdk-camera-setup",
+      "pack": "RDK Device Skills",
+      "repo": "D-Robotics/rdk-device-skills",
+      "catalog_path": "skills/rdk-camera-setup",
+      "install_type": "flat",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-camera-setup/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "flat",
+        "command": "npx",
+        "args": [
+          "skills",
+          "add",
+          "d-robotics/rdk-skills",
+          "--skill",
+          "rdk-camera-setup"
+        ],
+        "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-camera-setup",
+        "requires_user_request": true,
+        "version_policy": "installer_default_not_catalog_pinned",
+        "verification": {
+          "required": true,
+          "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-camera-setup/SKILL.md",
+          "note": "Check the actual installed source revision and Skill content before use; installer defaults do not guarantee this catalog revision."
+        },
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install."
+      }
+    },
+    "x5-router": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 1935,
+        "content_hash": "9380fe7be1dfb083f1d861a8f442902c049758d0bb1039b053546f00f3f87ca1",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 1935
+      },
+      "classification": {
+        "tasks": [
+          "model_conversion"
+        ],
+        "workflows": [],
+        "platforms": [
+          "x5"
+        ],
+        "role": "entry",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md",
+        "fingerprint": "8241560539f5048fe968c6e6bc43391a01e5eedff4854acecff07012ced10f10"
+      },
+      "name": "x5-router",
+      "display_name": "x5-router",
+      "pack": "OE Tool Chain (X5)",
+      "repo": "D-Robotics/oe-skills-x5",
+      "catalog_path": "skills/oe-skills-x5/skills/x5-router",
+      "install_type": "workspace",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "workspace",
+        "handoff_skill": "rdk-pack-installer",
+        "installer": {
+          "command": "npx",
+          "args": [
+            "skills",
+            "add",
+            "d-robotics/rdk-skills",
+            "--skill",
+            "rdk-pack-installer"
+          ],
+          "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-pack-installer"
+        },
+        "pack": {
+          "name": "OE Tool Chain (X5)",
+          "repo": "D-Robotics/oe-skills-x5",
+          "ref": "v1.0.0",
+          "catalog_dir": "oe-skills-x5",
+          "install_script": "setup.sh",
+          "workspace_dir": ".drobotics",
+          "verify_paths": [
+            ".drobotics/X5.md",
+            ".drobotics/VERSION",
+            ".drobotics/skill-index.json",
+            ".drobotics/skills/x5-router/SKILL.md"
+          ]
+        },
+        "requires_project_root": true,
+        "requires_user_request": true,
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either."
+      }
+    },
+    "rdk-llm-deployment": {
+      "metadata_evidence": {
+        "status": "missing",
+        "origin": null,
+        "issues": [
+          "No declared discovery metadata or reviewed overlay."
+        ]
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-llm-deployment/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 14681,
+        "content_hash": "8126deec0ae5c14344e072b23ffccd95b6b0b3fcb132dc342bf5662d5961cd21",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 14681
+      },
+      "classification": null,
+      "name": "rdk-llm-deployment",
+      "display_name": "rdk-llm-deployment",
+      "pack": "RDK Device Skills",
+      "repo": "D-Robotics/rdk-device-skills",
+      "catalog_path": "skills/rdk-llm-deployment",
+      "install_type": "flat",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-llm-deployment/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "flat",
+        "command": "npx",
+        "args": [
+          "skills",
+          "add",
+          "d-robotics/rdk-skills",
+          "--skill",
+          "rdk-llm-deployment"
+        ],
+        "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-llm-deployment",
+        "requires_user_request": true,
+        "version_policy": "installer_default_not_catalog_pinned",
+        "verification": {
+          "required": true,
+          "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-llm-deployment/SKILL.md",
+          "note": "Check the actual installed source revision and Skill content before use; installer defaults do not guarantee this catalog revision."
+        },
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install."
+      }
+    },
+    "rdk-diagnostic": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-diagnostic/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 5835,
+        "content_hash": "257f69133a567926e019d3f02e4351a7996d5ed5cea463df0d97e9dc148ad2ea",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 5835
+      },
+      "classification": {
+        "tasks": [
+          "diagnostics"
+        ],
+        "workflows": [],
+        "platforms": null,
+        "role": "workflow",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-diagnostic/SKILL.md",
+        "fingerprint": "13d987fc054a08edd20262fc2e02599fb0ef5901f6a8d7aaa1cf29044cf38ce2"
+      },
+      "name": "rdk-diagnostic",
+      "display_name": "rdk-diagnostic",
+      "pack": "RDK Device Skills",
+      "repo": "D-Robotics/rdk-device-skills",
+      "catalog_path": "skills/rdk-diagnostic",
+      "install_type": "flat",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-diagnostic/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "flat",
+        "command": "npx",
+        "args": [
+          "skills",
+          "add",
+          "d-robotics/rdk-skills",
+          "--skill",
+          "rdk-diagnostic"
+        ],
+        "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-diagnostic",
+        "requires_user_request": true,
+        "version_policy": "installer_default_not_catalog_pinned",
+        "verification": {
+          "required": true,
+          "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-diagnostic/SKILL.md",
+          "note": "Check the actual installed source revision and Skill content before use; installer defaults do not guarantee this catalog revision."
+        },
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install."
+      }
+    },
+    "__SKILL_j6-plugin-__set-fake-quantize": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 2184,
+        "content_hash": "e28e8482b6304768f452c244c5d8276f03e817fa9569507f089d4ea51c905a9f",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 2184
+      },
+      "classification": {
+        "tasks": [
+          "model_conversion"
+        ],
+        "workflows": [
+          "qat"
+        ],
+        "platforms": [
+          "s100",
+          "s100p",
+          "s600"
+        ],
+        "role": "step",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md",
+        "fingerprint": "a2fa6eb66a5ec54860b0abb095b9b208dc3637c9c17a3323a7643dcb99086c9e"
+      },
+      "name": "__SKILL_j6-plugin-__set-fake-quantize",
+      "display_name": "j6-plugin-set-fake-quantize",
+      "pack": "OE Tool Chain (S)",
+      "repo": "D-Robotics/oe-skills-s",
+      "catalog_path": "skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize",
+      "install_type": "workspace",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "workspace",
+        "handoff_skill": "rdk-pack-installer",
+        "installer": {
+          "command": "npx",
+          "args": [
+            "skills",
+            "add",
+            "d-robotics/rdk-skills",
+            "--skill",
+            "rdk-pack-installer"
+          ],
+          "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-pack-installer"
+        },
+        "pack": {
+          "name": "OE Tool Chain (S)",
+          "repo": "D-Robotics/oe-skills-s",
+          "ref": "v1.0.0",
+          "catalog_dir": "oe-skills-s",
+          "install_script": "setup.sh",
+          "workspace_dir": ".horizon",
+          "verify_paths": [
+            ".horizon/HORIZON.md",
+            ".horizon/VERSION",
+            ".horizon/skill-index.json",
+            ".horizon/skills/horizon-router/SKILL.md"
+          ]
+        },
+        "requires_project_root": true,
+        "requires_user_request": true,
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either."
+      }
+    },
+    "__SKILL_j6-plugin-__adaptation": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 5708,
+        "content_hash": "a6f3b956c43c933f6e7d43f8e04ecbaa728d07aca9e22d3cbc703559ac433fae",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 5708
+      },
+      "classification": {
+        "tasks": [
+          "model_conversion"
+        ],
+        "workflows": [
+          "qat"
+        ],
+        "platforms": [
+          "s100",
+          "s100p",
+          "s600"
+        ],
+        "role": "workflow",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/SKILL.md",
+        "fingerprint": "e0019e63a20dcb8f5c3b2eea6c2507e2dc8b13506c65c3aa42abdb586c3e7e9f"
+      },
+      "name": "__SKILL_j6-plugin-__adaptation",
+      "display_name": "j6-plugin-adaptation",
+      "pack": "OE Tool Chain (S)",
+      "repo": "D-Robotics/oe-skills-s",
+      "catalog_path": "skills/oe-skills-s/skills/plugin/j6-plugin-adaptation",
+      "install_type": "workspace",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "workspace",
+        "handoff_skill": "rdk-pack-installer",
+        "installer": {
+          "command": "npx",
+          "args": [
+            "skills",
+            "add",
+            "d-robotics/rdk-skills",
+            "--skill",
+            "rdk-pack-installer"
+          ],
+          "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-pack-installer"
+        },
+        "pack": {
+          "name": "OE Tool Chain (S)",
+          "repo": "D-Robotics/oe-skills-s",
+          "ref": "v1.0.0",
+          "catalog_dir": "oe-skills-s",
+          "install_script": "setup.sh",
+          "workspace_dir": ".horizon",
+          "verify_paths": [
+            ".horizon/HORIZON.md",
+            ".horizon/VERSION",
+            ".horizon/skill-index.json",
+            ".horizon/skills/horizon-router/SKILL.md"
+          ]
+        },
+        "requires_project_root": true,
+        "requires_user_request": true,
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "This skill is part of a workspace-integrated pack: installing it means installing the whole pack through the rdk-pack-installer handoff (project root required), never copying this single skill into a global skills dir. catalog_revision (08d0a466413f11bbc045ba5e51f626bdb0346373) is the hub catalog snapshot; pack ref (v1.0.0) is the pinned upstream release the installer compares against — they are different things, and a plain 'npx skills add' is not pinned to either."
+      }
+    },
+    "rdk-model-zoo-repo": {
+      "metadata_evidence": {
+        "status": "classified",
+        "origin": "reviewed_overlay",
+        "issues": []
+      },
+      "content": {
+        "status": "available",
+        "source_url": "https://raw.githubusercontent.com/D-Robotics/rdk-skills/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+        "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+        "offset": 0,
+        "next_offset": null,
+        "total_chars": 2112,
+        "content_hash": "6d86505d9a17abaf14dcbd1d78c444c63892e05f65210e984026475a1657f27f",
+        "truncated": false,
+        "evidence_note": "Revision-bound source content, not proof of suitability or permission to execute. Referenced files are not fetched automatically.",
+        "retrieved_chars": 2112
+      },
+      "classification": {
+        "tasks": [
+          "model_maintenance"
+        ],
+        "workflows": [],
+        "platforms": null,
+        "role": "entry",
+        "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+        "fingerprint": "9041cbe35525d5e3b689482fc689e2e80a5034e6d64291cfac747d478a59dfcf"
+      },
+      "name": "rdk-model-zoo-repo",
+      "display_name": "rdk-model-zoo-repo",
+      "pack": "RDK Model Zoo Skills",
+      "repo": "D-Robotics/rdk_model_zoo",
+      "catalog_path": "skills/rdk-model-zoo-repo",
+      "install_type": "flat",
+      "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+      "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+      "fetched_at": "2026-09-22T14:11:11.270Z",
+      "warnings": [],
+      "installation": {
+        "type": "flat",
+        "command": "npx",
+        "args": [
+          "skills",
+          "add",
+          "d-robotics/rdk-skills",
+          "--skill",
+          "rdk-model-zoo-repo"
+        ],
+        "display_command": "npx skills add d-robotics/rdk-skills --skill rdk-model-zoo-repo",
+        "requires_user_request": true,
+        "version_policy": "installer_default_not_catalog_pinned",
+        "verification": {
+          "required": true,
+          "catalog_revision": "08d0a466413f11bbc045ba5e51f626bdb0346373",
+          "source_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md",
+          "note": "Check the actual installed source revision and Skill content before use; installer defaults do not guarantee this catalog revision."
+        },
+        "docs_url": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/docs/SKILL-USAGE.md",
+        "note": "Installs the skill's whole directory (SKILL.md plus references/scripts) from the D-Robotics/rdk-skills hub, not a single SKILL.md. The installer picks the actual version; it is not pinned to the catalog revision shown here. Run it only when the user explicitly asked to install."
+      }
+    }
+  },
+  "acceptance": {
+    "pass": 3,
+    "conditional": 9,
+    "fail": 0,
+    "default_transport": "network-blocked HTTP403",
+    "hardware_verified": false,
+    "full_final_answer_accuracy_verified": false
+  },
+  "unit_tests": {
+    "files": 26,
+    "passed": 354
+  },
+  "docs_live_checks": {
+    "passed": 57,
+    "final_answers_evaluated": false
+  },
+  "targeted_docs": {
+    "queries": [
+      {
+        "input": {
+          "query": "X3 摄像头"
+        },
+        "result": {
+          "hits": [
+            {
+              "title": "摄像头图像本地保存 (RDK X3)",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo",
+              "manual": "rdk-x",
+              "snippet": "使用参考",
+              "score": 62,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "8.1 硬件、系统与环境配置",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system",
+              "manual": "rdk-x",
+              "snippet": "8.1 硬件、系统与环境配置",
+              "score": 56,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "RDK 双目摄像头手册",
+              "url": "https://developer.d-robotics.cc/accessories_stereo_camera_doc/overview",
+              "manual": "stereo-camera",
+              "snippet": "本文档面向 D-Robotics RDK 开发者套件配套的双目摄像头模组，提供选型、安装、点亮与二次开发指引。\n本文档面向 D-Robotics RDK 开发者套件配套的双目摄像头模组，提供选型、安装、点亮与二次开发指引。",
+              "score": 42,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "使用 MIPI 摄像头",
+              "url": "https://developer.d-robotics.cc/tros_doc/boxs/body/hand_gesture_detection",
+              "manual": "tros",
+              "snippet": "手势识别",
+              "score": 36,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "使用摄像头发布图片",
+              "url": "https://developer.d-robotics.cc/tros_doc/boxs/classification/mobilenetv2",
+              "manual": "tros",
+              "snippet": "mobilenetv2",
+              "score": 36,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "使用摄像头发布图片",
+              "url": "https://developer.d-robotics.cc/tros_doc/boxs/detection/efficientnet",
+              "manual": "tros",
+              "snippet": "EfficientNet_Det",
+              "score": 36,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "使用摄像头发布图片",
+              "url": "https://developer.d-robotics.cc/tros_doc/boxs/detection/fcos",
+              "manual": "tros",
+              "snippet": "FCOS",
+              "score": 36,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "使用摄像头发布图片",
+              "url": "https://developer.d-robotics.cc/tros_doc/boxs/detection/mobilenet",
+              "manual": "tros",
+              "snippet": "MobileNet_SSD",
+              "score": 36,
+              "source": "docs",
+              "role": "related"
+            }
+          ],
+          "warnings": [],
+          "guidance": "Prefer official docs hits. Open the first docs URL with get_page. forum-supplement is unofficial."
+        }
+      },
+      {
+        "input": {
+          "query": "摄像头",
+          "manual": "x3"
+        },
+        "result": {
+          "hits": [
+            {
+              "title": "摄像头图像本地保存 (RDK X3)",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo",
+              "manual": "rdk-x",
+              "snippet": "使用参考",
+              "score": 48,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "Q6: F37 和 GC4663 MIPI 摄像头如何连接到 RDK X3? 连接后如何验证？",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system",
+              "manual": "rdk-x",
+              "snippet": "8.1 硬件、系统与环境配置",
+              "score": 42,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "1.8 配件清单",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/accessory",
+              "manual": "rdk-x",
+              "snippet": "1.8 配件清单",
+              "score": 34,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "Q3: 如何运行 GC4633 MIPI 摄像头的示例程序？",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/FAQ/applications_and_examples",
+              "manual": "rdk-x",
+              "snippet": "8.3 应用开发、编译与示例",
+              "score": 34,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "Q8: 启动 USB 或 MIPI 摄像头节点后，终端提示“标定数据不存在”（例如 [usb_camera_calibration.yaml] does not exist!），这是正常的吗？",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/FAQ/tros_ros",
+              "manual": "rdk-x",
+              "snippet": "8.6 TROS/ROS 开发",
+              "score": 34,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "RDK X 系列历史发布",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Release_Note/release_note",
+              "manual": "rdk-x",
+              "snippet": "= 3.5.0\" products=\"RDK-X5\">\nRDK X5​ 注意事项： 更新系统后，请使用 rdk-miniboot-update 命令更新 NAND 固件至最新版本。 官方会定期发布新版镜像，这些镜像包含了最新的功能优化和问题修复。用户既可以通过下载最新镜像进行安装，也可以直接通过在线升级方式获取系统更新。 版本号：3.5.0​ 版本信息​ 系",
+              "score": 12,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "hardware",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x3/hardware",
+              "manual": "rdk-x",
+              "snippet": "hardware",
+              "score": 8,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "camera",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x3_module/camera",
+              "manual": "rdk-x",
+              "snippet": "camera",
+              "score": 8,
+              "source": "docs",
+              "role": "related"
+            }
+          ],
+          "warnings": [],
+          "guidance": "Prefer official docs hits. Open the first docs URL with get_page. forum-supplement is unofficial."
+        }
+      },
+      {
+        "input": {
+          "query": "X3 案例"
+        },
+        "result": {
+          "hits": [
+            {
+              "title": "7.4.1. 旭日 X3 概述",
+              "url": "https://developer.d-robotics.cc/oe_x3_doc/cn/oe_mapper/source/appendix/xj3_introduction/x3_introduction.html",
+              "manual": "oe-x3",
+              "snippet": "x3_introduction.html",
+              "score": 34,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "rdk_x3",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+              "manual": "rdk-x",
+              "snippet": "rdk_x3",
+              "score": 30,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "X3 算法工具链",
+              "url": "https://developer.d-robotics.cc/oe_x3_doc/cn/",
+              "manual": "oe-x3",
+              "snippet": "cn",
+              "score": 30,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "7.4. X3 处理器介绍",
+              "url": "https://developer.d-robotics.cc/oe_x3_doc/cn/oe_mapper/source/appendix/xj3_introduction.html",
+              "manual": "oe-x3",
+              "snippet": "xj3_introduction.html",
+              "score": 30,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "7.2.6 应用实时内核",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/linux_development/realtime_kernel",
+              "manual": "rdk-x",
+              "snippet": "7.2.6 应用实时内核",
+              "score": 28,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "1.7 下载资源汇总",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/download",
+              "manual": "rdk-x",
+              "snippet": "1.7 下载资源汇总",
+              "score": 28,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "D-Robotics RDK 套件",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/RDK",
+              "manual": "rdk-x",
+              "snippet": "D-Robotics RDK 套件",
+              "score": 28,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "2.4 Thermal 和 CPU 频率管理",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/System_configuration/frequency_management",
+              "manual": "rdk-x",
+              "snippet": "2.4 Thermal 和 CPU 频率管理",
+              "score": 28,
+              "source": "docs",
+              "role": "related"
+            }
+          ],
+          "warnings": [],
+          "guidance": "Prefer official docs hits. Open the first docs URL with get_page. forum-supplement is unofficial."
+        }
+      },
+      {
+        "input": {
+          "query": "X3 GPIO"
+        },
+        "result": {
+          "hits": [
+            {
+              "title": "8.1 硬件、系统与环境配置",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system",
+              "manual": "rdk-x",
+              "snippet": "8.1 硬件、系统与环境配置",
+              "score": 46,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "7.4.1. 旭日 X3 概述",
+              "url": "https://developer.d-robotics.cc/oe_x3_doc/cn/oe_mapper/source/appendix/xj3_introduction/x3_introduction.html",
+              "manual": "oe-x3",
+              "snippet": "x3_introduction.html",
+              "score": 32,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "GPIO 应用",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/gpio",
+              "manual": "rdk-x",
+              "snippet": "导入 GPIO Python 库",
+              "score": 31,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "rdk_x3",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+              "manual": "rdk-x",
+              "snippet": "rdk_x3",
+              "score": 28,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "X3 算法工具链",
+              "url": "https://developer.d-robotics.cc/oe_x3_doc/cn/",
+              "manual": "oe-x3",
+              "snippet": "cn",
+              "score": 28,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "7.4. X3 处理器介绍",
+              "url": "https://developer.d-robotics.cc/oe_x3_doc/cn/oe_mapper/source/appendix/xj3_introduction.html",
+              "manual": "oe-x3",
+              "snippet": "xj3_introduction.html",
+              "score": 28,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "7.2.6 应用实时内核",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/linux_development/realtime_kernel",
+              "manual": "rdk-x",
+              "snippet": "7.2.6 应用实时内核",
+              "score": 26,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "1.7 下载资源汇总",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/download",
+              "manual": "rdk-x",
+              "snippet": "1.7 下载资源汇总",
+              "score": 26,
+              "source": "docs",
+              "role": "related"
+            }
+          ],
+          "warnings": [],
+          "guidance": "Prefer official docs hits. Open the first docs URL with get_page. forum-supplement is unofficial."
+        }
+      },
+      {
+        "input": {
+          "query": "X5 摄像头"
+        },
+        "result": {
+          "hits": [
+            {
+              "title": "使用参考",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo",
+              "manual": "rdk-x",
+              "snippet": "使用参考",
+              "score": 62,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "MIPI 摄像头使用",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/vision/RDK_X5/mipi_camera",
+              "manual": "rdk-x",
+              "snippet": "MIPI 摄像头的使用，可以直接参考 python 示例中的 “MIPI 摄像头实时检测” 示例\nMIPI 摄像头的使用，可以直接参考 python 示例中的 “MIPI 摄像头实时检测” 示例",
+              "score": 57,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "USB 摄像头使用",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/vision/RDK_X5/usb_camera",
+              "manual": "rdk-x",
+              "snippet": "USB 摄像头的使用，可以直接参考 python 示例中的 “USB 摄像头实时检测” 示例\nUSB 摄像头的使用，可以直接参考 python 示例中的 “USB 摄像头实时检测” 示例",
+              "score": 57,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "1.1.2 硬件简介",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5",
+              "manual": "rdk-x",
+              "snippet": "1.1.2 硬件简介",
+              "score": 52,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "MIPI 摄像头实时检测",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/pydev_demo_sample/RDK_X5/mipi_camera_sample",
+              "manual": "rdk-x",
+              "snippet": "示例简介",
+              "score": 51,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "USB 摄像头实时检测",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/pydev_demo_sample/RDK_X5/usb_camera_sample",
+              "manual": "rdk-x",
+              "snippet": "示例简介",
+              "score": 51,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "web 显示摄像头",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/pydev_demo_sample/RDK_X5/web_display_camera_sample",
+              "manual": "rdk-x",
+              "snippet": "示例简介",
+              "score": 51,
+              "source": "docs",
+              "role": "related"
+            },
+            {
+              "title": "配件清单",
+              "url": "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/accessory",
+              "manual": "rdk-x",
+              "snippet": "配件清单",
+              "score": 46,
+              "source": "docs",
+              "role": "related"
+            }
+          ],
+          "warnings": [],
+          "guidance": "Prefer official docs hits. Open the first docs URL with get_page. forum-supplement is unofficial."
+        }
+      }
+    ],
+    "sharedEvidence": [
+      {
+        "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo",
+        "matched_heading": "摄像头图像本地保存 (RDK X3)",
+        "content_hash": "dc4816a47bbcadfb622dee7080ab6faeb6ab9de3e9659ceade86b1cddb22710a",
+        "sections": [
+          "## 摄像头图像本地保存 (RDK X3)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E6%9C%AC%E5%9C%B0%E4%BF%9D%E5%AD%98-rdk-x3)",
+          "## 摄像头图像本地保存 (RDK X5)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E6%9C%AC%E5%9C%B0%E4%BF%9D%E5%AD%98-rdk-x5)",
+          "## 摄像头图像本地保存 (RDK Ultra)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E6%9C%AC%E5%9C%B0%E4%BF%9D%E5%AD%98-rdk-ultra)",
+          "## 摄像头图像采集并编码 (RDK X5)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E9%87%87%E9%9B%86%E5%B9%B6%E7%BC%96%E7%A0%81-rdk-x5)"
+        ]
+      },
+      {
+        "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo",
+        "matched_heading": "摄像头图像本地保存 (RDK X3)",
+        "content_hash": "dc4816a47bbcadfb622dee7080ab6faeb6ab9de3e9659ceade86b1cddb22710a",
+        "sections": [
+          "## 摄像头图像本地保存 (RDK X3)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E6%9C%AC%E5%9C%B0%E4%BF%9D%E5%AD%98-rdk-x3)",
+          "## 摄像头图像本地保存 (RDK X5)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E6%9C%AC%E5%9C%B0%E4%BF%9D%E5%AD%98-rdk-x5)",
+          "## 摄像头图像本地保存 (RDK Ultra)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E6%9C%AC%E5%9C%B0%E4%BF%9D%E5%AD%98-rdk-ultra)",
+          "## 摄像头图像采集并编码 (RDK X5)[](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/cdev_demo#%E6%91%84%E5%83%8F%E5%A4%B4%E5%9B%BE%E5%83%8F%E9%87%87%E9%9B%86%E5%B9%B6%E7%BC%96%E7%A0%81-rdk-x5)"
+        ]
+      }
+    ],
+    "page": {
+      "title": "管脚定义与应用",
+      "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define",
+      "content_source": "html",
+      "evidence_notes": [
+        "Images are preserved as links; their visual content is not extracted or verified.",
+        "Content is truncated to this window; continue with next_offset and expected_content_hash."
+      ],
+      "offset": 0,
+      "next_offset": 1000,
+      "total_chars": 3949,
+      "content_hash": "6e68304a940994bb2e5d64e0c08f98b38e35323aaacd9ea95229c2e9cde453bc",
+      "truncated": true,
+      "returned_chars": 1000
+    },
+    "continuation": {
+      "title": "管脚定义与应用",
+      "url": "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define",
+      "content_source": "html",
+      "evidence_notes": [
+        "Images are preserved as links; their visual content is not extracted or verified.",
+        "Content is truncated to this window; continue with next_offset and expected_content_hash."
+      ],
+      "offset": 1000,
+      "next_offset": 2000,
+      "total_chars": 3949,
+      "content_hash": "6e68304a940994bb2e5d64e0c08f98b38e35323aaacd9ea95229c2e9cde453bc",
+      "truncated": true,
+      "returned_chars": 1000
+    }
+  },
+  "package_verification": {
+    "package": "rdk-docs-mcp-0.2.0.tgz",
+    "version": "0.2.0",
+    "display_name": "RDK Assistant MCP",
+    "tools": [
+      "get_status",
+      "list_manuals",
+      "search_docs",
+      "get_page",
+      "list_toc",
+      "search_skills",
+      "get_skill"
+    ],
+    "doctor_preserved_user_skill": true,
+    "bundled_guide_matches": true,
+    "unknown_arguments_rejected": true,
+    "sandbox": "/var/folders/04/9p6f6bf54t3f5j_khcdj2jr40000gn/T/rdk-package-verification-BXi7e5"
+  }
+}

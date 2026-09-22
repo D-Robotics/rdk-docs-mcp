@@ -207,6 +207,12 @@ describe("get_skill service", () => {
       display_command: "npx skills add d-robotics/rdk-skills --skill rdk-gpio-40pin",
       requires_user_request: true,
       version_policy: "installer_default_not_catalog_pinned",
+      verification: {
+        required: true,
+        catalog_revision: SHA,
+        source_url: `https://github.com/D-Robotics/rdk-skills/blob/${SHA}/skills/rdk-gpio-40pin/SKILL.md`,
+        note: expect.stringContaining("actual installed source"),
+      },
       docs_url: `https://github.com/D-Robotics/rdk-skills/blob/${SHA}/docs/SKILL-USAGE.md`,
       note: expect.stringContaining("whole directory"),
     });
@@ -300,4 +306,20 @@ describe("shellQuote", () => {
     );
     expect(shellQuote(["a b", "it's", ""])).toBe("'a b' 'it'\\''s' ''");
   });
+});
+it('structured search exposes upstream evidence and health with role filtering', async () => {
+ const records=[{...SKILLS[0],discovery:{schema_version:1,tasks:['network'],workflows:[],platforms:null,role:'step'}}];
+ const r=await searchSkills({query:'!!!',task:'network',role:'step'},depsWith(snapshotWith(records)));
+ expect(r.guidance_kind).toBe('category_only');
+ expect(r.metadata_health).toEqual({total:1,classified:1,missing:0,stale:0,invalid:0,unknown_platform:1});
+ expect(r.matches[0].metadata_evidence).toMatchObject({status:'classified',origin:'catalog'});
+ expect(r.matches[0].classification?.tasks).toEqual(['network']);
+ await expect(searchSkills({query:'network',role:'step'},deps)).rejects.toThrow('task is required');
+});
+it('legacy search retains candidates and exposes missing evidence honestly', async () => {
+ const record={...SKILLS[0],name:'new-gpio-helper'};
+ const r=await searchSkills({query:'GPIO'},depsWith(snapshotWith([record])));
+ expect(r.matches[0].name).toBe(record.name);
+ expect(r.matches[0].metadata_evidence).toMatchObject({status:'missing',origin:null});
+ expect(r.metadata_health.missing).toBe(1);
 });

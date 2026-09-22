@@ -1,10 +1,38 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseToml } from "smol-toml";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ensureCodexMcpServer, installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
+
+const atomicFailure = vi.hoisted(() => ({
+  renameTarget: undefined as string | undefined,
+  inspectTarget: undefined as string | undefined,
+  sourceMode: undefined as number | undefined,
+}));
+
+const itPosix = process.platform === "win32" ? it.skip : it;
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    renameSync(source: string, destination: string) {
+      if (destination === atomicFailure.inspectTarget) {
+        atomicFailure.sourceMode = actual.statSync(source).mode & 0o777;
+      }
+      if (destination === atomicFailure.renameTarget) throw new Error("simulated replacement failure");
+      return actual.renameSync(source, destination);
+    },
+  };
+});
+
+afterEach(() => {
+  atomicFailure.renameTarget = undefined;
+  atomicFailure.inspectTarget = undefined;
+  atomicFailure.sourceMode = undefined;
+});
 
 const skillBody = `---
 name: rdk-docs
@@ -41,6 +69,120 @@ describe("installRdkDocs", () => {
     expect(config.mcp.servers.other.command).toBe("keep-me");
     expect(config.mcp.servers["rdk-docs"]).toEqual({ type: "stdio", ...MCP_SERVER });
     expect(readFileSync(join(root, ".zcode", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
+  });
+
+  it("preserves a usable custom Cursor server entry byte-for-byte", () => {
+    const root = home();
+    const configPath = join(root, ".cursor", "mcp.json");
+    mkdirSync(dirname(configPath), { recursive: true });
+    const original = `${JSON.stringify(
+      {
+        mcpServers: {
+          "rdk-docs": {
+            command: "/opt/custom/npx",
+            args: ["rdk-docs-mcp@0.1.12"],
+            env: { RDK_DOCS_CACHE_TTL_MS: "0" },
+            disabled: true,
+          },
+          other: { command: "keep" },
+        },
+      },
+      null,
+      4,
+    )}\n`;
+    writeFileSync(configPath, original);
+
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+
+    expect(readFileSync(configPath, "utf8")).toBe(original);
+    expect(result.warnings.join("\n")).toMatch(/preserved.*custom.*rdk-docs/i);
+  });
+
+  it("preserves a usable custom ZCode server entry byte-for-byte", () => {
+    const root = home();
+    const configPath = join(root, ".zcode", "cli", "config.json");
+    mkdirSync(dirname(configPath), { recursive: true });
+    const original = `${JSON.stringify(
+      {
+        mcp: {
+          servers: {
+            "rdk-docs": {
+              type: "stdio",
+              command: "/opt/custom/npx",
+              args: ["rdk-docs-mcp@0.1.12"],
+              env: { RDK_DOCS_CACHE_TTL_MS: "0" },
+              disabled: true,
+            },
+            other: { command: "keep" },
+          },
+        },
+      },
+      null,
+      4,
+    )}\n`;
+    writeFileSync(configPath, original);
+
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+
+    expect(readFileSync(configPath, "utf8")).toBe(original);
+    expect(result.warnings.join("\n")).toMatch(/preserved.*custom.*rdk-docs/i);
+  });
+
+  it.each([
+    {
+      client: "Cursor mcpServers",
+      directory: ".cursor",
+      relativePath: "mcp.json",
+      original: '{"mcpServers":[]}\n',
+      expected: /mcpServers.*object/i,
+    },
+    {
+      client: "ZCode mcp",
+      directory: ".zcode",
+      relativePath: join("cli", "config.json"),
+      original: '{"mcp":[]}\n',
+      expected: /mcp.*object/i,
+    },
+    {
+      client: "ZCode servers",
+      directory: ".zcode",
+      relativePath: join("cli", "config.json"),
+      original: '{"mcp":{"servers":[]}}\n',
+      expected: /servers.*object/i,
+    },
+  ])("refuses a malformed $client container without changing bytes", ({ directory, relativePath, original, expected }) => {
+    const root = home();
+    const configPath = join(root, directory, relativePath);
+    mkdirSync(dirname(configPath), { recursive: true });
+    writeFileSync(configPath, original);
+
+    expect(() => installRdkDocs({ home: root, skillSource: skillBody })).toThrow(expected);
+    expect(readFileSync(configPath, "utf8")).toBe(original);
+  });
+
+  it.each([
+    {
+      client: "Cursor numeric command",
+      directory: ".cursor",
+      relativePath: "mcp.json",
+      original: '{"mcpServers":{"rdk-docs":{"command":42}}}\n',
+      expected: /rdk-docs.*command.*string/i,
+    },
+    {
+      client: "ZCode non-array args",
+      directory: ".zcode",
+      relativePath: join("cli", "config.json"),
+      original: '{"mcp":{"servers":{"rdk-docs":{"type":"stdio","command":"npx","args":42}}}}\n',
+      expected: /rdk-docs.*args.*array.*strings/i,
+    },
+  ])("refuses malformed launch fields for $client without changing bytes", ({ directory, relativePath, original, expected }) => {
+    const root = home();
+    const configPath = join(root, directory, relativePath);
+    mkdirSync(dirname(configPath), { recursive: true });
+    writeFileSync(configPath, original);
+
+    expect(() => installRdkDocs({ home: root, skillSource: skillBody })).toThrow(expected);
+    expect(readFileSync(configPath, "utf8")).toBe(original);
   });
 
   it("mounts DeepSeek Harness via cordis.patch.yml and user skills", () => {
@@ -94,6 +236,71 @@ describe("refreshInstalledSkills", () => {
     writeFileSync(join(root, ".cursor", "skills", "rdk-docs", "SKILL.md"), "# stale\n");
     refreshInstalledSkills({ home: root, skillSource: "# fresh\n" });
     expect(existsSync(join(root, ".cursor", "mcp.json"))).toBe(false);
+  });
+
+  it("preserves the original Skill when atomic replacement fails", () => {
+    const root = home();
+    const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# original\n");
+    atomicFailure.renameTarget = skillPath;
+
+    expect(() => refreshInstalledSkills({ home: root, skillSource: "# replacement\n" })).toThrow(
+      /simulated replacement failure/,
+    );
+    expect(readFileSync(skillPath, "utf8")).toBe("# original\n");
+  });
+});
+
+describe("atomic installer files", () => {
+  itPosix("preserves restrictive permissions when replacing an existing config", () => {
+    const root = home();
+    const configPath = join(root, ".cursor", "mcp.json");
+    mkdirSync(dirname(configPath), { recursive: true });
+    writeFileSync(configPath, '{"mcpServers":{}}\n');
+    chmodSync(configPath, 0o600);
+    atomicFailure.inspectTarget = configPath;
+
+    installRdkDocs({ home: root, skillSource: skillBody });
+
+    expect(atomicFailure.sourceMode).toBe(0o600);
+    expect(statSync(configPath).mode & 0o777).toBe(0o600);
+  });
+
+  itPosix("creates new installer-managed files with restrictive permissions", () => {
+    const root = home();
+    const configPath = join(root, ".cursor", "mcp.json");
+    mkdirSync(dirname(configPath), { recursive: true });
+    atomicFailure.inspectTarget = configPath;
+
+    installRdkDocs({ home: root, skillSource: skillBody });
+
+    expect(atomicFailure.sourceMode).toBe(0o600);
+    expect(statSync(configPath).mode & 0o777).toBe(0o600);
+  });
+
+  it("preserves the original JSON config when atomic replacement fails", () => {
+    const root = home();
+    const configPath = join(root, ".cursor", "mcp.json");
+    mkdirSync(dirname(configPath), { recursive: true });
+    const original = '{"mcpServers":{"keep":{"command":"keep"}}}\n';
+    writeFileSync(configPath, original);
+    atomicFailure.renameTarget = configPath;
+
+    expect(() => installRdkDocs({ home: root, skillSource: skillBody })).toThrow(/simulated replacement failure/);
+    expect(readFileSync(configPath, "utf8")).toBe(original);
+  });
+
+  it("preserves the original DSH patch when atomic replacement fails", () => {
+    const root = home();
+    const patchPath = join(root, ".dsh", "cordis.patch.yml");
+    mkdirSync(dirname(patchPath), { recursive: true });
+    const original = "# original patch\n";
+    writeFileSync(patchPath, original);
+    atomicFailure.renameTarget = patchPath;
+
+    expect(() => installRdkDocs({ home: root, skillSource: skillBody })).toThrow(/simulated replacement failure/);
+    expect(readFileSync(patchPath, "utf8")).toBe(original);
   });
 });
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "rdk-docs",
-  "description": "Search and read D-Robotics RDK manuals and the official community forum.",
-  "version": "0.1.12",
+  "description": "RDK Assistant MCP: search official RDK documentation, discover Skills and inspect their source and installation guidance.",
+  "version": "0.2.0",
   "author": {
     "name": "D-Robotics"
   },

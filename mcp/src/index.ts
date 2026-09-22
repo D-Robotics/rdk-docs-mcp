@@ -2,8 +2,16 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { formatInstallReport, installRdkDocs, refreshInstalledSkillsOnStart } from "./install.js";
 import { createServer } from "./server.js";
+import { getStatus } from "./status.js";
 
 async function main() {
+  if (process.argv.includes("--doctor")) {
+    const status = await getStatus({check_catalog: process.argv.includes("--check-catalog")});
+    process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
+    process.exitCode = status.catalog.status === "unavailable" ? 1 : 0;
+    return;
+  }
+
   if (process.argv.includes("--install")) {
     const result = installRdkDocs();
     process.stdout.write(`${formatInstallReport(result)}\n`);
