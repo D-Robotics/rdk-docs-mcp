@@ -1,4 +1,6 @@
-import { searchStructured, classificationFor, type Task } from "./skill-structured.js";
+import { readSkillContent, type SkillContentInput } from "./skill-content.js";
+import { metadataHealth, resolveMetadata, type MetadataHealth, type MetadataEvidence } from "./skill-metadata.js";
+import { searchStructured, classificationFor, type Task, type Role } from "./skill-structured.js";
 import {
   HUB_REPO,
   PACK_INSTALLER_SKILL,
@@ -24,6 +26,7 @@ import { searchSkillRecords } from "./skill-search.js";
 export type SkillSearchInput = {
   query: string;
   task?: Task;
+  role?: Role;
   exclude_platforms?: string[];
   workflow?: "ptq" | "qat" | "undecided" | null;
   pack?: string;
@@ -33,6 +36,7 @@ export type SkillSearchInput = {
 };
 
 export type SkillMatchView = {
+  metadata_evidence: MetadataEvidence;
   classification: ReturnType<typeof classificationFor> | null;
   name: string;
   display_name: string;
@@ -50,6 +54,7 @@ export type SkillMatchView = {
 };
 
 export type SearchSkillsOutput = {
+  metadata_health: MetadataHealth;
   matches: SkillMatchView[];
   catalog_revision: string;
   fetched_at: string;
@@ -66,6 +71,7 @@ export type FlatInstallation = {
   display_command: string;
   requires_user_request: true;
   version_policy: "installer_default_not_catalog_pinned";
+  verification: { required: true; catalog_revision: string; source_url: string; note: string };
   docs_url: string;
   note: string;
 };
@@ -91,7 +97,11 @@ export type WorkspaceInstallation = {
 
 export type Installation = FlatInstallation | WorkspaceInstallation;
 
+export type GetSkillInput = { name: string; include_content?: boolean } & SkillContentInput;
+
 export type GetSkillOutput = {
+  metadata_evidence: MetadataEvidence;
+  content?: Awaited<ReturnType<typeof readSkillContent>>;
   classification: ReturnType<typeof classificationFor> | null;
   name: string;
   display_name: string;
@@ -108,6 +118,7 @@ export type GetSkillOutput = {
 };
 
 export type SkillServiceDeps = {
+  fetchContent?: (url: string) => Promise<string>;
   loadCatalog?: () => Promise<CatalogResult>;
 };
 
@@ -188,8 +199,8 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
 
   const catalog = await loadCatalog(deps);
   const { snapshot, warnings } = catalog;
-  if (!input.task && (input.exclude_platforms !== undefined || input.workflow !== undefined)) throw new SkillError("invalid_input", "task is required with structured workflow/exclusions");
-  const outcome = input.task ? searchStructured(snapshot.skills, query, {task:input.task, platform, exclude_platforms:input.exclude_platforms, workflow:input.workflow, pack, installType, limit}) : searchSkillRecords(
+  if (!input.task && (input.exclude_platforms !== undefined || input.workflow !== undefined || input.role !== undefined)) throw new SkillError("invalid_input", "task is required with structured workflow/exclusions/role");
+  const outcome = input.task ? searchStructured(snapshot.skills, query, {task:input.task, role:input.role, platform, exclude_platforms:input.exclude_platforms, workflow:input.workflow, pack, installType, limit}) : searchSkillRecords(
     snapshot.skills,
     query,
     { pack, platform, installType, limit },
@@ -197,21 +208,26 @@ export async function searchSkills(input: SkillSearchInput, deps?: SkillServiceD
   );
 
   return {
-    matches: outcome.matches.map((match) => ({
-      classification: classificationFor(match.skill) ?? null,
-      name: match.skill.name,
-      display_name: skillDisplayName(match.skill.name),
-      description: match.skill.description,
-      pack: match.skill.pack,
-      repo: match.skill.repo,
-      catalog_path: match.skill.catalog_path,
-      install_type: match.skill.install_type,
-      source_url: skillSourceUrl(snapshot, match.skill.catalog_path),
-      score: match.score,
-      matched_terms: match.matched_terms,
-      match_reason: match.match_reason,
-      platform_scope: match.platform_scope,
-    })),
+    metadata_health: outcome.metadata_health ?? metadataHealth(snapshot.skills),
+    matches: outcome.matches.map((match) => {
+      const { classification, ...evidence } = resolveMetadata(match.skill);
+      return {
+        metadata_evidence: evidence,
+        classification: classification ?? null,
+        name: match.skill.name,
+        display_name: skillDisplayName(match.skill.name),
+        description: match.skill.description,
+        pack: match.skill.pack,
+        repo: match.skill.repo,
+        catalog_path: match.skill.catalog_path,
+        install_type: match.skill.install_type,
+        source_url: skillSourceUrl(snapshot, match.skill.catalog_path),
+        score: match.score,
+        matched_terms: match.matched_terms,
+        match_reason: match.match_reason,
+        platform_scope: match.platform_scope,
+      };
+    }),
     catalog_revision: snapshot.revision,
     fetched_at: snapshot.fetched_at,
     warnings: [...warnings, ...(input.task ? [] : ["legacy_query: unstructured candidates only; use task and explicit constraints for recommendations"])],
@@ -229,6 +245,11 @@ function flatInstallation(snapshot: SkillCatalogSnapshot, skill: SkillRecord): F
     display_command: shellQuote(["npx", ...args]),
     requires_user_request: true,
     version_policy: "installer_default_not_catalog_pinned",
+    verification: {
+      required: true, catalog_revision: snapshot.revision,
+      source_url: skillSourceUrl(snapshot, skill.catalog_path),
+      note: "Check the actual installed source revision and Skill content before use; installer defaults do not guarantee this catalog revision.",
+    },
     docs_url: hubUsageUrl(snapshot),
     note:
       `Installs the skill's whole directory (SKILL.md plus references/scripts) from the ${HUB_REPO} hub, not a single SKILL.md. ` +
@@ -283,8 +304,11 @@ function workspaceInstallation(snapshot: SkillCatalogSnapshot, skill: SkillRecor
   };
 }
 
-export async function getSkillDetail(input: { name: string }, deps?: SkillServiceDeps): Promise<GetSkillOutput> {
+export async function getSkillDetail(input: GetSkillInput, deps?: SkillServiceDeps): Promise<GetSkillOutput> {
   const name = requireName(input.name);
+  if (!input.include_content && (input.offset !== undefined || input.max_chars !== undefined || input.expected_content_hash !== undefined)) {
+    throw new SkillError("invalid_input", "Content parameters require include_content=true");
+  }
   const catalog = await loadCatalog(deps);
   const { snapshot, warnings } = catalog;
 
@@ -296,7 +320,11 @@ export async function getSkillDetail(input: { name: string }, deps?: SkillServic
     );
   }
 
+  const content = input.include_content ? await readSkillContent(snapshot, skill, input, deps?.fetchContent) : undefined;
+  const { classification: _, ...metadata_evidence } = resolveMetadata(skill);
   return {
+    metadata_evidence,
+    ...(content ? {content} : {}),
     classification: classificationFor(skill) ?? null,
     name: skill.name,
     display_name: skillDisplayName(skill.name),
@@ -308,7 +336,7 @@ export async function getSkillDetail(input: { name: string }, deps?: SkillServic
     source_url: skillSourceUrl(snapshot, skill.catalog_path),
     catalog_revision: snapshot.revision,
     fetched_at: snapshot.fetched_at,
-    warnings: [...warnings],
+    warnings: [...warnings, ...(content?.status === "unavailable" ? ["content_unavailable: catalog summary is available but SKILL.md source was not verified"] : [])],
     installation:
       skill.install_type === "flat" ? flatInstallation(snapshot, skill) : workspaceInstallation(snapshot, skill),
   };

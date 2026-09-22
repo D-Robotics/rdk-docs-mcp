@@ -1,4 +1,4 @@
-# 安装 RDK 文档检索（MCP + Skill）
+# 安装 RDK Assistant MCP（官方资料 + Skill 发现）
 
 你是安装助手。用户把本文档交给你，是要你**立刻装好**，不要只复述配置。
 
@@ -6,7 +6,7 @@
 
 ## 成功标准
 
-1. 当前客户端能启动名为 `rdk-docs` 的 MCP（`list_manuals` / `search_docs` / `get_page` / `list_toc`）。
+1. 当前客户端能启动配置 id 为 `rdk-docs`、显示名为 RDK Assistant MCP 的服务，`get_status` 返回当前版本和能力，`list_manuals` 正常。保留原 npm 包名与配置名，不新建重复服务。
 2. 当前客户端的 skills 目录里有全部三个 bundled skill：`rdk-docs`（文档检索）、`forum-post`（论坛发帖）、`article-writer`（成文与配图），各一份 `SKILL.md`。
 3. 你向用户回报写过的路径，并提醒重载 MCP / 重启会话后再问板端问题。
 
@@ -38,7 +38,7 @@ npx -y rdk-docs-mcp@latest --install
 
 `<skill>` 为 `rdk-docs`、`forum-post`、`article-writer` 三个，每个目录各写一份 `SKILL.md`。
 
-已有其它 MCP / Skill 会保留，只覆盖 `rdk-docs` 这一项 MCP 和上述三个同名 skill。MCP 指向 `npx -y rdk-docs-mcp@latest`，之后发新版本，**下次启动 MCP** 会跟到 latest。
+已有其它 MCP / Skill 会保留；Cursor、ZCode 和 Codex 已有可用的 `rdk-docs` 配置会保留，安装器会报告需要保留的自定义启动项。缺失的配置使用 `npx -y rdk-docs-mcp@latest`。上述三个同名 Skill 会更新。固定路径/版本需要针对实际安装更新，不能把“保留配置”当作“已经升级”。
 
 把命令的 stdout 原样给用户。然后提醒：**重载窗口或重启 Agent**，本会话里刚写入的 MCP 可能还没挂上。
 
@@ -102,7 +102,7 @@ done
 
 ## 四、装完自检
 
-能调 MCP 的话，跑一次 `list_manuals`，确认返回里有 `rdk-x` / `rdk-s`。手册目录里没有论坛；社区经验用 `search_docs` 带 `source=forum` 检索。若报告里出现「No MCP client configuration was written」，说明当前客户端还要按第三节手动注册 MCP，装完不算完成。
+能调 MCP 的话，先调用 `get_status`，确认 `structured_skill_search`、`skill_content` 和 `document_continuation` 能力。若没有 `get_status` 或新字段，当前连接仍是旧版；检查配置实际启动的程序路径并更新、重启，不能仅凭安装命令成功认定升级完成。然后跑一次 `list_manuals`，确认返回里有 `rdk-x` / `rdk-s`。手册目录里没有论坛；社区经验用 `search_docs` 带 `source=forum` 检索。若报告里出现「No MCP client configuration was written」，说明当前客户端还要按第三节手动注册 MCP，装完不算完成。
 
 然后告诉用户可以这样问：
 
@@ -116,8 +116,10 @@ done
 
 用户以后仍给**同一句话、同一个 URL**。
 
-- MCP 配置保持 `@latest`，**下次启动 MCP** 会拉新工具。
+- 默认 MCP 配置使用 `@latest`；固定版本或固定安装路径需要更新对应安装。以重启后的 `get_status` 为准，不能以另一个临时 `npx --doctor` 的版本代替当前连接版本。
 - 已经装过的各个 skill 的 `SKILL.md` 也会在 **MCP 启动时** 用当前包里的同名 Skill 覆盖。你发新版本后，用户只要重启 Agent / 重载 MCP，工具和用法说明一起更新。
 - 第一次安装、或某客户端还没有 Skill 时，仍跑第二节的 `--install`。启动时不会往没装过的客户端里新建 Skill。
 
 不要让用户改 JSON。
+
+命令行诊断：`npx -y rdk-docs-mcp@latest --doctor` 只看当前诊断进程的能力；追加 `--check-catalog` 检查目录。诊断不写客户端配置，也不刷新用户 Skill。

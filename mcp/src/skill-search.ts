@@ -13,6 +13,8 @@ import type { InstallType, SkillRecord } from "./skill-catalog.js";
  * disambiguated instead of guessed.
  */
 
+import type { MetadataEvidence, MetadataHealth } from "./skill-metadata.js";
+
 export type SearchFilters = {
   pack?: string;
   platform?: string;
@@ -21,6 +23,7 @@ export type SearchFilters = {
 };
 
 export type RankedSkill = {
+  metadata_evidence?: MetadataEvidence;
   skill: SkillRecord;
   score: number;
   matched_terms: string[];
@@ -40,9 +43,12 @@ export type GuidanceKind =
   | "ambiguous_quant"
   | "platform_conflict"
   | "no_match"
-  | "invalid_input";
+  | "invalid_input"
+  | "category_only"
+  | "metadata_incomplete";
 
 export type SkillSearchOutcome = {
+  metadata_health?: MetadataHealth;
   matches: RankedSkill[];
   guidance: string;
   guidance_kind: GuidanceKind;
@@ -400,7 +406,7 @@ function scoreSkill(
 // is installed or that a text match is a compatibility guarantee.
 // ---------------------------------------------------------------------------
 
-const GUIDANCE_TEXT: Record<GuidanceKind, string> = {
+const GUIDANCE_TEXT: Record<Exclude<GuidanceKind, "category_only" | "metadata_incomplete">, string> = {
   default:
     "Matches come from the D-Robotics/rdk-skills catalog snapshot; presence in the catalog does not mean the skill is installed locally. Confirm the exact record with get_skill before recommending, keep to 1-2 recommendations, and only treat installation as authorized when the user explicitly asks.",
   model_only:

@@ -19,7 +19,7 @@ Three naming options were considered: keeping a docs-only title undersells disco
 
 ## Data contract and migration
 
-`discovery` fields: `{schema_version:1,tasks:Task[],workflows:('ptq'|'qat')[],platforms:Platform[]|null,role:'entry'|'workflow'|'step'}`. Require nonempty tasks, unique enum arrays; reject malformed declared metadata for that record without falling back to old annotation. Caller output states whether evidence originates in catalog or reviewed overlay. The service does not modify rdk-skills in this iteration: support its future metadata now, document the exact producer contract and maintain observed coverage transparently. Partial coverage must not become an unqualified `no_match`.
+`discovery` fields: `{schema_version:1,tasks:Task[],workflows:('ptq'|'qat')[],platforms:Platform[]|null,role:'entry'|'workflow'|'step'}`. Require nonempty tasks and non-null platform arrays, unique enum arrays; reject malformed declared metadata for that record without falling back to old annotation. Caller output states whether evidence originates in catalog or reviewed overlay. The service does not modify rdk-skills in this iteration: support its future metadata now, document the exact producer contract and maintain observed coverage transparently. Partial coverage must not become an unqualified `no_match`.
 
 Continuation contract shared by documents and Skill content: first request offset defaults to 0; following requests require `expected_content_hash`; mismatch fails rather than concatenates inconsistent content. Return `offset`, `next_offset`, `total_chars`, `content_hash`, `truncated`, and sliced text.
 

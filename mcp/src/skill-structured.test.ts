@@ -16,7 +16,7 @@ describe('structured constraints',()=>{
   expect(r.matches.length).toBeGreaterThan(0); expect(r.matches.every(m=>classificationFor(m.skill)?.workflows.includes('qat'))).toBe(true);
  });
  it('undecided only returns entry skills',()=>{
-  const r=searchStructured(skills,'转换',{task:'model_conversion',platform:'x5'});
+  const r=searchStructured(skills,'PTQ QAT',{task:'model_conversion',platform:'x5'});
   expect(r.guidance_kind).toBe('ambiguous_quant');expect(r.matches.every(m=>classificationFor(m.skill)?.role==='entry')).toBe(true);
  });
  it('contradictory explicit constraints return empty',()=>expect(searchStructured(skills,'相机',{task:'camera',platform:'x5',exclude_platforms:['x5']}).guidance_kind).toBe('platform_conflict'));
@@ -51,4 +51,46 @@ it('new upstream fields invalidate the reviewed classification',()=>{
 it('JSON key order alone does not invalidate the same record',()=>{
  const record=skills.find(s=>s.name==='rdk-camera-setup')!;
  expect(classificationFor(Object.fromEntries(Object.entries(record).reverse()) as SkillRecord)).toEqual(classificationFor(record));
+});
+it('pure compilation needs no quantization workflow decision', () => {
+ const r=searchStructured(skills,'模型编译 compile',{task:'model_compile',platform:'x5',limit:20});
+ expect(r.guidance_kind).toBe('default');
+ expect(r.matches.map(m=>m.skill.name)).toEqual(expect.arrayContaining(['x5-ptq-compile','x5-qat-compile']));
+ expect(searchStructured(skills,'compile',{task:'model_compile',platform:'s100',limit:20}).matches.map(m=>m.skill.name)).toEqual(expect.arrayContaining(['j6-hbdk-compile','j6-hbdk-export-compile']));
+});
+it('network and monitoring use reviewed descriptions', () => {
+ expect(searchStructured(skills,'SSH WiFi',{task:'network'}).matches.map(m=>m.skill.name)).toContain('rdk-network-remote');
+ expect(searchStructured(skills,'monitor',{task:'diagnostics',platform:'x5',limit:20}).matches.map(m=>m.skill.name)).toContain('x5-board-monitor');
+ expect(searchStructured(skills,'monitor',{task:'diagnostics',platform:'s100',limit:20}).matches.map(m=>m.skill.name)).toContain('j6-board-monitor');
+});
+it('reports category-only results without lexical evidence', () => {
+ expect(searchStructured(skills,'!!!',{task:'camera'}).guidance_kind).toBe('category_only');
+ expect(searchStructured(skills,'zzznomatch',{task:'camera'}).guidance_kind).toBe('category_only');
+});
+it('filters explicit roles and rejects invalid roles', () => {
+ const r=searchStructured(skills,'camera',{task:'camera',role:'entry'});
+ expect(r.matches.length).toBeGreaterThan(0);
+ expect(r.matches.every(m=>classificationFor(m.skill)?.role==='entry')).toBe(true);
+ expect(()=>searchStructured(skills,'camera',{task:'camera',role:'invented' as never})).toThrow();
+});
+it('exclusions constrain targets rather than multi-board documents', () => {
+ const shared={...skills[0],discovery:{schema_version:1,tasks:['camera'],workflows:[],platforms:['x3','x5'],role:'step'}};
+ expect(searchStructured([shared],'camera',{task:'camera',exclude_platforms:['x3']}).matches).toHaveLength(1);
+ expect(searchStructured([shared],'camera',{task:'camera',platform:'x5',exclude_platforms:['x3']}).matches).toHaveLength(1);
+ expect(searchStructured([shared],'camera',{task:'camera',exclude_platforms:['x3','x5']}).matches).toHaveLength(0);
+});
+it('incomplete metadata makes empty results explicitly inconclusive', () => {
+ const r=searchStructured([{...skills[0],name:'unreviewed'}],'camera',{task:'camera'});
+ expect(r.guidance_kind).toBe('metadata_incomplete');
+ expect(r.metadata_health).toMatchObject({total:1,missing:1});
+});
+it('category-only evidence stays explicit when conversion still needs clarification', () => {
+ const result=searchStructured(skills,'!!!',{task:'model_conversion'});
+ expect(result.matches.length).toBeGreaterThan(0);
+ expect(result.guidance_kind).toBe('category_only');
+ expect(result.guidance).toContain('PTQ versus QAT');
+});
+it('no allowed board target excludes even unknown platform records', () => {
+ const unknown={...skills[0],discovery:{schema_version:1,tasks:['camera'],workflows:[],platforms:null,role:'step'}};
+ expect(searchStructured([unknown],'camera',{task:'camera',exclude_platforms:['x3','x5','s100','s100p','s600','ultra']}).matches).toEqual([]);
 });

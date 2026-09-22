@@ -1,6 +1,6 @@
-# RDK Docs
+# RDK Assistant MCP
 
-给各类 AI Agent 用的 [D-Robotics RDK 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 检索插件。
+为 AI Agent 提供 RDK 官方文档检索、Skill 发现、来源核验和安装引导。对外名称为 **RDK Assistant MCP**；npm 包名、命令和配置 id 保持兼容：`rdk-docs-mcp` / `rdk-docs`。
 
 模型自己记不住板端手册里的烧录步骤、接口名和版本号。这个仓库把官方文档变成 **MCP 工具 + Skill**：Agent 先搜手册，再打开原文回答，并带上可点击链接。
 
@@ -16,7 +16,7 @@
 
 Agent 会拉到安装剧本，执行 `npx -y rdk-docs-mcp@latest --install`，写入 MCP + Skill。不要把 JSON 或仓库地址发给用户。源码仓库可以 private；安装物是 npm 包。
 
-装完后重载 MCP / 重启会话。之后发新版本：MCP 是 `@latest`，已安装的 Skill 会在 **下次 MCP 启动时** 被当前包装盖。用户不用再跑安装，也不用改那一行字。
+装完后重载 MCP / 重启会话，并调用 `get_status` 核对实际运行版本。默认安装使用 `@latest`；自定义固定路径或固定版本的配置需要更新其实际安装。已安装 Skill 在下次服务启动时由当前包刷新，每个文件以原子替换方式更新。
 
 jsDelivr 不可用时，同一文件在：
 
@@ -29,13 +29,14 @@ jsDelivr 不可用时，同一文件在：
 - 问「X5 怎么烧录 / TROS 某节点怎么启 / XBurn 支持哪些板」时，不再靠过期训练数据。
 - 同一套能力可以装进不同 Agent，不用为每个 IDE 重写爬虫。
 
-**六个工具**
+**七个工具**
 
 | Tool | 做什么 |
 |------|--------|
+| `get_status` | 查询当前运行版本、支持字段及可选的目录分类健康状态，不安装 Skill |
 | `list_manuals` | 列出资料中心已上架手册（X/S 系列、TROS、Model Zoo、Studio、XBurn、OE、X5 SDK 等） |
 | `search_docs` | 中英文关键词检索。指定手册只搜那一本；不指定时手册为主、论坛至多作补充。`forum` 只搜社区。 |
-| `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown |
+| `get_page` | 读取官方文档或论坛主题，标注正文来源，支持带内容哈希校验的分段续读 |
 | `list_toc` | 列出某一本手册的页面目录；`forum` 列出「开发与问题」和「通用」最近帖 |
 | `search_skills` | 在 [D-Robotics/rdk-skills](https://github.com/D-Robotics/rdk-skills) 目录快照里按任务找 Skill（只读，带 `catalog_revision` 溯源） |
 | `get_skill` | 按目录精确名称返回 Skill 详情与安装引导：flat 给 `npx skills add ...`，workspace 给整包交接（Pack repo/ref/verify_paths + `rdk-pack-installer` 获取入口） |
@@ -61,11 +62,14 @@ jsDelivr 不可用时，同一文件在：
 - **目录里有 ≠ 本机已安装。** 两个工具只读：不安装、不执行上游脚本、不读写用户 Skill 目录。
 - flat 型 Skill 的安装入口是 `npx skills add d-robotics/rdk-skills --skill <name>`（装整个 Skill 目录）。
 - workspace 型（OE 工具链类）必须整包安装：交接 `rdk-pack-installer`、需要项目根目录、按 `verify_paths` 校验，不能只复制单个 SKILL.md。
+- 调用方先检查 `tools/list`，可用时调用一次 `get_status`，按实际支持的字段调用。旧版本缺少结构化能力时说明升级需求，不能向它发送新参数并假定已生效。
 - 调用方模型负责理解目标、排除、条件和复合任务，再传 `task`、`platform`、`exclude_platforms`、`workflow`；query 仅排序。纯事实仍查官方文档。复合任务分开检索，多板卡分别调用。
-- `task`: camera/gpio/uart/ready_model/model_conversion/model_deploy/model_maintenance/environment/diagnostics/bsp。`workflow`: ptq/qat/undecided，仅适用于 model_conversion；不确定时只返回入口并澄清。
-- 分类表 `mcp/src/skill-taxonomy-data.ts` 是带来源的本地目录补充，不是排序白名单。对完整记录指纹校验，源内容变化后分类失效，严格任务查询不返回未分类记录；详情中 classification=null 表示未知。上游目前无标准分类字段，本 PR 不依赖未发布的上游修改。
+- `task`: camera/gpio/uart/ready_model/model_conversion/model_compile/model_deploy/model_maintenance/environment/network/diagnostics/bsp。`workflow`: ptq/qat/undecided，仅适用于 model_conversion；不确定时只返回入口并澄清。
+- 优先读取同一目录 revision 内的 `discovery` 元数据；缺失时使用带来源和完整指纹的本地审核分类。无效声明不会退回旧分类，内容变化后旧分类失效。`metadata_health` 分别报告未分类、过期、无效和未知板卡范围；不把这些情况说成“没有对应 Skill”。生产者格式见 [分类合同](docs/skill-discovery-metadata.md)。
 - 平台明确时使用分类表已审核的系列范围，缺失则 platform_scope=unknown；范围匹配不是电气/型号兼容保证。平台支持 x3/x5/s100/s100p/s600/ultra，比较请求拆分。目标与显式排除冲突才报 platform_conflict，正文不会覆盖结构化条件。
 - 旧 query-only 接口保留原有候选检索行为，并返回 legacy_query 警告；不再承诺理解复杂自然语言。新流程不能回退到旧接口绕过明确约束。
+- 已有产物只编译用 `model_compile`，不强制选择 PTQ/QAT；联网用 `network`，工具链准备用 `environment`。`role` 可筛入口、完整流程或单步辅助。`category_only` 表示只符合大类，需重新核实相关性。
+- `get_skill(include_content=true)` 返回绑定目录 SHA 的正文；正文不可用会明确标记，不能把摘要当成已读正文。flat 安装仍由安装器选择版本，实际执行前后要核对来源与内容。
 - 展示层用 `display_name`（清理生成器的 `__SKILL_<family>-__<slug>` 内部格式），`get_skill` 与安装命令仍用 `name` 精确名；同 display_name 的不同记录靠 `name` 区分。
 - 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单；pack 板卡家族映射取自该仓库 README 的 Supported Boards / Installation layers 表（快照 revision 溯源）。上游 canonical name 归一化（去掉 `__SKILL_` 前缀）需在 rdk-skills 侧规范，本 MCP 仅做展示层清理。
 
@@ -132,3 +136,11 @@ S 系列 OE / OE LLM 是 Rspress 站点：不写死 `search_index.*.json` 的哈
 ## 许可与来源
 
 MIT。文档与帖子版权归 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/) 原站。本仓库只提供检索与阅读适配，不镜像整站。
+
+
+## 维护与验收
+
+- `npm run verify`：离线单元/协议回归及构建。
+- `npm run verify:package`：打包、安装到临时目录，验证实际产物的工具 schema、版本和配套 Skill；诊断不会刷新用户 Skill。
+- `npm run verify:live`：官方站点与 Skill 目录联网检查；外部限流单独报告。
+- PR 的 CI 在 Linux/Node 20 与 Windows/Node 22 运行离线检查和包验证。联网检索成功不等于最终回答或实物操作已验证。
