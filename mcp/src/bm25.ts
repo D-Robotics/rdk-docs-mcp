@@ -3,8 +3,10 @@ import { performance } from "node:perf_hooks";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { RETRIEVAL_ALIASES } from "./aliases.js";
+import { CONCEPT_SYNONYMS, RETRIEVAL_ALIASES } from "./aliases.js";
+import { MANUALS } from "./catalog.js";
 import { GLOSSARY_ALIASES } from "./glossary-aliases.js";
+import { fuseRanks, isThinLanding, lexicalScore, prepareLexical, structureScale } from "./lexical.js";
 import { mentionedBoards, urlLooksLikeBoard, type BoardId } from "./products.js";
 import type { IndexedDoc, SearchHit } from "./types.js";
 
@@ -86,6 +88,8 @@ const EN_STOP = new Set([
   "into",
   "onto",
   "not",
+  "vs",
+  "via",
 ]);
 
 /** Collision tokens. Rare identifiers are never in this set. */
@@ -281,7 +285,31 @@ function mergeSynonyms(...maps: Array<Record<string, string[]>>): Record<string,
   return out;
 }
 
-const ALL_SYNONYMS = mergeSynonyms(SYNONYMS, GLOSSARY_ALIASES, RETRIEVAL_ALIASES);
+const ALL_SYNONYMS = mergeSynonyms(SYNONYMS, GLOSSARY_ALIASES, RETRIEVAL_ALIASES, CONCEPT_SYNONYMS);
+const SYNONYMS_WITHOUT_CONCEPT = mergeSynonyms(SYNONYMS, GLOSSARY_ALIASES, RETRIEVAL_ALIASES);
+
+function ablate(part: string): boolean {
+  return (process.env.RDK_ABLATE ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .includes(part);
+}
+
+function synonymExtras(term: string): string[] | undefined {
+  return (ablate("synonym") ? SYNONYMS_WITHOUT_CONCEPT : ALL_SYNONYMS)[term];
+}
+
+const BOARD_TOKEN = new Set(["x3", "x5", "s100", "s600", "s100p", "rdk"]);
+
+/** Long manual aliases. A typo of one of these still names that manual. */
+const MANUAL_ALIAS_TARGETS: Array<{ alias: string; term: string }> = [];
+for (const manual of MANUALS) {
+  for (const alias of manual.aliases) {
+    const key = alias.toLowerCase();
+    if (key.length < 6 || BOARD_TOKEN.has(key)) continue;
+    MANUAL_ALIAS_TARGETS.push({ alias: key, term: manual.id });
+  }
+}
 
 const S_SERIES_MANUALS = new Set(["rdk-s", "oe-s", "oe-llm-s100", "oe-llm-s600", "case-s600"]);
 const X_SERIES_MANUALS = new Set(["rdk-x", "oe-x3", "oe-x5", "x5-sdk", "magicbox"]);
@@ -638,7 +666,7 @@ function analyzeQuery(query: string): { terms: QTerm[]; concepts: Concept[] } {
 
   const literals = [...qmap.keys()];
   for (const term of literals) {
-    const extras = ALL_SYNONYMS[term];
+    const extras = synonymExtras(term);
     if (!extras) continue;
     for (const extra of extras) {
       const piece = extra.toLowerCase();
@@ -656,7 +684,7 @@ function analyzeQuery(query: string): { terms: QTerm[]; concepts: Concept[] } {
     for (const key of concept.keys) {
       if (seenKeys.has(key)) continue;
       seenKeys.add(key);
-      const extras = ALL_SYNONYMS[key];
+      const extras = synonymExtras(key);
       if (!extras) continue;
       for (const extra of extras) {
         for (const term of aliasTerms(extra)) {
@@ -664,6 +692,13 @@ function analyzeQuery(query: string): { terms: QTerm[]; concepts: Concept[] } {
         }
       }
     }
+  }
+
+  const phrasePush = (term: string, qtf: number) => {
+    push(term, qtf);
+  };
+  for (const { alias, term } of MANUAL_ALIAS_TARGETS) {
+    if (lowered.includes(alias)) phrasePush(term, 1);
   }
 
   return { terms: [...qmap].map(([term, qtf]) => ({ term, qtf })), concepts };
@@ -682,21 +717,140 @@ function aliasTerms(extra: string): string[] {
   return out;
 }
 
-function addTypoVariants(concepts: Concept[], terms: QTerm[], vocab: (term: string) => boolean): void {
+const ALPHA = "abcdefghijklmnopqrstuvwxyz";
+
+function editNeighbors(term: string): string[] {
+  const out: string[] = [];
+  const n = term.length;
+  for (let i = 0; i < n; i += 1) out.push(term.slice(0, i) + term.slice(i + 1));
+  for (let i = 0; i < n - 1; i += 1) {
+    if (term[i] === term[i + 1]) continue;
+    out.push(term.slice(0, i) + term[i + 1] + term[i] + term.slice(i + 2));
+  }
+  for (let i = 0; i < n; i += 1) {
+    const cur = term[i];
+    for (let c = 0; c < ALPHA.length; c += 1) {
+      const ch = ALPHA[c];
+      if (ch === cur) continue;
+      out.push(term.slice(0, i) + ch + term.slice(i + 1));
+    }
+  }
+  for (let i = 0; i <= n; i += 1) {
+    for (let c = 0; c < ALPHA.length; c += 1) out.push(term.slice(0, i) + ALPHA[c] + term.slice(i));
+  }
+  return out;
+}
+
+function rememberTerm(concept: Concept, terms: QTerm[], have: Set<string>, term: string, qtf: number): void {
+  if (!concept.terms.includes(term)) concept.terms.push(term);
+  if (!have.has(term)) {
+    have.add(term);
+    terms.push({ term, qtf });
+  }
+  const extras = synonymExtras(term);
+  if (!extras) return;
+  for (const extra of extras) {
+    for (const piece of aliasTerms(extra)) {
+      if (have.has(piece)) continue;
+      rememberTerm(concept, terms, have, piece, qtf * 0.7);
+    }
+  }
+}
+
+function addTypoVariants(concepts: Concept[], terms: QTerm[], df: (term: string) => number): void {
   const have = new Set(terms.map((item) => item.term));
+  const vocab = (term: string) => df(term) > 0;
   for (const concept of concepts) {
     for (const term of [...concept.terms]) {
-      if (!/^[a-z0-9]+$/.test(term) || term.length < 5 || vocab(term)) continue;
-      for (let drop = 1; drop <= 3 && term.length - drop >= 4; drop += 1) {
-        const prefix = term.slice(0, term.length - drop);
-        if (!vocab(prefix) || FRAGMENT_SKIP.has(prefix)) continue;
-        concept.terms.push(prefix);
-        if (!have.has(prefix)) {
-          have.add(prefix);
-          terms.push({ term: prefix, qtf: 0.4 });
+      if (!/^[a-z0-9]+$/.test(term) || term.length < 4 || vocab(term)) continue;
+      if (term.length >= 5) {
+        for (let drop = 1; drop <= 3 && term.length - drop >= 4; drop += 1) {
+          const prefix = term.slice(0, term.length - drop);
+          if (!vocab(prefix) || FRAGMENT_SKIP.has(prefix)) continue;
+          rememberTerm(concept, terms, have, prefix, 0.45);
+          break;
         }
-        break;
       }
+      // One edit: wfii → wifi, statc → static. Ambiguous corrections are skipped.
+      if (term.length <= 12) {
+      let best = "";
+      let bestDf = 0;
+      let second = 0;
+      const seen = new Set<string>();
+      for (const neighbor of editNeighbors(term)) {
+        if (neighbor.length < 4 || seen.has(neighbor) || FRAGMENT_SKIP.has(neighbor) || EN_STOP.has(neighbor)) continue;
+        if (ORDINARY_EN.has(neighbor) || GENERIC_ASCII.has(neighbor)) continue;
+        // A different first letter is a different word (pending → sending), not a typo.
+        if (neighbor[0] !== term[0] && !ALL_SYNONYMS[neighbor]) continue;
+        // "iphone" is one deletion away from "phone". A neighbor that is just
+        // a piece of the typed token is not a typo correction.
+        if (term.includes(neighbor) || neighbor.includes(term)) continue;
+        const inserted = Math.abs(neighbor.length - term.length) === 1;
+        if (inserted && !ALL_SYNONYMS[neighbor] && !ALL_SYNONYMS[term]) continue;
+        seen.add(neighbor);
+        const docs = df(neighbor);
+        if (docs <= 0) continue;
+        if (docs > bestDf) {
+          second = bestDf;
+          bestDf = docs;
+          best = neighbor;
+        } else if (docs > second) second = docs;
+      }
+        for (const { alias, term: manualTerm } of MANUAL_ALIAS_TARGETS) {
+          if (alias === term || Math.abs(alias.length - term.length) > 1) continue;
+          if (!editNeighbors(term).includes(alias) && alias !== term) continue;
+          rememberTerm(concept, terms, have, manualTerm, 0.8);
+        }
+        if (best && (second === 0 || bestDf >= second * 3)) rememberTerm(concept, terms, have, best, 0.7);
+      }
+    }
+  }
+}
+
+const prefixCache = new WeakMap<Map<string, number>, Map<string, string[]>>();
+
+function prefixIndex(dfMap: Map<string, number>): Map<string, string[]> {
+  const cached = prefixCache.get(dfMap);
+  if (cached) return cached;
+  const index = new Map<string, string[]>();
+  for (const term of dfMap.keys()) {
+    if (term.length < 5 || term.length > 24 || !/^[a-z][a-z0-9]*$/.test(term)) continue;
+    const key = term.slice(0, 4);
+    const list = index.get(key);
+    if (list) {
+      if (list.length < 16) list.push(term);
+    } else index.set(key, [term]);
+  }
+  prefixCache.set(dfMap, index);
+  return index;
+}
+
+function expandPrefixes(concepts: Concept[], terms: QTerm[], corpora: Corpus[]): void {
+  const maps = corpora.map((corpus) => prefixIndex(corpus.df));
+  const have = new Set(terms.map((item) => item.term));
+  const df = (term: string) => {
+    let n = 0;
+    for (const corpus of corpora) n += corpus.df.get(term) ?? 0;
+    return n;
+  };
+  for (const concept of concepts) {
+    for (const term of [...concept.original]) {
+      if (!/^[a-z][a-z0-9]*$/.test(term) || term.length < 4 || term.length > 8 || df(term) > 0) continue;
+      if (GENERIC_ASCII.has(term) || FRAGMENT_SKIP.has(term) || BOARD_TOKEN.has(term)) continue;
+      const found = new Set<string>();
+      for (const map of maps) {
+        const list = map.get(term.slice(0, 4));
+        if (!list) continue;
+        for (const candidate of list) {
+          if (!candidate.startsWith(term) || candidate.length <= term.length) continue;
+          // yolo → yolov5. An open-ended prefix (helm → helmfile) is not a version.
+          const rest = candidate.slice(term.length);
+          if (!/^v?\d/.test(rest)) continue;
+          found.add(candidate);
+        }
+      }
+      if (found.size === 0 || found.size > 12) continue;
+      for (const candidate of found) rememberTerm(concept, terms, have, candidate, 0.65);
     }
   }
 }
@@ -765,6 +919,8 @@ function looksLikeContent(term: string): boolean {
 const ORDINARY_EN = new Set([
   "repository",
   "signed",
+  "help",
+  "install",
   "found",
   "join",
   "import",
@@ -807,40 +963,163 @@ function isCodeLike(term: string): boolean {
   return /^[a-z]{4,}$/.test(term);
 }
 
-function hitContainsToken(hit: SearchHit, doc: IndexedDoc, token: string): boolean {
-  const blob = `${hit.title}\n${hit.url}\n${hit.snippet}\n${doc.title}\n${doc.url}\n${doc.text ?? ""}\n${doc.snippet ?? ""}`.toLowerCase();
-  return blob.includes(token.toLowerCase());
-}
-
-/**
- * True only when some package/command/API/error-code token is absent from the
- * searched manuals and the top hit does not contain it. A typo prefix that is
- * in the manuals counts as the token appearing.
- */
-/** Package/command/API/error code absent from these manuals and, when present, the top hit. */
+/** True when the query has no RDK-specific term in these manuals. */
 export function absentCommandToken(groups: IndexedDoc[][], query: string): boolean {
   const corpora = groups.filter((docs) => docs.length > 0).map(corpusFor);
   if (corpora.length === 0) return false;
   const plan = analyzeQuery(query);
   if (plan.concepts.length === 0) return false;
   const df = (term: string) => dfOf(corpora, term);
-  addTypoVariants(plan.concepts, plan.terms, (term) => df(term) > 0);
-  return missingCodeToken(plan.concepts, df, undefined);
+  if (!ablate("typo")) addTypoVariants(plan.concepts, plan.terms, df);
+  let n = 0;
+  for (const corpus of corpora) n += corpus.n;
+  return !plan.concepts.some((concept) => conceptDomain(concept, df, n));
 }
 
-function missingCodeToken(
-  concepts: Concept[],
-  df: (term: string) => number,
-  top: { hit: SearchHit; doc: IndexedDoc } | undefined,
-): boolean {
-  for (const concept of concepts) {
-    const codes = concept.original.filter((term) => isCodeLike(term));
-    if (codes.length === 0) continue;
-    if (concept.terms.some((term) => df(term) > 0)) continue;
-    if (top && codes.some((term) => hitContainsToken(top.hit, top.doc, term))) continue;
-    return true;
-  }
-  return false;
+function isBoardToken(term: string): boolean {
+  return BOARD_TOKEN.has(term);
+}
+
+/**
+ * Everyday words that show up in any manual. They are not an RDK match.
+ * Product vocabulary (board ids, hobot, tros, bpu) is not in this set;
+ * those are accepted from corpus document frequency instead.
+ */
+const EVERYDAY = new Set([
+  "login",
+  "password",
+  "account",
+  "email",
+  "server",
+  "client",
+  "database",
+  "session",
+  "guard",
+  "check",
+  "update",
+  "version",
+  "host",
+  "port",
+  "user",
+  "name",
+  "path",
+  "file",
+  "data",
+  "info",
+  "command",
+  "script",
+  "device",
+  "image",
+  "board",
+  "model",
+  "python",
+  "ubuntu",
+  "linux",
+  "windows",
+  "phone",
+  "http",
+  "https",
+  "www",
+  "app",
+  "git",
+  "node",
+  "npm",
+  "登录",
+  "安装",
+  "系统",
+  "网络",
+  "密码",
+  "账号",
+  "账户",
+  "用户",
+  "文件",
+  "配置",
+  "默认",
+  "错误",
+  "设备",
+  "地址",
+  "连接",
+  "方法",
+  "问题",
+  "支持",
+  "版本",
+  "命令",
+  "接口",
+  "使用",
+  "无线",
+  "电脑",
+  "软件",
+  "工具",
+  "环境",
+  "依赖",
+  "服务",
+]);
+
+function isGeneralLanguage(term: string): boolean {
+  if (BOARD_TOKEN.has(term)) return false;
+  if (EVERYDAY.has(term) || GENERIC_ASCII.has(term) || EN_STOP.has(term) || CJK_FILLER.has(term) || ORDINARY_EN.has(term)) return true;
+  return !isCjkTerm(term) && !looksLikeContent(term);
+}
+
+/** In the manuals, and not ordinary vocabulary. Board ids count even when short. */
+function isDomainTerm(term: string, docs: number): boolean {
+  if (docs <= 0 || isGeneralLanguage(term)) return false;
+  if (BOARD_TOKEN.has(term)) return true;
+  return looksLikeContent(term);
+}
+
+/** A concept matches the manuals when one of its terms is RDK-specific there. */
+function conceptDomain(concept: Concept, df: (term: string) => number, n: number): boolean {
+  const head = concept.keys[0];
+  const skipBigrams = Boolean(head && isCjkTerm(head) && head.length > 2);
+  const consider = (term: string, original: boolean) => {
+    if (skipBigrams && original && isCjkTerm(term) && head && term.length < head.length) return false;
+    return isDomainTerm(term, df(term));
+  };
+  if (concept.keys.some((term) => consider(term, true))) return true;
+  if (concept.original.some((term) => consider(term, true))) return true;
+  return concept.terms.some((term) => !concept.original.includes(term) && consider(term, false));
+}
+
+/** No original or alias of this concept occurs in the manuals. Stray bigrams do not count. */
+function conceptAbsent(concept: Concept, df: (term: string) => number): boolean {
+  const head = concept.keys[0];
+  const skipBigrams = Boolean(head && isCjkTerm(head) && head.length > 2);
+  const present = (term: string, original: boolean) => {
+    if (skipBigrams && original && isCjkTerm(term) && head && term.length < head.length) return false;
+    return df(term) > 0;
+  };
+  if (concept.keys.some((term) => present(term, true))) return false;
+  if (concept.original.some((term) => present(term, true))) return false;
+  return !concept.terms.some((term) => !concept.original.includes(term) && present(term, false));
+}
+
+/** Abstain when no RDK-specific concept in the query occurs in these manuals. */
+function hasNonBoardDomain(concept: Concept, df: (term: string) => number): boolean {
+  const head = concept.keys[0];
+  const skipBigrams = Boolean(head && isCjkTerm(head) && head.length > 2);
+  const ok = (term: string, original: boolean) => {
+    if (BOARD_TOKEN.has(term)) return false;
+    if (skipBigrams && original && isCjkTerm(term) && head && term.length < head.length) return false;
+    return isDomainTerm(term, df(term));
+  };
+  if (concept.keys.some((term) => ok(term, true))) return true;
+  if (concept.original.some((term) => ok(term, true))) return true;
+  return concept.terms.some((term) => !concept.original.includes(term) && ok(term, false));
+}
+
+function missingCodeToken(concepts: Concept[], df: (term: string) => number, n: number): boolean {
+  if (concepts.length === 0) return false;
+  const domain = concepts.some((concept) => conceptDomain(concept, df, n));
+  const topical = concepts.some((concept) => hasNonBoardDomain(concept, df));
+  // An unknown package or command is not answered by a board name or by
+  // generic words (docker, login, install) that happen to occur.
+  const absentCode = concepts.some(
+    (concept) => conceptAbsent(concept, df) && concept.original.some((term) => isCodeLike(term)),
+  );
+  if (absentCode && !topical) return true;
+  if (domain) return false;
+  return concepts.some((concept) => conceptAbsent(concept, df));
 }
 
 /** In-corpus and rare. A term that never occurs is handled on the concept, not here. */
@@ -864,26 +1143,8 @@ function distinctiveOf(concepts: Concept[], df: (term: string) => number, n: num
   });
 }
 
-function isHowTo(query: string): boolean {
-  return /怎么|如何|怎样|教程|步骤|howto|how to|how do|在哪/i.test(query);
-}
-
-function roleScale(query: string, url: string, concepts: Concept[]): number {
-  const path = url.toLowerCase();
-  const command = /\/cmd[_-]|command-manual|command_manual|linux-command/.test(path);
-  const driver = /driver_development|\/drivers?\//.test(path);
-  const guide = /user[_-]guide|user[_-]sample|basic_application|tutorial/.test(path);
-  const named = concepts.some((concept) =>
-    concept.terms.some((term) => term.length >= 4 && /[a-z]/.test(term) && path.includes(term)),
-  );
-  const aboutDriver = /驱动|driver|内核|kernel/i.test(query);
-  let scale = 1;
-  // Usage guides outrank a neighboring driver or command page when the
-  // question is not itself about writing a driver.
-  if (guide) scale *= 1.14;
-  if (!named && command && isHowTo(query)) scale *= 0.8;
-  if (!named && driver && !aboutDriver) scale *= 0.86;
-  return scale;
+function roleScale(doc: IndexedDoc): number {
+  return ablate("structure") ? 1 : structureScale(doc);
 }
 
 function breadthScale(doc: IndexedDoc, bodyDl: number, avgBody: number): number {
@@ -968,7 +1229,21 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
   const avgUrl = n > 0 ? sumUrl / n : 1;
   const avgBody = n > 0 ? sumBody / n : 1;
   const df = (term: string) => dfOf(corpora, term);
-  addTypoVariants(plan.concepts, plan.terms, (term) => df(term) > 0);
+  if (!ablate("typo")) addTypoVariants(plan.concepts, plan.terms, df);
+  if (!ablate("prefix")) expandPrefixes(plan.concepts, plan.terms, corpora);
+  // When the full identifier is absent (hbm_shell) its documented alias
+  // should carry the query, not the leftover fragment (hbm) at qtf 0.2.
+  for (const concept of plan.concepts) {
+    const head = concept.keys[0];
+    if (!head || df(head) > 0) continue;
+    if (!concept.original.some((term) => isCodeLike(term) || term.includes("_"))) continue;
+    for (const item of plan.terms) {
+      if (concept.original.includes(item.term)) continue;
+      if (!concept.terms.includes(item.term)) continue;
+      if (item.qtf < 0.85) item.qtf = 0.85;
+    }
+  }
+  const lexical = prepareLexical(query);
 
   for (const corpus of corpora) beginEpoch(corpus);
   let idfMass = 0;
@@ -1004,14 +1279,16 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
     }
   }
   cands.sort((a, b) => b.score - a.score);
-  const pool = cands.slice(0, 300);
+  // A high-df bigram such as 连接 fills the head of the list. Keep enough of
+  // the tail that a page which actually contains the rare token (WiFi on the
+  // remote-login page) is still scored.
+  const pool = cands.slice(0, ablate("pool") ? 300 : 450);
   const distinctive = distinctiveOf(plan.concepts, df, n);
   for (const cand of pool) {
     const doc = cand.corpus.docs[cand.doc];
-    cand.raw =
-      cand.score *
-      breadthScale(doc, cand.corpus.bodyDl[cand.doc], avgBody) *
-      roleScale(query, doc.url, plan.concepts);
+    const landing =
+      !ablate("landing") && isThinLanding(doc) && plan.concepts.some((concept) => conceptDomain(concept, df, n)) ? 0.34 : 1;
+    cand.raw = cand.score * breadthScale(doc, cand.corpus.bodyDl[cand.doc], avgBody) * roleScale(doc) * landing;
     cand.coverage = coverageOf(cand.corpus, cand.doc, plan.concepts, df, n);
     cand.score = cand.raw * (0.15 + 0.85 * cand.coverage);
     const norm = idfMass > 0 ? cand.raw / idfMass : 0;
@@ -1026,6 +1303,24 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
     cand.confidence = available === 0 ? round3(scorePart) : round3(0.75 * (onHit / available) + 0.25 * scorePart);
   }
   pool.sort((a, b) => b.score - a.score || a.doc - b.doc);
+
+  // Reciprocal-rank fusion with the title/URL lexical score. BM25 rank stays
+  // the rare-token signal; lexical rank promotes the page whose title or
+  // manual section actually answers a how-to.
+  const lexOf = new Map<(typeof pool)[number], number>();
+  for (const cand of pool) lexOf.set(cand, lexicalScore(cand.corpus.docs[cand.doc], lexical));
+  const byLex = [...pool].sort((a, b) => (lexOf.get(b) ?? 0) - (lexOf.get(a) ?? 0) || a.doc - b.doc);
+  const lexRank = new Map<(typeof pool)[number], number>();
+  byLex.forEach((cand, index) => lexRank.set(cand, index));
+  if (!ablate("fusion")) {
+    for (let index = 0; index < pool.length; index += 1) {
+      const cand = pool[index];
+      if (!cand) continue;
+      const lexicalRank = lexRank.get(cand) ?? index;
+      cand.score = fuseRanks(index, lexicalRank);
+    }
+    pool.sort((a, b) => b.score - a.score || a.doc - b.doc);
+  }
 
   const best = new Map<string, { hit: SearchHit; page: boolean; doc: IndexedDoc }>();
   for (const cand of pool) {
@@ -1077,7 +1372,7 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
   }
 
   const ranked = [...best.values()].sort((a, b) => b.hit.score - a.hit.score || a.hit.url.localeCompare(b.hit.url));
-  if (missingCodeToken(plan.concepts, df, ranked[0])) {
+  if (missingCodeToken(plan.concepts, df, n)) {
     for (const item of ranked) item.hit.quality = "weak";
   }
   return ranked.map((item) => item.hit);

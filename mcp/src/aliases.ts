@@ -27,3 +27,27 @@ export const RETRIEVAL_ALIASES: Record<string, string[]> = {
   推理: ["inference"],
   inference: ["推理"],
 };
+
+/**
+ * Generic bilingual concepts. These are not tool names: a query about a
+ * board setup should meet the words the manuals actually use.
+ */
+/** Dictionary translations. Not product page names or task rewrites. */
+export const CONCEPT_SYNONYMS: Record<string, string[]> = {
+  登录: ["login"],
+  login: ["登录"],
+  账号: ["账户", "account"],
+  账户: ["账号", "account"],
+  account: ["账号", "账户"],
+  密码: ["password", "口令"],
+  password: ["密码", "口令"],
+  口令: ["密码", "password"],
+  波特率: ["baud", "baudrate"],
+  baud: ["波特率"],
+  baudrate: ["波特率", "baud"],
+  静态: ["static"],
+  static: ["静态"],
+  大模型: ["llm", "大语言模型"],
+  大语言模型: ["llm", "大模型"],
+  llm: ["大模型", "大语言模型"],
+};

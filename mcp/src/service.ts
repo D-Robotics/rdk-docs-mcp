@@ -249,7 +249,7 @@ export async function searchDocs(
   const quality = matchQuality(hits, searched, query);
   if (quality.noGoodMatch) {
     warnings.push(
-      "noGoodMatch: a package, command, API, or error code in the query is absent from the searched manuals and from the top hit. Do not invent that identifier.",
+      "noGoodMatch: the query has no RDK-specific term in the searched manuals. Generic words such as install, login, or docker do not count. Do not invent an identifier.",
     );
   }
   if (ambiguousBoard) {
@@ -263,7 +263,7 @@ export async function searchDocs(
     ambiguousBoard,
     warnings,
     guidance: quality.noGoodMatch
-      ? "noGoodMatch: a package, command, API, or error code in the query is absent from the searched manuals and from the top hit. Do not invent that identifier. Read the snippets; if they do not answer, reformulate the query, pass board, or set source=forum."
+      ? "noGoodMatch: the query has no RDK-specific term in the searched manuals. Generic words such as install, login, or docker do not count. Read the snippets; if they do not answer, reformulate the query, pass board, or set source=forum."
       : `${searchGuidance()} Read the top snippets and decide whether they answer the question. noGoodMatch=false is not proof of relevance. confidence is advisory. If the snippets do not answer, reformulate the query, pass board, or set source=forum.`,
     noGoodMatch: quality.noGoodMatch,
     matchQuality: quality.matchQuality,
