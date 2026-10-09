@@ -82,9 +82,9 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "search_docs",
     {
       description:
-        "Search RDK manuals with BM25 over heading chunks. Each hit has title, url, manual, snippet, score, coverage, confidence, and board when known. Read the top snippets and decide yourself whether they answer the question. confidence is advisory. noGoodMatch=false is not proof of relevance. noGoodMatch=true only when the query contains a package, command, API, or error code that appears in none of the searched manuals and not in the top hit: do not invent that identifier. If the snippets do not answer, reformulate the query, pass board, or set source=forum. groups clusters hits by board. ambiguousBoard=true means the query named no board: do not treat hits[0] as the user's board. Pass board (x3|x5|s100|s600) when you know it, including Moss on a detected board. A named board hard-filters the other family, so an X3/X5 question will not return S-series OE pages. source=forum or manual=forum for community posts; source=all only when the user asked for forum input. Keep models separate. Do not invent commands or pinouts.",
+        "Search RDK manuals with BM25 over heading chunks, including FAQ question/answer sections. Pass a short focused query: the error text, a command or API, or a few content words — not the user's whole paragraph. Pass board (x3|x5|s100|s600) whenever you know the board, even if the user left it out. Each hit has title, url, manual, snippet, score, coverage, confidence, and board when known. Read the top snippets and decide yourself whether they answer the question. confidence is advisory. noGoodMatch=false is not proof of relevance. noGoodMatch=true only when the query contains a package, command, API, or error code that appears in none of the searched manuals and not in the top hit: do not invent that identifier. If the snippets do not answer, reformulate and search again. Try 2 reformulations (different keywords, the error string, or the FAQ wording) before concluding nothing is documented. groups clusters hits by board. ambiguousBoard=true means the query named no board: do not treat hits[0] as the user's board, and do not assume one product series. A named board hard-filters the other family, so an X3/X5 question will not return S-series OE pages. source=forum or manual=forum for community posts; source=all only when the user asked for forum input. Keep models separate. Do not invent commands or pinouts.",
       inputSchema: {
-        query: z.string().describe("Chinese or English keywords. Keep identifiers whole, e.g. hobot_dnn, hrt_model_exec"),
+        query: z.string().describe("Short keywords, error string, or identifier. Not a full paragraph. Keep identifiers whole, e.g. hobot_dnn, hrt_model_exec, AttributeError"),
         manual: z
           .string()
           .optional()
@@ -96,7 +96,7 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
         board: z
           .enum(["x3", "x5", "s100", "s600"])
           .optional()
-          .describe("Board in context. Applied only when the query does not already name a board"),
+          .describe("Pass when the board is known (x3|x5|s100|s600), even if the query omitted it. Omit when comparing boards or the board is unknown"),
         limit: z.number().int().min(1).max(20).optional().describe("Max hits, default 8"),
       },
     },

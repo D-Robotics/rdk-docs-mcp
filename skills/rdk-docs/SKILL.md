@@ -19,10 +19,10 @@ description: Retrieves official D-Robotics RDK documentation from developer.d-ro
 | `list_toc` | 一本手册的目录 |
 
 1. 识别产品：X3/X5 → `rdk-x` / `x5`；S100/S600 → `rdk-s`；TROS → `tros`；烧录 → `xburn`；Studio → `studio`。
-2. `search_docs`，查询词用用户中文原词，必要时再补英文。已知板卡而问句没写型号时传 `board`（`x3` | `x5` | `s100` | `s600`）；问句已经点名型号就不要再传。标识符保持整词（`hobot_dnn`、`hrt_model_exec`）。
+2. `search_docs` 传短查询：错误原文、命令、包名，或两三个关键词，不要把用户的整段话原样塞进去。已知板卡就传 `board`（`x3` | `x5` | `s100` | `s600`），即使用户没写型号；问句已经点名型号就不要再传。标识符保持整词（`hobot_dnn`、`hrt_model_exec`）。
 3. 读顶部几条的 `title`、`snippet`、`url`，自己判断能不能回答这句。`confidence` 只是参考。`noGoodMatch=false` 不是「这条一定相关」的证明，不要因为没有这个标记就直接作答。
 4. `noGoodMatch=true` 只表示问句里的包名、命令、API 或错误码在所搜手册里一次都没出现，而且顶部命中也不含这个词。不要把这个词编成手册里的命令。其它问法即使页面对得不紧，也先读摘要再决定。
-5. 摘要答不上时，换一种问法再搜，或补上 `board`，或改用 `source=forum`。问句里写了 X3/X5 就不会返回 S 系列 OE，写了 S100/S600 就不会返回 X 系列 OE。`matchedVia=alias` 表示字面量不在索引里，摘要写的是最近的已写页面（例如 `hbm_shell` → `hrt_model_exec`）。`sun55iw3` 不在手册里，不要把它当成 X5。
+5. 摘要答不上时换关键词再搜。至少换 2 种问法（错误原文、FAQ 里的说法，或补上 `board`）之后，才能判断手册里没有。也可以改用 `source=forum`。问句里写了 X3/X5 就不会返回 S 系列 OE，写了 S100/S600 就不会返回 X 系列 OE。没写型号时不要认定某一系列。`matchedVia=alias` 表示字面量不在索引里，摘要写的是最近的已写页面（例如 `hbm_shell` → `hrt_model_exec`）。`sun55iw3` 不在手册里，不要把它当成 X5。
 6. 打开最像答案的那条。若正文以「空壳页」开头，立刻改开下一条，不要对用户说「手册没写」。
 7. 问句点名 X3 / X5 / S100 / S600 时，跨型号分开检索，不要用另一型号的专题页当答案。问句没写型号时看返回的 `groups` 和 `ambiguousBoard`：每种板卡各有一条，不要把 `hits[0]` 当成用户的板。Moss 等已知当前板卡的 Agent 必须传 `board`。
 8. 保留检索结果中的版本标签；缺少型号、系统版本或其他决定性参数时，先向用户澄清。

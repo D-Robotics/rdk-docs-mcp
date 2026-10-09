@@ -4,9 +4,9 @@ import { compactDocusaurusIndex } from "./docusaurus.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
-import type { HttpGet } from "./http.js";
+import { fetchText, type HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
-import { contextBoards, manualMatchesBoards, markPackagedIndex } from "./bm25.js";
+import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } from "./bm25.js";
 import { searchGuidance } from "./routes.js";
 import { groupHits, matchQuality, searchManuals } from "./search.js";
 import { selectSection } from "./sections.js";
@@ -169,6 +169,29 @@ export async function loadIndexFromOrigin(manual: Manual, http: HttpGet): Promis
   return [];
 }
 
+let indexWarm: Promise<void> | undefined;
+
+/** Load packaged manuals and their posting tables before the first query. */
+export function warmSearchIndex(http: HttpGet = fetchText): Promise<void> {
+  if (!indexWarm) indexWarm = warmSearchIndexNow(http);
+  return indexWarm;
+}
+
+async function warmSearchIndexNow(http: HttpGet): Promise<void> {
+  const manuals = listManuals().filter((manual) => manual.searchable);
+  await Promise.all(
+    manuals.map(async (manual) => {
+      try {
+        const docs = await loadIndex(manual, http);
+        primeIndex(docs);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        noteIndex(`Warm index for ${manual.id} failed: ${message}`);
+      }
+    }),
+  );
+}
+
 export async function searchDocs(
   input: SearchInput,
   http: HttpGet,
@@ -186,6 +209,7 @@ export async function searchDocs(
   if (!query) {
     throw new Error("query is required");
   }
+  if (indexWarm) await indexWarm;
   const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
   const source = resolveSource(input.manual, input.source);
   const includeDocs = source === "docs" || source === "all";
@@ -263,8 +287,8 @@ export async function searchDocs(
     ambiguousBoard,
     warnings,
     guidance: quality.noGoodMatch
-      ? "noGoodMatch: the query has no RDK-specific term in the searched manuals. Generic words such as install, login, or docker do not count. Read the snippets; if they do not answer, reformulate the query, pass board, or set source=forum."
-      : `${searchGuidance()} Read the top snippets and decide whether they answer the question. noGoodMatch=false is not proof of relevance. confidence is advisory. If the snippets do not answer, reformulate the query, pass board, or set source=forum.`,
+      ? "noGoodMatch: the query has no RDK-specific term in the searched manuals. Generic words such as install, login, or docker do not count. Read the snippets; if they do not answer, reformulate into a short query and pass board when you know it. Try 2 reformulations before concluding nothing is documented, or set source=forum."
+      : `${searchGuidance()} Read the top snippets and decide whether they answer the question. noGoodMatch=false is not proof of relevance. confidence is advisory. Prefer a short query (error text, command, or a few keywords) and pass board when you know it. If the snippets do not answer, reformulate and search again; try 2 reformulations before concluding nothing is documented, or set source=forum.`,
     noGoodMatch: quality.noGoodMatch,
     matchQuality: quality.matchQuality,
     confidence: quality.confidence,

@@ -361,6 +361,12 @@ export function markPackagedIndex(docs: IndexedDoc[]): void {
   packaged.add(docs);
 }
 
+/** Decode the packaged posting table so the first query does not pay for it. */
+export function primeIndex(docs: IndexedDoc[]): void {
+  if (docs.length === 0) return;
+  corpusFor(docs);
+}
+
 export function contextBoards(query: string, options: RankOptions = {}): BoardId[] {
   const mentioned = mentionedBoards(query);
   if (mentioned.length > 0) return mentioned;
