@@ -55,6 +55,52 @@ describe("docusaurus index", () => {
     expect(docs.some((d) => d.snippet?.includes("多种标准"))).toBe(true);
   });
 
+  it("merges answer chunks under one FAQ question", () => {
+    const raw = [
+      {
+        documents: [
+          {
+            t: "8.1 硬件、系统与环境配置",
+            u: "/rdk_x_doc/FAQ/hardware_and_system",
+            b: ["FAQ"],
+          },
+        ],
+      },
+      {
+        documents: [
+          {
+            t: "Q5: RDK X3 的调试串口线如何正确连接?",
+            u: "/rdk_x_doc/FAQ/hardware_and_system",
+            h: "#q5",
+          },
+        ],
+      },
+      {
+        documents: [
+          {
+            s: "Q5: RDK X3 的调试串口线如何正确连接?",
+            t: "连接到 DEBUG 串口，TX 接 RX。",
+            u: "/rdk_x_doc/FAQ/hardware_and_system",
+            h: "#q5",
+          },
+          {
+            s: "Q5: RDK X3 的调试串口线如何正确连接?",
+            t: "再用 USB 转串口模块接到电脑。",
+            u: "/rdk_x_doc/FAQ/hardware_and_system",
+            h: "#q5",
+          },
+        ],
+      },
+    ];
+    const docs = compactDocusaurusIndex(raw, "rdk-x");
+    const questions = docs.filter((doc) => doc.kind === "heading" && doc.url.includes("#q5"));
+    expect(questions).toHaveLength(1);
+    expect(questions[0]?.title).toContain("调试串口");
+    expect(questions[0]?.answer).toContain("TX 接 RX");
+    expect(questions[0]?.answer).toContain("USB 转串口");
+    expect(questions[0]?.text ?? "").not.toContain("TX 接 RX");
+  });
+
   it("keeps untitled page urls and copies snippet text onto the page", () => {
     const raw = [
       { documents: [{ u: "/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3" }] },

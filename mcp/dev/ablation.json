@@ -1,0 +1,115 @@
+{
+  "note": "Debugging questions only. Hope paths are labels, not the hidden eval. FAQ answers are a separate lower-weight field. Segmentation stays on because it recovers x3-version; public hit@1 does not move when it is ablated. jetson and raspberry do not abstain: the camera words are in the manuals, which is main's rule. excel, k8s, and recipe do.",
+  "results": {
+    "none": {
+      "top1": 18,
+      "ranked": 21,
+      "abstainOk": 3,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "usb-cam-no-image -> hardware_introduction/rdk_x5#usb-摄像头",
+        "oos-jetson",
+        "oos-raspberry"
+      ]
+    },
+    "segment": {
+      "top1": 17,
+      "ranked": 21,
+      "abstainOk": 3,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "x3-version -> FAQ/hardware_and_system#q18-rdk-x3-不同系统版本的有线网口的-ip-是什么",
+        "s600-burn-prep -> s600/v5_1_0#242-os-镜像",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "oos-jetson",
+        "oos-raspberry"
+      ]
+    },
+    "identifier": {
+      "top1": 18,
+      "ranked": 21,
+      "abstainOk": 3,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "usb-cam-no-image -> hardware_introduction/rdk_x5#usb-摄像头",
+        "oos-jetson",
+        "oos-raspberry"
+      ]
+    },
+    "phrase": {
+      "top1": 18,
+      "ranked": 21,
+      "abstainOk": 3,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "usb-cam-no-image -> hardware_introduction/rdk_x5#usb-摄像头",
+        "oos-jetson",
+        "oos-raspberry"
+      ]
+    },
+    "board": {
+      "top1": 17,
+      "ranked": 21,
+      "abstainOk": 3,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "s600-burn-prep -> rdk_s100/burn#烧录全镜像",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "usb-cam-no-image -> hardware_introduction/rdk_x5#usb-摄像头",
+        "oos-jetson",
+        "oos-raspberry"
+      ]
+    },
+    "titledf": {
+      "top1": 17,
+      "ranked": 21,
+      "abstainOk": 3,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "x3-module-camera -> Release_Note/release_note#支持-rdk-x3-module",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "usb-cam-no-image -> hardware_introduction/rdk_x5#usb-摄像头",
+        "oos-jetson",
+        "oos-raspberry"
+      ]
+    },
+    "oos": {
+      "top1": 18,
+      "ranked": 21,
+      "abstainOk": 1,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "usb-cam-no-image -> hardware_introduction/rdk_x5#usb-摄像头",
+        "oos-jetson",
+        "oos-raspberry",
+        "oos-excel",
+        "oos-k8s"
+      ]
+    },
+    "structure": {
+      "top1": 18,
+      "ranked": 21,
+      "abstainOk": 3,
+      "abstainN": 5,
+      "misses": [
+        "x3-usb-preview -> hardware_introduction/rdk_x3#usb-摄像头",
+        "cam-no-picture -> hardware_introduction/rdk_x3#hdmi_interface",
+        "usb-cam-no-image -> hardware_introduction/rdk_x5#usb-摄像头",
+        "oos-jetson",
+        "oos-raspberry"
+      ]
+    }
+  },
+  "warmP95Ms": 9.99
+}

@@ -20,6 +20,13 @@ describe("mentionedBoards", () => {
     expect(soleBoard("如何烧录")).toBeUndefined();
   });
 
+  it("reads a board id glued with an underscore", () => {
+    expect(mentionedBoards("rdk_x3 module")).toEqual(["x3"]);
+    expect(mentionedBoards("driver_development_x5")).toEqual(["x5"]);
+    expect(urlLooksLikeBoard("/rdk_x_doc/linux_development/driver_development_x5/gpio", "x5")).toBe(true);
+    expect(urlLooksLikeBoard("/rdk_x_doc/linux_development/driver_development_x5/gpio", "x3")).toBe(false);
+  });
+
   it("does not treat incidental x/5 or s100 prefixes as a board", () => {
     expect(mentionedBoards("max 5V")).toEqual([]);
     expect(mentionedBoards("index 5 HDMI")).toEqual([]);

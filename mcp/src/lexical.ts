@@ -181,7 +181,7 @@ export function prepareLexical(query: string): LexicalPlan {
 /** A landing page is a short label (a board or product name) with no procedure text. */
 export function isThinLanding(doc: IndexedDoc): boolean {
   if (structureScale(doc) > 1) return false;
-  const text = (doc.text ?? "").trim();
+  const text = `${doc.text ?? ""} ${doc.answer ?? ""}`.trim();
   if (text.length >= 80) return false;
   const tokens = doc.title
     .trim()
@@ -219,16 +219,23 @@ export function fuseRanks(bmRank: number, lexRank: number, lexWeight = LEX_FUSIO
   return 1 / (k + bmRank) + lexWeight / (k + lexRank);
 }
 
-export function lexicalScore(doc: IndexedDoc, plan: LexicalPlan): number {
+const LEX_SCAN = 280;
+
+export function lexicalScore(doc: IndexedDoc, plan: LexicalPlan, common?: ReadonlySet<string>): number {
   const title = doc.title.toLowerCase();
-  const extra = [doc.snippet, doc.text, ...(doc.breadcrumbs ?? [])].filter(Boolean).join(" ").toLowerCase();
+  const extra = [doc.snippet, doc.text, ...(doc.breadcrumbs ?? [])]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .slice(0, LEX_SCAN);
+  const answer = (doc.answer ?? "").toLowerCase().slice(0, LEX_SCAN);
   let score = 0;
   let matched = 0;
   let titleMatched = 0;
   for (const matcher of plan.matchers) {
-    // A title made only of generic words (docker, error, install) is not an answer.
-    if (WEAK_TITLE.has(matcher.token)) {
-      if (matcher.test(extra)) {
+    // A title made only of generic or very common words is not an answer.
+    if (WEAK_TITLE.has(matcher.token) || common?.has(matcher.token)) {
+      if (matcher.test(extra) || (answer && matcher.test(answer))) {
         score += 1;
         matched += 1;
       }
@@ -246,6 +253,10 @@ export function lexicalScore(doc: IndexedDoc, plan: LexicalPlan): number {
     }
     if (matcher.test(extra)) {
       score += 3;
+      hit = true;
+    } else if (answer && matcher.test(answer)) {
+      // Answer text is evidence, but a title or section body outranks it.
+      score += 1;
       hit = true;
     }
     if (doc.kind === "page" && matcher.test(title)) score += 2;

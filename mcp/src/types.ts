@@ -4,6 +4,8 @@ export type IndexedDoc = {
   url: string;
   snippet?: string;
   text?: string;
+  /** FAQ answer body. Indexed below the title so it cannot outrank a short heading. */
+  answer?: string;
   breadcrumbs?: string[];
   kind: "page" | "heading" | "snippet";
 };

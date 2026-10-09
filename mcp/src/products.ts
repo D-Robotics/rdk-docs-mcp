@@ -7,10 +7,16 @@ const RULES: Array<{ id: BoardId; re: RegExp }> = [
   { id: "s100", re: /\bs100p?\b|\bs100\s*p\b/i },
 ];
 
+/** Treat `_`, `-`, and path punctuation as spaces so `driver_development_x5` names x5. */
+function loose(value: string): string {
+  return value.replace(/[_./#+-]+/g, " ");
+}
+
 export function mentionedBoards(query: string): BoardId[] {
   const found = new Set<BoardId>();
+  const hay = loose(query);
   for (const rule of RULES) {
-    if (rule.re.test(query)) found.add(rule.id);
+    if (rule.re.test(query) || rule.re.test(hay)) found.add(rule.id);
   }
   return [...found];
 }
@@ -21,7 +27,7 @@ export function soleBoard(query: string): BoardId | undefined {
 }
 
 export function urlLooksLikeBoard(url: string, board: BoardId): boolean {
-  const u = url.toLowerCase();
+  const u = `${url}\n${loose(url)}`.toLowerCase();
   if (board === "x3") {
     return /rdk_x3|rdk\s*x3|\bx3\b|\/x3(?:_|\/|$)|hardware_introduction\/rdk_x3/.test(u);
   }

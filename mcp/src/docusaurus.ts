@@ -34,10 +34,17 @@ export function titleFromDoc(item: { t?: string; s?: string; b?: string[]; u: st
   return item.u.split("/").filter(Boolean).at(-1) || item.u;
 }
 
+function appendAnswer(doc: IndexedDoc, chunk: string): void {
+  const text = doc.answer ?? "";
+  if (!chunk || text.includes(chunk)) return;
+  doc.answer = text ? `${text}\n${chunk}` : chunk;
+}
+
 export function compactDocusaurusIndex(raw: unknown, manualId: string): IndexedDoc[] {
   if (!Array.isArray(raw)) return [];
 
   const docs: IndexedDoc[] = [];
+  const headings = new Map<string, IndexedDoc>();
   (raw as Shard[]).forEach((shard, shardIndex) => {
     for (const item of shard.documents ?? []) {
       if (!item.u) continue;
@@ -45,6 +52,31 @@ export function compactDocusaurusIndex(raw: unknown, manualId: string): IndexedD
 
       const kind: IndexedDoc["kind"] =
         shardIndex === 0 && !item.h ? "page" : item.h ? "heading" : "snippet";
+
+      if (kind === "heading" && item.h) {
+        const section = item.s?.trim() ?? "";
+        const body = item.t?.trim() ?? "";
+        const key = `${dehashedUrl(toAbsoluteUrl(item.u))}#${item.h}`;
+        let doc = headings.get(key);
+        if (!doc) {
+          doc = {
+            manualId,
+            title: section || body || title,
+            url: toAbsoluteUrl(item.u, item.h),
+            breadcrumbs: item.b,
+            kind: "heading",
+          };
+          headings.set(key, doc);
+          docs.push(doc);
+        } else if (section && section.length >= doc.title.length) {
+          doc.title = section;
+          if (!doc.breadcrumbs?.length && item.b?.length) doc.breadcrumbs = item.b;
+        }
+        // Shard headings store the question in `s` and the answer paragraphs in `t`.
+        // Keep the answer off the heading body so title matches stay ahead of it.
+        if (section && body && body !== section) appendAnswer(doc, body);
+        continue;
+      }
 
       docs.push({
         manualId,
@@ -80,7 +112,7 @@ export function compactDocusaurusIndex(raw: unknown, manualId: string): IndexedD
   }
 
   for (const doc of docs) {
-    if (doc.kind !== "heading" || doc.snippet?.trim()) continue;
+    if (doc.kind !== "heading" || doc.snippet?.trim() || doc.text?.trim() || doc.answer?.trim()) continue;
     const page = pagesByUrl.get(dehashedUrl(doc.url));
     const fromCrumbs = doc.breadcrumbs?.filter(Boolean).join(" / ");
     const filled = page?.title?.trim() || fromCrumbs?.trim();

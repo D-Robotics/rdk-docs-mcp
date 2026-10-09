@@ -22,6 +22,9 @@ const TITLE_W = 3;
 const URL_W = 1.6;
 const BODY_W = 1;
 const BODY_CAP = 1500;
+/** FAQ answer tokens. Half a body hit, and well below a title hit (weight 3). */
+const ANSWER_TF = 0.5;
+const SCAN_CAP = 280;
 /** Terms in more than this fraction of the searched docs do not carry a concept. */
 const COMMON_DF = 0.08;
 /** Rarer than this, a content term is distinctive enough to abstain on. */
@@ -382,11 +385,9 @@ function boardsOn(doc: IndexedDoc): BoardId[] {
 }
 
 function docAllowed(doc: IndexedDoc, boards: BoardId[]): boolean {
-  if (!manualMatchesBoards(doc.manualId, boards)) return false;
-  if (boards.length === 0) return true;
-  const on = boardsOn(doc);
-  if (on.length === 0) return true;
-  return on.some((board) => boards.includes(board));
+  // Family filter only. A URL that names another board is down-weighted in
+  // boardScale, not deleted: the hard drop was removing X5 answers.
+  return manualMatchesBoards(doc.manualId, boards);
 }
 
 const STOP_BY_FIRST = new Map<string, string[]>();
@@ -448,11 +449,13 @@ function bigrams(segment: string): string[] {
   return grams;
 }
 
-function bump(tf: Map<string, Counts>, term: string, field: Field, amount = 1): void {
+function bump(tf: Map<string, Counts>, term: string, field: Field, amount = 1, ceiling?: number): void {
   if (term.length < 2 || EN_STOP.has(term)) return;
   if (amount < 1 && FRAGMENT_SKIP.has(term)) return;
   const row = tf.get(term) ?? { t: 0, u: 0, b: 0 };
+  if (ceiling !== undefined && row[field] >= ceiling) return;
   row[field] += amount;
+  if (ceiling !== undefined && row[field] > ceiling) row[field] = ceiling;
   tf.set(term, row);
 }
 
@@ -467,29 +470,34 @@ function isAsciiToken(code: number): boolean {
   );
 }
 
-function addToken(tf: Map<string, Counts>, raw: string, field: Field): void {
+function addToken(tf: Map<string, Counts>, raw: string, field: Field, scale = 1, ceiling?: number): void {
   const tok = raw.toLowerCase();
-  bump(tf, tok, field);
+  bump(tf, tok, field, scale, ceiling);
   if (!tok.includes("_") && !tok.includes("-") && !tok.includes(".")) return;
   const flat = tok.replace(/[-_.]/g, "");
-  if (flat.length >= 6 && flat !== tok) bump(tf, flat, field);
+  if (flat.length >= 6 && flat !== tok) bump(tf, flat, field, scale, ceiling);
   const parts = tok.split(/[-_.]+/);
   if (parts.length < 2) return;
-  for (const part of parts) bump(tf, part, field, 0.5);
+  for (const part of parts) bump(tf, part, field, 0.5 * scale, ceiling);
+  // A path segment that already splits out the board id (driver_development_x5)
+  // is counted above. Only glued forms (rdkx5) need a separate board term.
   if (tok.includes("x3") || tok.includes("x5") || tok.includes("s100") || tok.includes("s600")) {
-    for (const board of mentionedBoards(tok)) bump(tf, board, field);
+    for (const board of mentionedBoards(tok)) {
+      if (parts.includes(board)) continue;
+      bump(tf, board, field, 0.5 * scale, ceiling);
+    }
   }
 }
 
-function addCjk(tf: Map<string, Counts>, run: string, field: Field): void {
+function addCjk(tf: Map<string, Counts>, run: string, field: Field, scale = 1, ceiling?: number): void {
   for (const segment of cjkSegments(run)) {
     const grams = bigrams(segment);
-    if (segment.length <= 8 && (grams.length !== 1 || grams[0] !== segment)) bump(tf, segment, field);
-    for (const gram of grams) bump(tf, gram, field);
+    if (segment.length <= 8 && (grams.length !== 1 || grams[0] !== segment)) bump(tf, segment, field, scale, ceiling);
+    for (const gram of grams) bump(tf, gram, field, scale, ceiling);
   }
 }
 
-function ingest(text: string, field: Field, tf: Map<string, Counts>): void {
+function ingest(text: string, field: Field, tf: Map<string, Counts>, scale = 1, ceiling?: number): void {
   const n = text.length;
   let i = 0;
   let pendingNumber = "";
@@ -500,10 +508,10 @@ function ingest(text: string, field: Field, tf: Map<string, Counts>): void {
       i += 1;
       while (i < n && isAsciiToken(text.charCodeAt(i))) i += 1;
       const raw = text.slice(start, i);
-      addToken(tf, raw, field);
+      addToken(tf, raw, field, scale, ceiling);
       if (/^\d+$/.test(raw)) pendingNumber = raw;
       else {
-        if (pendingNumber && /^[A-Za-z]{2,}$/.test(raw)) bump(tf, `${pendingNumber}${raw.toLowerCase()}`, field);
+        if (pendingNumber && /^[A-Za-z]{2,}$/.test(raw)) bump(tf, `${pendingNumber}${raw.toLowerCase()}`, field, scale, ceiling);
         pendingNumber = "";
       }
       continue;
@@ -521,7 +529,7 @@ function ingest(text: string, field: Field, tf: Map<string, Counts>): void {
         if (next < 0x4e00 || next > 0x9fff) break;
         i += 1;
       }
-      addCjk(tf, text.slice(start, i), field);
+      addCjk(tf, text.slice(start, i), field, scale, ceiling);
       continue;
     }
     i += 1;
@@ -559,6 +567,7 @@ function corpusFor(docs: IndexedDoc[]): Corpus {
     ingest(urlPath(doc.url), "u", tf);
     const body = [doc.snippet, doc.text, ...(doc.breadcrumbs ?? [])].filter(Boolean).join(" ");
     ingest(body.slice(0, BODY_CAP), "b", tf);
+    if (doc.answer) ingest(doc.answer.slice(0, BODY_CAP), "b", tf, ANSWER_TF, ANSWER_TF);
     if (profile) ingestMs += performance.now() - ingestStart;
     let titleLen = 0;
     let urlLen = 0;
@@ -801,7 +810,12 @@ function addTypoVariants(concepts: Concept[], terms: QTerm[], df: (term: string)
           if (!editNeighbors(term).includes(alias) && alias !== term) continue;
           rememberTerm(concept, terms, have, manualTerm, 0.8);
         }
-        if (best && (second === 0 || bestDf >= second * 3)) rememberTerm(concept, terms, have, best, 0.7);
+        const transposed =
+          best.length === term.length &&
+          [...term].some((_, index) => index < term.length - 1 && term[index] !== term[index + 1] && best === term.slice(0, index) + term[index + 1] + term[index] + term.slice(index + 2));
+        // helm → held is one substitution and not a typo. wfii → wifi is a swap.
+        const shortSubstitution = term.length < 5 && !transposed && !ALL_SYNONYMS[best];
+        if (best && !shortSubstitution && (second === 0 || bestDf >= second * 3)) rememberTerm(concept, terms, have, best, 0.7);
       }
     }
   }
@@ -825,14 +839,15 @@ function prefixIndex(dfMap: Map<string, number>): Map<string, string[]> {
   return index;
 }
 
-function expandPrefixes(concepts: Concept[], terms: QTerm[], corpora: Corpus[]): void {
+function expandPrefixes(
+  concepts: Concept[],
+  terms: QTerm[],
+  corpora: Corpus[],
+  present: (term: string) => number = (term) => dfOf(corpora, term),
+): void {
   const maps = corpora.map((corpus) => prefixIndex(corpus.df));
   const have = new Set(terms.map((item) => item.term));
-  const df = (term: string) => {
-    let n = 0;
-    for (const corpus of corpora) n += corpus.df.get(term) ?? 0;
-    return n;
-  };
+  const df = present;
   for (const concept of concepts) {
     for (const term of [...concept.original]) {
       if (!/^[a-z][a-z0-9]*$/.test(term) || term.length < 4 || term.length > 8 || df(term) > 0) continue;
@@ -846,6 +861,7 @@ function expandPrefixes(concepts: Concept[], terms: QTerm[], corpora: Corpus[]):
           // yolo → yolov5. An open-ended prefix (helm → helmfile) is not a version.
           const rest = candidate.slice(term.length);
           if (!/^v?\d/.test(rest)) continue;
+          if (df(candidate) <= 0) continue;
           found.add(candidate);
         }
       }
@@ -859,6 +875,23 @@ function dfOf(corpora: Corpus[], term: string): number {
   let df = 0;
   for (const corpus of corpora) df += corpus.df.get(term) ?? 0;
   return df;
+}
+
+/**
+ * Document frequency ignoring FAQ-answer-only hits. A word that shows up only
+ * in an answer must not make an out-of-scope query look in-corpus. Title, URL,
+ * and ordinary body text still count. Answer tf is stored at 0.5.
+ */
+function dfOutsideAnswers(corpora: Corpus[], term: string): number {
+  let n = 0;
+  for (const corpus of corpora) {
+    const list = corpus.postings.get(term);
+    if (!list) continue;
+    for (let i = 0; i < list.length; i += 4) {
+      if (list[i + 1] > 0 || list[i + 2] > 0 || list[i + 3] > 0.5) n += 1;
+    }
+  }
+  return n;
 }
 
 function docHas(corpus: Corpus, term: string, docId: number): boolean {
@@ -970,14 +1003,11 @@ export function absentCommandToken(groups: IndexedDoc[][], query: string): boole
   const plan = analyzeQuery(query);
   if (plan.concepts.length === 0) return false;
   const df = (term: string) => dfOf(corpora, term);
-  if (!ablate("typo")) addTypoVariants(plan.concepts, plan.terms, df);
   let n = 0;
   for (const corpus of corpora) n += corpus.n;
+  adaptPlan(plan, query, df, n);
+  if (!ablate("typo")) addTypoVariants(plan.concepts, plan.terms, df);
   return !plan.concepts.some((concept) => conceptDomain(concept, df, n));
-}
-
-function isBoardToken(term: string): boolean {
-  return BOARD_TOKEN.has(term);
 }
 
 /**
@@ -1143,6 +1173,241 @@ function distinctiveOf(concepts: Concept[], df: (term: string) => number, n: num
   });
 }
 
+function cloneConcepts(concepts: Concept[]): Concept[] {
+  return concepts.map((concept) => ({
+    terms: [...concept.terms],
+    keys: [...concept.keys],
+    original: [...concept.original],
+    minHits: concept.minHits,
+  }));
+}
+
+function bumpTerm(plan: { terms: QTerm[] }, term: string, qtf: number): void {
+  if (term.length < 2 || EN_STOP.has(term)) return;
+  const prev = plan.terms.find((item) => item.term === term);
+  if (!prev) plan.terms.push({ term, qtf });
+  else if (qtf > prev.qtf) prev.qtf = qtf;
+}
+
+function conceptFromTerm(term: string): Concept {
+  const terms = [term];
+  const extras = synonymExtras(term);
+  if (extras) {
+    for (const extra of extras) {
+      for (const piece of aliasTerms(extra)) {
+        if (!terms.includes(piece)) terms.push(piece);
+      }
+    }
+  }
+  return { terms, keys: [term], minHits: 1, original: [term] };
+}
+
+/** A short CJK word is in the manuals when the word or each of its bigrams is. */
+function cjkCovered(term: string, df: (term: string) => number, n: number): boolean {
+  if (df(term) > 0) return true;
+  if (!isCjkTerm(term) || term.length < 3 || term.length > 4) return false;
+  const grams = bigrams(term);
+  if (grams.length === 0 || grams.some((gram) => df(gram) <= 0)) return false;
+  if (n < 200) return true;
+  return grams.some((gram) => df(gram) / n < COMMON_DF);
+}
+
+/** An indexed word. Bigram coverage is not enough: a phantom would eat a longer real word. */
+function realWord(part: string, df: (term: string) => number, n: number): boolean {
+  if (CJK_FILLER.has(part) || isGeneralLanguage(part)) return false;
+  const docs = df(part);
+  if (docs <= 0) return false;
+  if (n >= 200 && docs / n >= COMMON_DF) return false;
+  if (part.length >= 3) return true;
+  return n > 0 && docs / n < COMMON_DF;
+}
+
+/**
+ * Forward max match against words that are actually indexed. Characters that
+ * do not start such a word are skipped, so a bigram-only phantom ("板子系统")
+ * cannot swallow a longer real word that starts inside it ("系统版本号").
+ * A 3–4 character bigram-covered word fills a gap only when it fits before
+ * the next real word ("摄像头" inside "摄像头插上").
+ */
+function longestReal(segment: string, at: number, df: (term: string) => number, n: number): string {
+  const room = segment.length - at;
+  const max = Math.min(8, room);
+  for (let len = max; len >= 2; len -= 1) {
+    const piece = segment.slice(at, at + len);
+    if (realWord(piece, df, n)) return piece;
+  }
+  return "";
+}
+
+function maxMatchParts(segment: string, df: (term: string) => number, n: number): string[] {
+  const real: Array<{ start: number; word: string }> = [];
+  let i = 0;
+  while (i < segment.length) {
+    const here = longestReal(segment, i, df, n);
+    let best = here;
+    let bestAt = here ? i : -1;
+    // A short word must not hide a longer word that starts a character or two later
+    // ("子系统" vs "系统版本号").
+    for (let skip = 1; skip <= 2 && i + skip < segment.length; skip += 1) {
+      const ahead = longestReal(segment, i + skip, df, n);
+      if (!ahead) continue;
+      if (ahead.length < (best?.length ?? 0) + 2) continue;
+      best = ahead;
+      bestAt = i + skip;
+    }
+    if (!best || bestAt < 0) {
+      i += 1;
+      continue;
+    }
+    real.push({ start: bestAt, word: best });
+    i = bestAt + best.length;
+  }
+  const parts: string[] = [];
+  let cursor = 0;
+  const pushCovered = (from: number, to: number) => {
+    let j = from;
+    while (j < to) {
+      let taken = "";
+      const coverMax = Math.min(4, to - j);
+      for (let len = coverMax; len >= 3; len -= 1) {
+        const piece = segment.slice(j, j + len);
+        if (CJK_FILLER.has(piece) || isGeneralLanguage(piece)) continue;
+        if (!cjkCovered(piece, df, n)) continue;
+        taken = piece;
+        break;
+      }
+      if (!taken) {
+        j += 1;
+        continue;
+      }
+      parts.push(taken);
+      j += taken.length;
+    }
+  };
+  for (const item of real) {
+    if (item.start > cursor) pushCovered(cursor, item.start);
+    parts.push(item.word);
+    cursor = item.start + item.word.length;
+  }
+  if (cursor < segment.length) pushCovered(cursor, segment.length);
+  return parts;
+}
+
+/**
+ * Split CJK that was glued past a real word ("摄像头插上") and, when an
+ * underscored identifier is missing, accept a slightly shorter corpus stem.
+ */
+function adaptPlan(
+  plan: { terms: QTerm[]; concepts: Concept[] },
+  query: string,
+  df: (term: string) => number,
+  n: number,
+): void {
+  if (!ablate("segment")) {
+    const next: Concept[] = [];
+    for (const concept of plan.concepts) {
+      const head = concept.keys[0] ?? "";
+      if (!isCjkTerm(head) || head.length <= 2 || df(head) > 0) {
+        next.push(concept);
+        continue;
+      }
+      const parts = maxMatchParts(head, df, n);
+      if (parts.length === 0) {
+        next.push(concept);
+        continue;
+      }
+      for (const part of parts) {
+        const born = conceptFromTerm(part);
+        next.push(born);
+        // Short pieces ("镜像", "温度") must not outrank a heading that already
+        // matches the query. A long in-corpus word ("系统版本号") keeps more weight.
+        const ratio = head.length > 0 ? part.length / head.length : 0.5;
+        // Only a long recovered word is allowed to move rank. Shorter pieces
+        // stay in the concept list so a glued topic does not abstain.
+        const qtf = part.length >= 5 ? Math.min(0.75, Math.max(0.5, ratio)) : 0.1;
+        for (const term of born.terms) bumpTerm(plan, term, term === part ? qtf : qtf * 0.45);
+      }
+    }
+    plan.concepts = next;
+  }
+
+  if (!ablate("identifier")) {
+    for (const match of query.matchAll(/[A-Za-z]*[a-z][A-Z][A-Za-z0-9]*/g)) {
+      const full = match[0].toLowerCase();
+      const parts = match[0]
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((part) => part.length >= 2);
+      const owner = plan.concepts.find((concept) => concept.original.includes(full) || concept.keys.includes(full));
+      for (const part of parts) {
+        if (df(part) <= 0 && df(full) > 0) continue;
+        bumpTerm(plan, part, 0.55);
+        if (owner && !owner.terms.includes(part)) owner.terms.push(part);
+      }
+    }
+    const have = new Set(plan.terms.map((item) => item.term));
+    for (const concept of plan.concepts) {
+      for (const term of [...concept.original]) {
+        if (df(term) > 0 || term.length < 8) continue;
+        if (!term.includes("_") && !term.includes(".")) continue;
+        for (let drop = 1; drop <= 4 && term.length - drop >= 6; drop += 1) {
+          const prefix = term.slice(0, term.length - drop);
+          const docs = df(prefix);
+          if (docs <= 0 || (n > 0 && docs / n > 0.05)) continue;
+          if (!prefix.includes("_") && !prefix.includes(".")) continue;
+          rememberTerm(concept, plan.terms, have, prefix, 0.75);
+          break;
+        }
+      }
+    }
+  }
+}
+
+function phraseNeedles(query: string): string[] {
+  if (ablate("phrase")) return [];
+  const needles: string[] = [];
+  const lower = query.toLowerCase();
+  for (const match of lower.matchAll(/[`"'“”‘’]([^`"'“”‘’]{6,})[`"'“”‘’]/g)) {
+    const text = match[1]?.replace(/\s+/g, " ").trim() ?? "";
+    if (text.length >= 6) needles.push(text);
+  }
+  if (/error|exception|failed|errno|traceback|invalid|not available|no such|报错/i.test(query)) {
+    for (const match of lower.matchAll(/[a-z][a-z0-9_./:-]{2,}(?:\s+[a-z0-9_./:-]+){2,}/g)) {
+      const text = match[0].replace(/\s+/g, " ").trim();
+      if (text.length >= 12) needles.push(text);
+    }
+  }
+  return [...new Set(needles)].slice(0, 4);
+}
+
+function phraseScale(doc: IndexedDoc, needles: string[]): number {
+  if (needles.length === 0) return 1;
+  const hay = `${doc.title}\n${(doc.text ?? "").slice(0, SCAN_CAP)}\n${(doc.snippet ?? "").slice(0, SCAN_CAP)}\n${(doc.answer ?? "").slice(0, SCAN_CAP)}`
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  let hit = 0;
+  for (const needle of needles) {
+    if (hay.includes(needle)) hit += 1;
+  }
+  if (hit === 0) return 1;
+  return Math.min(1.7, 1.28 + 0.14 * (hit - 1));
+}
+
+function boardScale(doc: IndexedDoc, query: string, options: RankOptions): number {
+  if (ablate("board")) return 1;
+  const named = mentionedBoards(query);
+  // No boost for the matching board. A positive lift let an X5 URL beat the
+  // page whose title actually answers the question.
+  const boards = named.length > 0 ? named : options.board ? [options.board] : [];
+  if (boards.length === 0) return 1;
+  const on = boardsOn(doc);
+  if (on.length === 0 || on.some((board) => boards.includes(board))) return 1;
+  // Mild, and stronger only when the query itself names a board. A board
+  // passed only as an option must not bury a canonical page.
+  return named.length > 0 ? 0.85 : 0.92;
+}
+
 function roleScale(doc: IndexedDoc): number {
   return ablate("structure") ? 1 : structureScale(doc);
 }
@@ -1187,7 +1452,7 @@ function lastUrlSegment(url: string): string {
 
 function fillSnippet(doc: IndexedDoc): string {
   const crumbs = doc.breadcrumbs?.filter(Boolean).join(" / ");
-  const filled = doc.snippet || doc.text?.slice(0, 180) || crumbs || "";
+  const filled = doc.snippet || doc.answer?.slice(0, 180) || doc.text?.slice(0, 180) || crumbs || "";
   return filled.trim().slice(0, 240) || lastUrlSegment(doc.url);
 }
 
@@ -1214,6 +1479,9 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
   if (corpora.length === 0) return [];
   const plan = analyzeQuery(query);
   if (plan.concepts.length === 0 || plan.terms.length === 0) return [];
+  // Abstain on the query as written. Segmentation may add an in-corpus word
+  // for ranking, but that must not hide an unknown command such as iphone.
+  const abstainConcepts = cloneConcepts(plan.concepts);
 
   let n = 0;
   let sumTitle = 0;
@@ -1229,8 +1497,17 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
   const avgUrl = n > 0 ? sumUrl / n : 1;
   const avgBody = n > 0 ? sumBody / n : 1;
   const df = (term: string) => dfOf(corpora, term);
-  if (!ablate("typo")) addTypoVariants(plan.concepts, plan.terms, df);
-  if (!ablate("prefix")) expandPrefixes(plan.concepts, plan.terms, corpora);
+  const dfAbstain = (term: string) => dfOutsideAnswers(corpora, term);
+  const abstainTerms = plan.terms.map((item) => ({ ...item }));
+  adaptPlan(plan, query, df, n);
+  if (!ablate("typo")) {
+    addTypoVariants(plan.concepts, plan.terms, df);
+    addTypoVariants(abstainConcepts, abstainTerms, dfAbstain);
+  }
+  if (!ablate("prefix")) {
+    expandPrefixes(plan.concepts, plan.terms, corpora);
+    expandPrefixes(abstainConcepts, abstainTerms, corpora, dfAbstain);
+  }
   // When the full identifier is absent (hbm_shell) its documented alias
   // should carry the query, not the leftover fragment (hbm) at qtf 0.2.
   for (const concept of plan.concepts) {
@@ -1244,6 +1521,14 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
     }
   }
   const lexical = prepareLexical(query);
+  const needles = phraseNeedles(query);
+  const commonTitle = new Set<string>();
+  if (!ablate("titledf") && n >= 800) {
+    for (const qterm of plan.terms) {
+      const docsWith = df(qterm.term);
+      if (docsWith > 0 && docsWith / n >= COMMON_DF) commonTitle.add(qterm.term);
+    }
+  }
 
   for (const corpus of corpora) beginEpoch(corpus);
   let idfMass = 0;
@@ -1288,8 +1573,14 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
     const doc = cand.corpus.docs[cand.doc];
     const landing =
       !ablate("landing") && isThinLanding(doc) && plan.concepts.some((concept) => conceptDomain(concept, df, n)) ? 0.34 : 1;
-    cand.raw = cand.score * breadthScale(doc, cand.corpus.bodyDl[cand.doc], avgBody) * roleScale(doc) * landing;
-    cand.coverage = coverageOf(cand.corpus, cand.doc, plan.concepts, df, n);
+    cand.raw =
+      cand.score *
+      breadthScale(doc, cand.corpus.bodyDl[cand.doc], avgBody) *
+      roleScale(doc) *
+      landing *
+      boardScale(doc, query, options) *
+      phraseScale(doc, needles);
+    cand.coverage = coverageOf(cand.corpus, cand.doc, abstainConcepts, df, n);
     cand.score = cand.raw * (0.15 + 0.85 * cand.coverage);
     const norm = idfMass > 0 ? cand.raw / idfMass : 0;
     let available = 0;
@@ -1308,7 +1599,7 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
   // the rare-token signal; lexical rank promotes the page whose title or
   // manual section actually answers a how-to.
   const lexOf = new Map<(typeof pool)[number], number>();
-  for (const cand of pool) lexOf.set(cand, lexicalScore(cand.corpus.docs[cand.doc], lexical));
+  for (const cand of pool) lexOf.set(cand, lexicalScore(cand.corpus.docs[cand.doc], lexical, commonTitle));
   const byLex = [...pool].sort((a, b) => (lexOf.get(b) ?? 0) - (lexOf.get(a) ?? 0) || a.doc - b.doc);
   const lexRank = new Map<(typeof pool)[number], number>();
   byLex.forEach((cand, index) => lexRank.set(cand, index));
@@ -1346,15 +1637,16 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
       continue;
     }
     const nextIsPage = doc.kind === "page";
-    let title = prev.hit.title;
-    if (nextIsPage && (!prev.page || hit.score >= prev.hit.score)) title = hit.title;
-    else if (!prev.page && hit.score > prev.hit.score) title = hit.title;
-    const winner = hit.score > prev.hit.score ? hit : prev.hit;
-    const snippet = hit.score > prev.hit.score ? hit.snippet : prev.hit.snippet;
-    const url = hit.score > prev.hit.score ? hit.url : prev.hit.url;
-    const coverageOut = hit.score > prev.hit.score ? hit.coverage : prev.hit.coverage;
-    const confidenceOut = hit.score > prev.hit.score ? hit.confidence : prev.hit.confidence;
-    const winnerDoc = hit.score > prev.hit.score ? doc : prev.doc;
+    const winnerIsNew = hit.score > prev.hit.score;
+    const winner = winnerIsNew ? hit : prev.hit;
+    const snippet = winnerIsNew ? hit.snippet : prev.hit.snippet;
+    const url = winnerIsNew ? hit.url : prev.hit.url;
+    const coverageOut = winnerIsNew ? hit.coverage : prev.hit.coverage;
+    const confidenceOut = winnerIsNew ? hit.confidence : prev.hit.confidence;
+    const winnerDoc = winnerIsNew ? doc : prev.doc;
+    // The chunk that won keeps its title. A lower-scoring page must not
+    // replace a question heading with the section name.
+    const title = winner.title;
     best.set(base, {
       hit: {
         ...winner,
@@ -1372,7 +1664,10 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
   }
 
   const ranked = [...best.values()].sort((a, b) => b.hit.score - a.hit.score || a.hit.url.localeCompare(b.hit.url));
-  if (missingCodeToken(plan.concepts, df, n)) {
+  // Refusal uses the query before segmentation, and ignores tokens that
+  // occur only in an FAQ answer. A glued phrase must not become in-corpus
+  // just because one piece of it is.
+  if (!ablate("oos") && missingCodeToken(abstainConcepts, dfAbstain, n)) {
     for (const item of ranked) item.hit.quality = "weak";
   }
   return ranked.map((item) => item.hit);
