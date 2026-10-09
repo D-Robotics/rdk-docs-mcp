@@ -82,9 +82,9 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "search_docs",
     {
       description:
-        "Search RDK sources through MCP. Default source is docs (official manuals only). Use source=forum or manual=forum for community experience; use source=all only when the user explicitly asks for community/forum input. manual=forum is a compatibility alias for source=forum. If evidence is insufficient, report that without inferring support or lack of support. Keep different product models separate, preserve version labels, and ask for missing parameters before searching.",
+        "Search RDK manuals with BM25 over heading chunks. Each hit has title, url, manual, snippet, score, coverage, confidence, and board when known. Read the top snippets and decide yourself whether they answer the question. confidence is advisory. noGoodMatch=false is not proof of relevance. noGoodMatch=true only when the query contains a package, command, API, or error code that appears in none of the searched manuals and not in the top hit: do not invent that identifier. If the snippets do not answer, reformulate the query, pass board, or set source=forum. groups clusters hits by board. ambiguousBoard=true means the query named no board: do not treat hits[0] as the user's board. Pass board (x3|x5|s100|s600) when you know it, including Moss on a detected board. A named board hard-filters the other family, so an X3/X5 question will not return S-series OE pages. source=forum or manual=forum for community posts; source=all only when the user asked for forum input. Keep models separate. Do not invent commands or pinouts.",
       inputSchema: {
-        query: z.string().describe("Chinese or English search keywords"),
+        query: z.string().describe("Chinese or English keywords. Keep identifiers whole, e.g. hobot_dnn, hrt_model_exec"),
         manual: z
           .string()
           .optional()
@@ -93,12 +93,16 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
           .enum(["docs", "forum", "all"])
           .optional()
           .describe("docs = manuals only; forum = community only; all = docs first, forum as supplement"),
+        board: z
+          .enum(["x3", "x5", "s100", "s600"])
+          .optional()
+          .describe("Board in context. Applied only when the query does not already name a board"),
         limit: z.number().int().min(1).max(20).optional().describe("Max hits, default 8"),
       },
     },
-    async ({ query, manual, source, limit }) => {
+    async ({ query, manual, source, board, limit }) => {
         try {
-          return ok(await searchDocs({ query, manual, source, limit }, fetchText));
+          return ok(await searchDocs({ query, manual, source, board, limit }, fetchText));
       } catch (error) {
         return fail(error);
       }
@@ -109,7 +113,7 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "get_page",
     {
       description:
-        "Fetch one official RDK documentation page or public community forum topic as Markdown. Prefer URLs returned by search_docs; forum content is read-only community experience, not official documentation.",
+        "Read one official page or public forum topic as Markdown. Pass query or section to jump to that part (apt source steps are not at the start of the FAQ). A URL hash is an anchor. imageOnly=true means the pin map or table is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means raise maxChars or pass query.",
       inputSchema: {
         url: z
           .string()
@@ -117,11 +121,13 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
             "URL returned by search_docs: official documentation on developer.d-robotics.cc or a public read-only forum topic on forum.d-robotics.cc",
           ),
         maxChars: z.number().int().min(1000).max(40000).optional(),
+        section: z.string().optional().describe("Heading to extract, e.g. 40PIN 管脚定义"),
+        query: z.string().optional().describe("Return the section that answers this, instead of the start of the page"),
       },
     },
-    async ({ url, maxChars }) => {
+    async ({ url, maxChars, section, query }) => {
       try {
-        return ok(await getPage({ url, maxChars }, fetchText));
+        return ok(await getPage({ url, maxChars, section, query }, fetchText));
       } catch (error) {
         return fail(error);
       }

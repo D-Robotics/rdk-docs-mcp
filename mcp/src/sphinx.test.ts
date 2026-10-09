@@ -21,4 +21,11 @@ describe("compactSphinxIndex", () => {
       "/oe_x5_doc/cn/oe_mapper/source/ptq.html",
     );
   });
+
+  it("attaches identifier terms from an unquoted terms object", () => {
+    const source = `Search.setIndex({docnames:["tools/hrt_model_exec"],titles:["hrt_model_exec"],terms:{hrt_model_exec:0,_128:[0],sun55iw3:0}});`;
+    const docs = compactSphinxIndex(source, "oe-x5", "/oe_x5_doc/cn");
+    expect(docs[0]?.text).toContain("hrt_model_exec");
+    expect(docs[0]?.text).toContain("sun55iw3");
+  });
 });

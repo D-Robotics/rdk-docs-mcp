@@ -119,15 +119,16 @@ describe("searchDocs", () => {
     const result = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
     expect(result.hits[0]?.title).toMatch(/PoE/);
     expect(result.hits[0]?.url).toContain("developer.d-robotics.cc");
-    expect(result.hits[0]?.role).toBe("official-start");
-    expect(result.guidance).toMatch(/official-start/);
+    expect(result.hits[0]?.role).toBeUndefined();
     expect(result.warnings).toEqual([]);
   });
 
-  it("pins the official S100 flashing page even when lexical search prefers another S100 page", async () => {
+  it("ranks the indexed page that contains the query terms", async () => {
     const result = await searchDocs({ query: "S100 烧录镜像", manual: "s100" }, http);
-    expect(result.hits[0]?.url).toContain("s100-xburn");
-    expect(result.hits[0]?.role).toBe("official-start");
+    expect(result.hits[0]?.role).not.toBe("official-start");
+    expect(result.hits.every((hit) => hit.manual === "rdk-s" || hit.manual === "xburn" || hit.manual === "rdk-studio")).toBe(
+      true,
+    );
   });
 
   it("discovers the Rspress search_index for S 系列 OE", async () => {

@@ -34,8 +34,8 @@ jsDelivr 不可用时，同一文件在：
 | Tool | 做什么 |
 |------|--------|
 | `list_manuals` | 列出资料中心已上架手册（X/S 系列、TROS、Model Zoo、Studio、XBurn、OE、X5 SDK 等） |
-| `search_docs` | 中英文关键词检索。指定手册只搜那一本；不指定时手册为主、论坛至多作补充。`forum` 只搜社区。 |
-| `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown |
+| `search_docs` | BM25 检索（标题/路径权重大于正文，中文按二字切分）。指定手册只搜那一本；不指定时只搜手册。问句或 `board` 点名 X3/X5 时不会返回 S 系列 OE。未传板卡时 `ambiguousBoard=true`，`groups` 按板卡分组。每条命中带参考用的 `confidence`（0–1）。`noGoodMatch=true` 只在问句里的包名、命令、API 或错误码既不在所搜手册里、也不在顶部命中里时出现。没有这个标记不代表命中一定相关。 |
+| `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown。可选 `query` / `section`，或 URL 带 `#anchor`，用来跳过页首、直接打开相关小节。 |
 | `list_toc` | 列出某一本手册的页面目录；`forum` 列出「开发与问题」和「通用」最近帖 |
 | `search_skills` | 在 [D-Robotics/rdk-skills](https://github.com/D-Robotics/rdk-skills) 目录快照里按任务找 Skill（只读，带 `catalog_revision` 溯源） |
 | `get_skill` | 按目录精确名称返回 Skill 详情与安装引导：flat 给 `npx skills add ...`，workspace 给整包交接（Pack repo/ref/verify_paths + `rdk-pack-installer` 获取入口） |
@@ -94,16 +94,17 @@ ln -sfn "$(pwd)" ~/.cursor/plugins/local/rdk-docs
 
 用户问 RDK / TROS / 烧录 / 量化等问题时：
 
-1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`；只要社区就 `source=forum`，兼容写法 `manual=forum`）
-2. 对 1–2 个命中 URL 调用 `get_page`（手册或 `forum.d-robotics.cc` 主题）
-3. 用原文回答，并附上官方文档或论坛链接
+1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`；已知板卡而问句没写型号就带 `board`；只要社区就 `source=forum`，兼容写法 `manual=forum`）
+2. 读顶部摘要，自己判断是否答得上。`noGoodMatch=false` 不是相关性证明。`noGoodMatch=true` 只表示某个包名、命令、API 或错误码不在所搜手册和顶部命中里，不要编造这个标识符。摘要答不上就换问法，或补 `board`，或 `source=forum`。问句里的型号会硬过滤另一产品族（问 X3/X5 不会拿到 S 系列 OE）。`matchedVia=alias` 的摘要会说明字面量（如 `hbm_shell`）不在索引里。
+3. 对判断相关的 1–2 个命中 URL 调用 `get_page`（手册或 `forum.d-robotics.cc` 主题）。长页传 `query` 或 `section`。
+4. 用原文回答，并附上官方文档或论坛链接。`imageOnly=true` 时展示 `contentNotes` 里的官方图片，不要编针脚号。
 
 不要凭记忆编 `apt` 包名、镜像版本或管脚复用。
 
 ### 证据与限制（必读）
 
-- **含图的信息不算已读。** 部分页面（如 [管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)）把完整管脚表放在图片里，`get_page` 即使返回 `truncated=false` 的完整 Markdown，正文也没有逐针参数。涉及引脚 / 电平 / 电源时，要打开或展示页面里的官方图片，不要拿其他型号的针脚表推断。
-- **长页先看 `truncated` 字段。** `truncated=true` 表示正文被截断（末尾有截断提示）；需要后文就加大 `maxChars`（上限 40000）重读，仍不完整就明确说明只读到部分内容。
+- **含图的信息不算已读。** 部分页面（如 [管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)）把完整管脚表放在图片里。对「40PIN 管脚定义」传 `section` 时，`imageOnly=true`，`contentNotes` 列出图片 URL。涉及引脚 / 电平 / 电源时，要打开或展示这些官方图片，不要拿其他型号的针脚表推断，也不要编造针号。
+- **长页用 `query`、`section` 或 URL hash。** 只读开头会错过 FAQ 后部（例如 apt 软件源）。`truncated=true` 表示当前片段仍被截断；需要后文就加大 `maxChars`（上限 40000）重读，仍不完整就明确说明只读到部分内容。
 - **官方页面之间的数值冲突不在 MCP 里裁决。** 已知一例：RDK X5 的 40PIN 电源负载，[硬件简介](https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5)写 1A @3.3V / 1A @5V，[管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)写 800mA @3.3V / 500mA @5V。MCP 忠实返回两处原文；Agent 应引用差异并建议以文档维护者的确认为准，不要自行下兼容性结论。此项已转交官方文档维护者核实。
 
 ---
@@ -117,11 +118,14 @@ npm test
 npm run eval:live
 npm run eval:skills
 npm run build
+npm run eval
 ```
 
-`eval:live` 用真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。`eval:skills` 起真实 stdio MCP 连接打 rdk-skills 在线目录，验证六个工具与 flat/workspace 安装引导（需要网络；用隔离 HOME/缓存目录，不碰用户配置）。
+`npm run eval` 跑 `mcp/eval/retrieval-cases.json`（约 60 条中英检索 + 3 条小节读取），报告 hit@1、hit@3、MRR 和冷/热/论坛延迟。基线在 `mcp/eval/baseline.json`。`eval:live` 用另一组真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。`eval:skills` 起真实 stdio MCP 连接打 rdk-skills 在线目录，验证六个工具与 flat/workspace 安装引导（需要网络；用隔离 HOME/缓存目录，不碰用户配置）。
 
-索引缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），默认 TTL 24 小时。官方改文档后，缓存过期会重新拉最新索引；要立刻跟上就删掉缓存目录，或设 `RDK_DOCS_CACHE_TTL_MS=0`。
+冷启动检索读包内 `mcp/prebuilt/*.json.gz`（文档快照）和同名 `.bm25.gz`（倒排表，避免每次现场切词）。这不是整站镜像。`get_page` 仍向资料中心拉正文。快照超过 14 天（`RDK_DOCS_PREBUILT_MAX_AGE_DAYS`）会改拉线上索引并在 `warnings` 里说明；线上失败才退回旧快照并警告结果可能过期。设 `RDK_DOCS_PREBUILT=0` 可强制每次拉线上索引。刷新：`npm run build:index`（同时重写倒排表）。`prepublishOnly` 会在发布前跑同一命令，所以发布需要能访问资料中心。`npm run eval:offline` 只用包内快照，不访问网络（跳过论坛用例和 `get_page`）。`npm run eval:paraphrase` 跑另一组口语/错字/报错开发集。排序是 BM25，没有额外的向量模型：常见多语小模型有几十到几百 MB，放不进这个包，也做不到冷启动 300ms 以内。
+
+磁盘缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），默认 TTL 24 小时。官方改文档后，缓存过期会重新拉最新索引；要立刻跟上就删掉缓存目录，或设 `RDK_DOCS_CACHE_TTL_MS=0`。
 
 Skill 目录缓存是同一目录下的独立快照文件 `skill-catalog-snapshot.json`：一次刷新先取 rdk-skills 默认分支 commit SHA，再按同一 SHA 拉索引与 Pack 注册表两份 JSON，校验通过后原子替换；损坏视为 miss 重取，过期后刷新失败会明确报「目录不可用」，不回退旧数据。它和文档索引缓存互不影响，也和「MCP 启动时刷新已安装 bundled Skill」是两回事（后者只覆盖本包自带的 rdk-docs/forum-post/article-writer 三个 Skill 的既有安装，见 `mcp/src/install.ts`）。
 
@@ -131,4 +135,4 @@ S 系列 OE / OE LLM 是 Rspress 站点：不写死 `search_index.*.json` 的哈
 
 ## 许可与来源
 
-MIT。文档与帖子版权归 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/) 原站。本仓库只提供检索与阅读适配，不镜像整站。
+MIT。文档与帖子版权归 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/) 原站。本仓库提供检索与阅读适配，并附带搜索索引快照以加快冷启动；不镜像整站 HTML。`get_page` 仍读取原站页面。

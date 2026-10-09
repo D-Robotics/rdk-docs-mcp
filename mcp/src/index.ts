@@ -10,11 +10,11 @@ async function main() {
     process.exit(result.warnings.length > 0 && result.mcp.length === 0 ? 1 : 0);
   }
 
-  refreshInstalledSkillsOnStart();
-
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  // Skill refresh walks client config dirs. Do not block the MCP initialize handshake on it.
+  setImmediate(() => refreshInstalledSkillsOnStart());
 }
 
 main().catch((error: unknown) => {

@@ -110,7 +110,7 @@ done
 - S100 如何烧录镜像？
 - 看下 RDK 有哪些案例可以参考
 
-回答时先 `search_docs`。若命中带 `role=official-start`，先 `get_page` 打开这一条。手册是规范，论坛只作补充。
+回答时先 `search_docs`，读顶部摘要再判断是否相关。`noGoodMatch=false` 不是相关性证明。`noGoodMatch=true` 只表示某个命令、包名、API 或错误码不在手册和顶部命中里，不要编造它。摘要答不上就换问法，或 `source=forum`。手册是规范，论坛只作补充。
 
 ## 五、更新
 

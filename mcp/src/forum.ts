@@ -235,9 +235,7 @@ export function forumHitsFromDocs(
   limit: number,
   fillFrom: IndexedDoc[] = [],
 ): SearchHit[] {
-  const ranked = rankHits(docs, query, Math.max(limit * 3, 12))
-    .filter((hit) => hit.score >= 8)
-    .slice(0, limit)
+  const ranked = rankHits(docs, query, Math.max(limit * 3, 12)).slice(0, limit)
     .map((hit) => ({ ...hit, source: "forum" as const }));
   if (ranked.length >= limit) return ranked;
 
@@ -274,31 +272,27 @@ export async function searchForum(
   limit: number,
 ): Promise<SearchHit[]> {
   const searchUrl = `${FORUM_ORIGIN}/search.json?q=${encodeURIComponent(query)}`;
-  const bodies = await Promise.all([
-    http(searchUrl).catch(() => ""),
-    ...FORUM_BOARDS.map((board) => http(boardLatestUrl(board)).catch(() => "")),
-  ]);
+  const searchRaw = parseJson(await http(searchUrl).catch(() => ""));
+  const searchDocs = searchRaw ? compactDiscourseSearch(searchRaw) : [];
+  // Latest-board listings are pinned promos and unrelated new posts. Use them
+  // only when Discourse search itself returned nothing.
+  if (searchDocs.length > 0) {
+    return forumHitsFromDocs(searchDocs, query, limit, []);
+  }
 
+  const bodies = await Promise.all(FORUM_BOARDS.map((board) => http(boardLatestUrl(board)).catch(() => "")));
   const docs: IndexedDoc[] = [];
   const seen = new Set<string>();
-  const add = (items: IndexedDoc[]) => {
-    for (const item of items) {
+  FORUM_BOARDS.forEach((board, index) => {
+    const raw = parseJson(bodies[index] ?? "");
+    if (!raw) return;
+    for (const item of compactDiscourseTopicList(raw, board.name)) {
       if (seen.has(item.url)) continue;
       seen.add(item.url);
       docs.push(item);
     }
-  };
-
-  const searchRaw = parseJson(bodies[0] ?? "");
-  const searchDocs = searchRaw ? compactDiscourseSearch(searchRaw) : [];
-  add(searchDocs);
-  FORUM_BOARDS.forEach((board, index) => {
-    const raw = parseJson(bodies[index + 1] ?? "");
-    if (raw) add(compactDiscourseTopicList(raw, board.name));
   });
-
-  const fillFrom = /论坛|社区|经验|帖子|开发者/.test(query) ? docs : searchDocs;
-  return forumHitsFromDocs(docs, query, limit, fillFrom);
+  return forumHitsFromDocs(docs, query, limit, docs);
 }
 
 export async function listForumTopics(

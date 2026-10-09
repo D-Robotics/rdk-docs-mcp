@@ -1,15 +1,27 @@
 import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
-import { mentionedBoards, urlLooksLikeBoard } from "./products.js";
+import { mentionedBoards, urlLooksLikeBoard, type BoardId } from "./products.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
 import type { HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
-import { applyOfficialPath, matchOfficialPath, searchGuidance } from "./routes.js";
-import { rankHits } from "./search.js";
+import { contextBoards, manualMatchesBoards, markPackagedIndex } from "./bm25.js";
+import { searchGuidance } from "./routes.js";
+import { groupHits, matchQuality, searchManuals } from "./search.js";
+import { selectSection } from "./sections.js";
 import { compactSphinxIndex } from "./sphinx.js";
-import type { IndexedDoc, SearchHit } from "./types.js";
+import {
+  drainIndexNotes,
+  noteIndex,
+  prebuiltEnabled,
+  prebuiltIsStale,
+  readPrebuiltSnapshot,
+  recallIndex,
+  rememberIndex,
+  staleIndexWarning,
+} from "./index-store.js";
+import type { BoardGroup, IndexedDoc, SearchHit } from "./types.js";
 
 export type SearchSource = "docs" | "forum" | "all";
 
@@ -18,6 +30,8 @@ export type SearchInput = {
   manual?: string;
   source?: SearchSource;
   limit?: number;
+  /** Board the agent is on. Used when the query itself does not name one. */
+  board?: BoardId;
 };
 
 export type TocInput = {
@@ -28,6 +42,10 @@ export type TocInput = {
 export type PageInput = {
   url: string;
   maxChars?: number;
+  /** Heading text to return instead of the start of the page. */
+  section?: string;
+  /** Find the section that answers this query, even when it sits past maxChars. */
+  query?: string;
 };
 
 function requireManual(idOrAlias: string): Manual {
@@ -105,6 +123,37 @@ function manualsForSearch(manual?: string, query = ""): { targets: Manual[]; war
 }
 
 async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
+  const cached = recallIndex(http, manual.id);
+  if (cached) return cached;
+  if (prebuiltEnabled(http)) {
+    const snapshot = readPrebuiltSnapshot(manual.id);
+    if (snapshot && !prebuiltIsStale(snapshot.builtAt)) {
+      markPackagedIndex(snapshot.docs);
+      rememberIndex(http, manual.id, snapshot.docs);
+      return snapshot.docs;
+    }
+    if (snapshot && prebuiltIsStale(snapshot.builtAt)) {
+      try {
+        const live = await loadIndexFromOrigin(manual, http);
+        rememberIndex(http, manual.id, live);
+        noteIndex(staleIndexWarning(manual.id, snapshot.builtAt, "live"));
+        return live;
+      } catch (error) {
+        markPackagedIndex(snapshot.docs);
+        rememberIndex(http, manual.id, snapshot.docs);
+        noteIndex(staleIndexWarning(manual.id, snapshot.builtAt, "snapshot"));
+        const message = error instanceof Error ? error.message : String(error);
+        noteIndex(`Live index for ${manual.id} failed: ${message}`);
+        return snapshot.docs;
+      }
+    }
+  }
+  const docs = await loadIndexFromOrigin(manual, http);
+  rememberIndex(http, manual.id, docs);
+  return docs;
+}
+
+export async function loadIndexFromOrigin(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
   if (manual.indexKind === "rspress") {
     return loadRspressDocs(manual, http);
   }
@@ -123,7 +172,16 @@ async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
 export async function searchDocs(
   input: SearchInput,
   http: HttpGet,
-): Promise<{ hits: SearchHit[]; warnings: string[]; guidance: string }> {
+): Promise<{
+  hits: SearchHit[];
+  groups: BoardGroup[];
+  ambiguousBoard: boolean;
+  warnings: string[];
+  guidance: string;
+  noGoodMatch: boolean;
+  matchQuality: "good" | "weak" | "none";
+  confidence: number;
+}> {
   const query = input.query.trim();
   if (!query) {
     throw new Error("query is required");
@@ -135,17 +193,20 @@ export async function searchDocs(
   const warnings: string[] = [];
   const mentioned = mentionedBoards(query);
   const needsBoard = /升级|烧录|镜像|驱动|安装|系统|GPIO|PoE|WiFi|摄像头/i.test(query);
-  if (needsBoard && mentioned.length === 0 && !input.manual)
+  if (needsBoard && mentioned.length === 0 && !input.manual && !input.board)
     warnings.push("Board model is missing; version- or hardware-specific instructions require clarification before execution.");
   if (mentioned.length > 1 && input.manual === "rdk-x")
     warnings.push("Comparison evidence must be checked per board; do not infer a missing model's facts from another model.");
 
   let docHits: SearchHit[] = [];
+  let searched: IndexedDoc[][] = [];
   if (includeDocs) {
     const { targets, warnings: catalogWarnings } = manualsForSearch(input.manual, query);
     warnings.push(...catalogWarnings);
+    const boards = contextBoards(query, { board: input.board });
+    const filtered = targets.filter((manual) => manualMatchesBoards(manual.id, boards));
     const loaded = await Promise.all(
-      targets.map(async (manual) => {
+      filtered.map(async (manual) => {
         try {
           return { docs: await loadIndex(manual, http), warning: undefined };
         } catch (error) {
@@ -157,11 +218,12 @@ export async function searchDocs(
       }),
     );
     warnings.push(...loaded.map((item) => item.warning).filter((item): item is string => Boolean(item)));
-    docHits = rankHits(
-      loaded.flatMap((item) => item.docs),
-      query,
-      limit,
-    ).map((hit) => ({ ...hit, source: "docs" as const }));
+    warnings.push(...drainIndexNotes());
+    searched = loaded.map((item) => item.docs);
+    docHits = searchManuals(searched, query, limit, { board: input.board }).map((hit) => ({
+      ...hit,
+      source: "docs" as const,
+    }));
   }
 
   let forumHits: SearchHit[] = [];
@@ -173,16 +235,39 @@ export async function searchDocs(
     }
   }
 
-  const official = includeDocs ? matchOfficialPath(query, input.manual) : undefined;
   if (mentioned.length > 1 && docHits.length > 0) {
     const missing = mentioned.filter((board) => !docHits.some((hit) => urlLooksLikeBoard(hit.url, board) || urlLooksLikeBoard(hit.title, board)));
     if (missing.length > 0)
       warnings.push(`No retrieved hit is explicitly scoped to: ${missing.join(", ")}. Treat the comparison as incomplete.`);
   }
+  const hits = mergeHits(docHits, forumHits, limit).map((hit) =>
+    hit.source === "forum" ? { ...hit, role: "forum-supplement" as const } : hit,
+  );
+  const groups = groupHits(hits);
+  const boardGroups = groups.filter((group) => group.board !== "agnostic" && group.board !== "multiple");
+  const ambiguousBoard = mentioned.length === 0 && !input.board && boardGroups.length > 1;
+  const quality = matchQuality(hits, searched, query);
+  if (quality.noGoodMatch) {
+    warnings.push(
+      "noGoodMatch: a package, command, API, or error code in the query is absent from the searched manuals and from the top hit. Do not invent that identifier.",
+    );
+  }
+  if (ambiguousBoard) {
+    warnings.push(
+      "No board in the query. Hits are grouped by board. Pass board=x3|x5|s100|s600. Agents on a board, including Moss, should pass the detected board.",
+    );
+  }
   return {
-    hits: applyOfficialPath(mergeHits(docHits, forumHits, limit), official, limit),
+    hits,
+    groups,
+    ambiguousBoard,
     warnings,
-    guidance: searchGuidance(official),
+    guidance: quality.noGoodMatch
+      ? "noGoodMatch: a package, command, API, or error code in the query is absent from the searched manuals and from the top hit. Do not invent that identifier. Read the snippets; if they do not answer, reformulate the query, pass board, or set source=forum."
+      : `${searchGuidance()} Read the top snippets and decide whether they answer the question. noGoodMatch=false is not proof of relevance. confidence is advisory. If the snippets do not answer, reformulate the query, pass board, or set source=forum.`,
+    noGoodMatch: quality.noGoodMatch,
+    matchQuality: quality.matchQuality,
+    confidence: quality.confidence,
   };
 }
 
@@ -223,19 +308,20 @@ export async function listToc(
 export async function getPage(
   input: PageInput,
   http: HttpGet,
-): Promise<{ title: string; url: string; markdown: string; truncated: boolean }> {
+): Promise<{
+  title: string;
+  url: string;
+  markdown: string;
+  truncated: boolean;
+  section?: string;
+  anchor?: string;
+  sectionMatched?: boolean;
+  imageOnly?: boolean;
+  contentNotes?: string[];
+}> {
   const url = canonicalizeDocUrl(resolveDocUrl(input.url));
   if (new URL(url).hostname === "forum.d-robotics.cc") {
-    const page = await getForumTopic(url, http);
-    const maxChars = input.maxChars ?? 16_000;
-    if (page.markdown.length <= maxChars) {
-      return { ...page, truncated: false };
-    }
-    return {
-      ...page,
-      markdown: `${page.markdown.slice(0, maxChars)}\n\n…[truncated]`,
-      truncated: true,
-    };
+    return finishPage(await getForumTopic(url, http), input);
   }
   const html = await http(url);
   let page = htmlToMarkdown(html, url);
@@ -258,14 +344,47 @@ export async function getPage(
       markdown: emptyShellNotice(url),
     };
   }
-  const maxChars = input.maxChars ?? 16_000;
-  if (page.markdown.length <= maxChars) {
-    return { ...page, truncated: false };
+  return finishPage(page, input);
+}
+
+function finishPage(
+  page: { title: string; url: string; markdown: string },
+  input: PageInput,
+): {
+  title: string;
+  url: string;
+  markdown: string;
+  truncated: boolean;
+  section?: string;
+  anchor?: string;
+  sectionMatched?: boolean;
+  imageOnly?: boolean;
+  contentNotes?: string[];
+} {
+  let hash = "";
+  try {
+    hash = new URL(input.url, "https://developer.d-robotics.cc").hash.replace(/^#/, "");
+  } catch {
+    hash = "";
   }
+  const picked = selectSection(page.markdown, {
+    section: input.section,
+    query: input.query,
+    anchor: hash || undefined,
+  });
+  const maxChars = input.maxChars ?? 16_000;
+  const truncated = picked.markdown.length > maxChars;
+  const markdown = truncated ? `${picked.markdown.slice(0, maxChars)}\n\n…[truncated]` : picked.markdown;
   return {
-    ...page,
-    markdown: `${page.markdown.slice(0, maxChars)}\n\n…[truncated]`,
-    truncated: true,
+    title: page.title,
+    url: page.url,
+    markdown,
+    truncated,
+    section: picked.section,
+    anchor: picked.anchor,
+    sectionMatched: picked.matched,
+    imageOnly: picked.imageOnly,
+    contentNotes: picked.contentNotes.length > 0 ? picked.contentNotes : undefined,
   };
 }
 

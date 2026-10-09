@@ -1,254 +1,98 @@
-import { GLOSSARY_ALIASES } from "./glossary-aliases.js";
-import { mentionedBoards, soleBoard, urlLooksLikeBoard } from "./products.js";
-import type { IndexedDoc, SearchHit } from "./types.js";
+import { RETRIEVAL_ALIASES } from "./aliases.js";
+import { absentCommandToken, contextBoards, rankCorpora, type RankOptions } from "./bm25.js";
+import type { IndexedDoc, ResultBoard, SearchHit } from "./types.js";
 
-/** Question filler that carries no retrieval signal in Chinese queries. */
-const CJK_STOPWORDS = [
-  "怎么样",
-  "怎么",
-  "怎样",
-  "如何",
-  "什么",
-  "哪些",
-  "哪里",
-  "是否",
-  "多少",
-  "请问",
-  "帮我",
-  "一下",
-  "可不可以",
-  "能不能",
-  "有没有",
-];
+export type { RankOptions };
 
-const CJK_STOP_CHARS = new Set(["的", "了", "吗", "呢", "啊", "吧", "把", "是", "有", "个", "和", "或", "在", "给", "去", "到", "太", "很"]);
-
-const SYNONYMS: Record<string, string[]> = {
-  flash: ["烧录", "burn"],
-  burn: ["烧录"],
-  wifi: ["wi-fi", "无线"],
-  install: ["安装"],
-};
-
-/** 并集合并多份同义词表:key 冲突时数组取并集,而非后者覆盖前者。 */
-function mergeSynonyms(...maps: Array<Record<string, string[]>>): Record<string, string[]> {
-  const out: Record<string, string[]> = {};
-  for (const map of maps) {
-    for (const [key, extras] of Object.entries(map)) {
-      out[key] = [...new Set([...(out[key] ?? []), ...extras])];
-    }
-  }
-  return out;
-}
-
-// 手写语义同义(SYNONYMS)+ glossary 派生的写法归范别名(GLOSSARY_ALIASES),单点并集合并。
-const ALL_SYNONYMS = mergeSynonyms(SYNONYMS, GLOSSARY_ALIASES);
-
-const CJK_RUN = /[\u4e00-\u9fff]+/g;
-
-function cjkBigrams(query: string): string[] {
-  const grams: string[] = [];
-  for (const match of query.matchAll(CJK_RUN)) {
-    let run = match[0];
-    for (const stop of CJK_STOPWORDS) {
-      run = run.replaceAll(stop, "\u0000");
-    }
-    run = [...run].map((ch) => (CJK_STOP_CHARS.has(ch) ? "\u0000" : ch)).join("");
-    for (const segment of run.split("\u0000")) {
-      if (segment.length < 2) continue;
-      for (let i = 0; i + 2 <= segment.length; i += 1) {
-        grams.push(segment.slice(i, i + 2));
-      }
-    }
-  }
-  return grams;
-}
-
-export function tokens(query: string): string[] {
-  const seen = new Set<string>();
-  const lowered = query.trim().toLowerCase();
-  for (const match of lowered.matchAll(/[a-z][a-z0-9_.-]*|\d+[a-z][a-z0-9_.-]*|\d+/g)) {
-    seen.add(match[0]);
-  }
-  // Digit+letter interface names split by a separator ("40 pin", "40-PIN")
-  // must also match the joined form ("40pin") used in URLs and titles.
-  for (const match of lowered.matchAll(/(\d+)[\s-]+([a-z][a-z0-9_.-]*)/g)) {
-    seen.add(`${match[1]}${match[2]}`);
-  }
-  for (const gram of cjkBigrams(lowered)) {
-    seen.add(gram);
-  }
-  for (const [key, extras] of Object.entries(ALL_SYNONYMS)) {
-    if (seen.has(key)) {
-      extras.forEach((item) => seen.add(item));
-    }
-  }
-  if (seen.size === 0) {
-    for (const part of lowered.split(/\s+/).filter(Boolean)) {
-      seen.add(part);
-    }
-  }
-  return [...seen];
-}
-
-type Matcher = { token: string; test: (text: string) => boolean };
-
-function buildMatcher(token: string): Matcher {
-  if (!/^[a-z0-9][a-z0-9_.-]*$/.test(token)) {
-    return { token, test: (text) => text.includes(token) };
-  }
-  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // Short ascii tokens must stand alone against letters ("ip" must not match
-  // "zip" or "chip"); digits are allowed neighbours so interface names still
-  // match ("pin" inside "40pin", "usb" inside "usb2"). Longer tokens may extend
-  // to the right ("yolo" matches "yolov5", "swap" matches "swapfile").
-  const pattern =
-    token.length <= 3
-      ? new RegExp(`(?<![a-z])${escaped}(?![a-z])`)
-      : new RegExp(`(?<![a-z0-9])${escaped}`);
-  return { token, test: (text) => pattern.test(text) };
-}
-
-function haystack(doc: IndexedDoc): { title: string; extra: string; url: string } {
+function aliasNote(query: string, hit: SearchHit): SearchHit {
+  const raw = query.trim().toLowerCase();
+  const aliases = RETRIEVAL_ALIASES[raw];
+  if (!aliases) return hit;
+  const blob = `${hit.title} ${hit.url} ${hit.snippet}`.toLowerCase();
+  if (blob.includes(raw)) return hit;
+  const via = aliases.find((alias) => blob.includes(alias.toLowerCase()));
+  if (!via) return hit;
   return {
-    title: doc.title.toLowerCase(),
-    extra: [doc.snippet, doc.text, ...(doc.breadcrumbs ?? [])].filter(Boolean).join(" ").toLowerCase(),
-    url: doc.url.toLowerCase(),
+    ...hit,
+    matchedVia: "alias",
+    snippet: `No indexed page contains \`${raw}\`. Closest documented page (${via}). ${hit.snippet}`.slice(0, 280),
   };
 }
 
-function scoreDoc(doc: IndexedDoc, matchers: Matcher[], query: string): number {
-  const { title, extra, url } = haystack(doc);
-  const queryTokens = matchers.map((m) => m.token);
-  let score = 0;
-  let matched = 0;
-  let titleMatched = 0;
-  for (const { token, test } of matchers) {
-    let hit = false;
-    if (title === token) {
-      score += 14;
-      hit = true;
-      titleMatched += 1;
-    } else if (test(title)) {
-      score += 10;
-      hit = true;
-      titleMatched += 1;
-    }
-    if (test(extra)) {
-      score += 3;
-      hit = true;
-    }
-    if (test(url)) {
-      score += 4;
-      hit = true;
-    }
-    if (doc.kind === "page" && test(title)) score += 2;
-    if (hit) matched += 1;
-  }
-  if (matchers.length > 1) {
-    score += Math.round((matched / matchers.length) * 12);
-    // A single incidental body/url match out of many tokens is noise, not an answer.
-    if (matched === 1 && matchers.length >= 4 && titleMatched === 0) {
-      score = Math.min(score, 4);
+export function groupHits(hits: SearchHit[]): Array<{ board: ResultBoard; hits: SearchHit[] }> {
+  const order: ResultBoard[] = [];
+  const map = new Map<ResultBoard, SearchHit[]>();
+  for (const hit of hits) {
+    const board: ResultBoard = hit.board ?? "agnostic";
+    const list = map.get(board);
+    if (list) list.push(hit);
+    else {
+      map.set(board, [hit]);
+      order.push(board);
     }
   }
-
-  const wantsBurn = queryTokens.some((token) => ["烧录", "flash", "burn", "镜像"].includes(token));
-  const wantsInstall = queryTokens.some((token) => ["安装", "install"].includes(token));
-  const wantsWifi = queryTokens.some((token) => ["wifi", "wi-fi", "无线"].includes(token));
-  const wantsGpio = queryTokens.some((token) => token === "gpio");
-  const wantsPin = queryTokens.some((token) => token === "pin" || token === "40pin");
-
-  const wantsCases = queryTokens.some((token) => token === "案例");
-
-  if (wantsBurn && /burn|xburn|flash/.test(url)) score += 10;
-  if (wantsInstall && /install/.test(url) && !/cross_compile/.test(url)) score += 8;
-  if (wantsWifi && /wifi|remote_login|wlan/.test(url)) score += 10;
-  if (wantsGpio && /40pin|user_sample/.test(url) && /gpio/.test(url)) score += 8;
-  if (wantsPin && /40pin|user_sample/.test(url)) score += 8;
-  if (wantsCases && (/\/case\/?$/.test(url) || title.includes("应用案例"))) score += 10;
-  // Prefer the overview entry only among pages that already match the topic.
-  if (titleMatched > 0 && (/\/overview(?:\.html)?$/.test(url) || title.includes("概述"))) score += 4;
-  if (/\/faq\/|accessory|release_note|changelog|config_txt/.test(url)) score -= 6;
-
-  const sole = soleBoard(query);
-  const mentioned = mentionedBoards(query);
-  if (mentioned.length > 1) {
-    const matchesMentioned = mentioned.some((board) => urlLooksLikeBoard(doc.url, board) || urlLooksLikeBoard(doc.title, board));
-    const other = (["x3", "x5", "s100", "s600"] as const)
-      .filter((b) => !mentioned.includes(b))
-      .some((b) => urlLooksLikeBoard(doc.url, b) || urlLooksLikeBoard(doc.title, b));
-    const unrelatedFamily = (doc.manualId === "rdk-s" && mentioned.every(b => b === "x3" || b === "x5")) || (doc.manualId === "rdk-x" && mentioned.every(b => b === "s100" || b === "s600"));
-    if ((other && !matchesMentioned) || unrelatedFamily)
-      score = -1;
-  }
-  else if (sole) {
-    const mine = urlLooksLikeBoard(doc.url, sole) || urlLooksLikeBoard(doc.title, sole);
-    const other = (["x3", "x5", "s100", "s600"] as const)
-      .filter((b) => b !== sole)
-      .some((b) => urlLooksLikeBoard(doc.url, b) && !urlLooksLikeBoard(doc.url, sole));
-    if (mine) score += 8;
-    if (other) score -= 12;
-  }
-
-  return score;
+  return order.map((board) => ({ board, hits: map.get(board) ?? [] }));
 }
 
-function canonicalUrl(url: string): string {
-  return url.split("#")[0] ?? url;
-}
-
-function lastUrlSegment(url: string): string {
-  const path = canonicalUrl(url).split("/").filter(Boolean);
-  return path.at(-1) || url;
-}
-
-function fillSnippet(doc: IndexedDoc): string {
-  const crumbs = doc.breadcrumbs?.filter(Boolean).join(" / ");
-  const filled = doc.snippet || doc.text?.slice(0, 180) || crumbs || "";
-  return filled.trim() || lastUrlSegment(doc.url);
-}
-
-export function rankHits(docs: IndexedDoc[], query: string, limit: number): SearchHit[] {
-  const queryTokens = tokens(query);
-  if (queryTokens.length === 0) return [];
-  const matchers = queryTokens.map(buildMatcher);
-
-  const best = new Map<string, SearchHit>();
-  const titleFromPage = new Map<string, boolean>();
-  for (const doc of docs) {
-    const score = scoreDoc(doc, matchers, query);
-    if (score <= 0) continue;
-    const url = canonicalUrl(doc.url);
-    const hit: SearchHit = {
-      title: doc.title,
-      url,
-      manual: doc.manualId,
-      snippet: fillSnippet(doc),
-      score,
-      source: doc.manualId === "forum" ? "forum" : "docs",
-    };
-    const prev = best.get(url);
-    if (!prev) {
-      best.set(url, hit);
-      titleFromPage.set(url, doc.kind === "page");
-      continue;
-    }
-
-    const prevWasPage = titleFromPage.get(url) === true;
-    const nextIsPage = doc.kind === "page";
-    let title = prev.title;
-    if (nextIsPage && (!prevWasPage || hit.score >= prev.score)) {
-      title = hit.title;
-    } else if (!prevWasPage && hit.score > prev.score) {
-      title = hit.title;
-    }
-
-    const winner = hit.score > prev.score ? hit : prev;
-    const snippet = (hit.score > prev.score ? hit.snippet : prev.snippet) || hit.snippet || prev.snippet;
-    best.set(url, { ...winner, title, snippet });
-    titleFromPage.set(url, prevWasPage || nextIsPage);
+function diversifyByBoard(hits: SearchHit[]): SearchHit[] {
+  const groups = new Map<string, SearchHit[]>();
+  for (const hit of hits) {
+    const key = hit.board ?? "agnostic";
+    const list = groups.get(key);
+    if (list) list.push(hit);
+    else groups.set(key, [hit]);
   }
+  if (groups.size <= 1) return hits;
+  const keys = [...groups.keys()].sort((a, b) => (groups.get(b)?.[0]?.score ?? 0) - (groups.get(a)?.[0]?.score ?? 0));
+  const seen = new Set<SearchHit>();
+  const first: SearchHit[] = [];
+  for (const key of keys) {
+    const hit = groups.get(key)?.[0];
+    if (!hit) continue;
+    first.push(hit);
+    seen.add(hit);
+  }
+  return [...first, ...hits.filter((hit) => !seen.has(hit))];
+}
 
-  return [...best.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+function orderHits(docsGroups: IndexedDoc[][], query: string, limit: number, options: RankOptions): SearchHit[] {
+  const ranked = rankCorpora(docsGroups, query, options);
+  const unscoped = contextBoards(query, options).length === 0;
+  const ordered = unscoped ? diversifyByBoard(ranked) : ranked;
+  return ordered.slice(0, limit).map((hit) => aliasNote(query, hit));
+}
+
+export function rankHits(docs: IndexedDoc[], query: string, limit: number, options: RankOptions = {}): SearchHit[] {
+  return orderHits([docs], query, limit, options);
+}
+
+/** Score each manual's stable doc array on its own cached index, then merge. */
+export function searchManuals(
+  groups: IndexedDoc[][],
+  query: string,
+  limit: number,
+  options: RankOptions = {},
+): SearchHit[] {
+  return orderHits(groups, query, limit, options);
+}
+
+export function matchQuality(
+  hits: SearchHit[],
+  groups: IndexedDoc[][] = [],
+  query = "",
+): {
+  noGoodMatch: boolean;
+  matchQuality: "good" | "weak" | "none";
+  confidence: number;
+} {
+  const top = hits[0];
+  const confidence = top?.confidence ?? 0;
+  if (!top || top.score <= 0) {
+    const missing = query ? absentCommandToken(groups, query) : false;
+    return missing
+      ? { noGoodMatch: true, matchQuality: "weak", confidence: 0 }
+      : { noGoodMatch: false, matchQuality: "none", confidence: 0 };
+  }
+  if (top.quality === "weak") return { noGoodMatch: true, matchQuality: "weak", confidence };
+  return { noGoodMatch: false, matchQuality: "good", confidence };
 }

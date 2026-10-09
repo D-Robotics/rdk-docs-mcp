@@ -1,0 +1,23 @@
+{
+  "builtAt": "2026-10-09T05:59:28.737Z",
+  "maxAgeDays": 14,
+  "manuals": [
+    "bmi088",
+    "case-s600",
+    "magicbox",
+    "model-zoo",
+    "oe-llm-s100",
+    "oe-llm-s600",
+    "oe-s",
+    "oe-x3",
+    "oe-x5",
+    "rdk-s",
+    "rdk-studio",
+    "rdk-x",
+    "stereo-camera",
+    "tros",
+    "x5-sdk",
+    "xburn"
+  ],
+  "refresh": "npm run build:index regenerates this directory. npm publish runs it from prepublishOnly."
+}

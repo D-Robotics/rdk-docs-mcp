@@ -36,6 +36,9 @@ function cachePathFor(url: string): string {
 }
 
 export const fetchText: HttpGet = async (url: string) => {
+  if (process.env.RDK_DOCS_OFFLINE === "1") {
+    throw new Error(`RDK_DOCS_OFFLINE: refused network fetch ${url}`);
+  }
   const cached = await readCache(url);
   if (cached !== undefined) return cached;
 
