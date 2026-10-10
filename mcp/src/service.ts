@@ -10,7 +10,7 @@ import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } fr
 import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } from "./bm25.js";
 import { searchGuidance } from "./routes.js";
 import { fusePageHits, groupHits, matchQuality, normalizeAltQueries, searchManuals } from "./search.js";
-import { selectSection } from "./sections.js";
+import { formatOmittedSections, imageNotes, packRelevantSections, RELEVANT_SECTION_CAP, selectSection } from "./sections.js";
 import { compactSphinxIndex } from "./sphinx.js";
 import {
   drainIndexNotes,
@@ -50,9 +50,43 @@ export type PageInput = {
   maxChars?: number;
   /** Heading text to return instead of the start of the page. */
   section?: string;
-  /** Find the section that answers this query, even when it sits past maxChars. */
+  /** Find the sections that answer this query, even when they sit past the default cap. */
   query?: string;
+  /**
+   * Return the whole page. Omit to receive relevant sections.
+   * The section cap is about 6000 characters unless maxChars is set.
+   */
+  full?: boolean;
 };
+
+/** Explicit maxChars is honored up to this. The tool schema uses the same ceiling. */
+const PAGE_CHAR_LIMIT = 40_000;
+
+function honoredChars(input: PageInput, fallback: number): number {
+  const requested = input.maxChars ?? fallback;
+  if (!Number.isFinite(requested) || requested <= 0) return fallback;
+  return Math.min(requested, PAGE_CHAR_LIMIT);
+}
+
+function headingOffsets(markdown: string): Array<{ start: number; title: string }> {
+  const found: Array<{ start: number; title: string }> = [];
+  for (const match of markdown.matchAll(/^(#{1,6})\s+(.+)$/gm)) {
+    const title = (match[2] ?? "").replace(/\[\]\([^)]+\)\s*$/, "").trim();
+    if (title) found.push({ start: match.index ?? 0, title });
+  }
+  return found;
+}
+
+/** Keep maxChars of body. The omitted-section list is appended and capped, not subtracted. */
+function clipMarkdown(markdown: string, maxChars: number): { markdown: string; truncated: boolean } {
+  if (markdown.length <= maxChars) return { markdown, truncated: false };
+  const cut = markdown.slice(0, maxChars).replace(/\s+$/, "");
+  const omitted = headingOffsets(markdown)
+    .filter((heading) => heading.start >= cut.length)
+    .map((heading) => heading.title);
+  const marker = omitted.length > 0 ? formatOmittedSections(omitted) : "…[truncated]";
+  return { markdown: cut ? `${cut}\n\n${marker}` : marker, truncated: true };
+}
 
 function requireManual(idOrAlias: string): Manual {
   const manual = resolveManual(idOrAlias);
@@ -424,24 +458,58 @@ function finishPage(
   } catch {
     hash = "";
   }
-  const picked = selectSection(page.markdown, {
-    section: input.section,
+  const explicit = Boolean(hash || input.section?.trim());
+  if (input.full && !explicit) {
+    const maxChars = honoredChars(input, 16_000);
+    const notes = imageNotes(page.markdown);
+    const body = notes.imageOnly ? `${notes.contentNotes[0]}\n\n${page.markdown}` : page.markdown;
+    const clipped = clipMarkdown(body, maxChars);
+    return {
+      title: page.title,
+      url: page.url,
+      markdown: clipped.markdown,
+      truncated: clipped.truncated,
+      imageOnly: notes.imageOnly,
+      contentNotes: notes.contentNotes.length > 0 ? notes.contentNotes : undefined,
+    };
+  }
+
+  if (explicit) {
+    const picked = selectSection(page.markdown, {
+      section: input.section,
+      query: input.query,
+      anchor: hash || undefined,
+    });
+    const maxChars = honoredChars(input, input.full ? 16_000 : RELEVANT_SECTION_CAP);
+    const clipped = clipMarkdown(picked.markdown, maxChars);
+    return {
+      title: page.title,
+      url: page.url,
+      markdown: clipped.markdown,
+      truncated: clipped.truncated,
+      section: picked.section,
+      anchor: picked.anchor,
+      sectionMatched: picked.matched,
+      imageOnly: picked.imageOnly,
+      contentNotes: picked.contentNotes.length > 0 ? picked.contentNotes : undefined,
+    };
+  }
+
+  const packed = packRelevantSections(page.markdown, {
     query: input.query,
-    anchor: hash || undefined,
+    pageUrl: page.url,
+    maxChars: honoredChars(input, RELEVANT_SECTION_CAP),
   });
-  const maxChars = input.maxChars ?? 16_000;
-  const truncated = picked.markdown.length > maxChars;
-  const markdown = truncated ? `${picked.markdown.slice(0, maxChars)}\n\n…[truncated]` : picked.markdown;
   return {
     title: page.title,
     url: page.url,
-    markdown,
-    truncated,
-    section: picked.section,
-    anchor: picked.anchor,
-    sectionMatched: picked.matched,
-    imageOnly: picked.imageOnly,
-    contentNotes: picked.contentNotes.length > 0 ? picked.contentNotes : undefined,
+    markdown: packed.markdown,
+    truncated: packed.truncated,
+    section: packed.section,
+    anchor: packed.anchor,
+    sectionMatched: packed.matched,
+    imageOnly: packed.imageOnly,
+    contentNotes: packed.contentNotes.length > 0 ? packed.contentNotes : undefined,
   };
 }
 

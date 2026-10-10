@@ -1,3 +1,6 @@
+import { rankHits } from "./search.js";
+import type { IndexedDoc } from "./types.js";
+
 export type SectionSlice = {
   markdown: string;
   matched: boolean;
@@ -186,5 +189,221 @@ export function selectSection(
     matched: false,
     imageOnly: notes.imageOnly,
     contentNotes: notes.contentNotes,
+  };
+}
+
+/** Default get_page budget: relevant sections, not the whole page. */
+export const RELEVANT_SECTION_CAP = 6_000;
+
+type Piece = {
+  title: string;
+  anchor?: string;
+  text: string;
+  score: number;
+  index: number;
+};
+
+function pieces(markdown: string): Piece[] {
+  const all = blocks(markdown);
+  const out: Piece[] = [];
+  if (all.length === 0) {
+    const text = markdown.trim();
+    if (text) out.push({ title: "", text, score: 0, index: 0 });
+    return out;
+  }
+  const preamble = markdown.slice(0, all[0]?.start ?? 0).trim();
+  if (preamble) out.push({ title: "", text: preamble, score: 0, index: 0 });
+  all.forEach((block, index) => {
+    const next = all[index + 1];
+    const text = markdown.slice(block.start, next ? next.start : markdown.length).trim();
+    if (!text) return;
+    out.push({ title: block.title, anchor: block.anchor, text, score: 0, index: out.length });
+  });
+  return out;
+}
+
+/** The omitted-section list stays short and is not taken out of the body budget. */
+export const OMITTED_MARKER_CAP = 800;
+
+export function formatOmittedSections(titles: string[]): string {
+  if (titles.length === 0) return "";
+  const prefix = "… omitted sections: ";
+  const suffix = (count: number) => ` …and ${count} more`;
+  const kept: string[] = [];
+  for (let index = 0; index < titles.length; index += 1) {
+    const title = titles[index] ?? "";
+    const restAfter = titles.length - index - 1;
+    const tail = restAfter > 0 ? suffix(restAfter) : "";
+    const sep = kept.length > 0 ? ", " : "";
+    const next = `${prefix}${kept.join(", ")}${sep}${title}${tail}`;
+    if (next.length > OMITTED_MARKER_CAP) break;
+    kept.push(title);
+  }
+  const rest = titles.length - kept.length;
+  if (kept.length === 0) {
+    const tail = titles.length > 1 ? suffix(titles.length - 1) : "";
+    const room = Math.max(0, OMITTED_MARKER_CAP - prefix.length - tail.length);
+    return `${prefix}${(titles[0] ?? "").slice(0, room)}${tail}`.slice(0, OMITTED_MARKER_CAP);
+  }
+  return `${prefix}${kept.join(", ")}${rest > 0 ? suffix(rest) : ""}`;
+}
+
+function omittedTitles(all: Piece[], kept: Piece[]): string[] {
+  const keptIds = new Set(kept.map((part) => part.index));
+  return all.filter((part) => part.title.length > 0 && !keptIds.has(part.index)).map((part) => part.title);
+}
+
+function selectByBudget(parts: Piece[], budget: number): { kept: Piece[]; sliced: boolean } {
+  const kept: Piece[] = [];
+  let used = 0;
+  for (const part of parts) {
+    const sep = kept.length > 0 ? 2 : 0;
+    if (used + sep + part.text.length <= budget) {
+      kept.push(part);
+      used += sep + part.text.length;
+      continue;
+    }
+    if (kept.length === 0 && budget > 0) {
+      const text = part.text.slice(0, budget).replace(/\s+$/, "");
+      kept.push({ ...part, text });
+      return { kept, sliced: text.length < part.text.length };
+    }
+    return { kept, sliced: false };
+  }
+  return { kept, sliced: false };
+}
+
+function markerFor(titles: string[], sliced: boolean): string {
+  const line = formatOmittedSections(titles);
+  if (line && sliced) return `${line}\n\n…[truncated]`;
+  if (line) return line;
+  return sliced ? "…[truncated]" : "";
+}
+
+function renderPieces(chosen: Piece[], all: Piece[], budget: number): { body: string; marker: string; truncated: boolean } {
+  const fitted = selectByBudget(chosen, budget);
+  const omitted = omittedTitles(all, fitted.kept);
+  return {
+    body: fitted.kept.map((part) => part.text).join("\n\n"),
+    marker: markerFor(omitted, fitted.sliced),
+    truncated: fitted.sliced || omitted.length > 0 || fitted.kept.length < all.length,
+  };
+}
+
+/** Headings only, so the caller can request one section instead of the page start. */
+function sectionIndex(parts: Piece[], budget: number): { body: string; marker: string; truncated: boolean } {
+  const headed = parts.filter((part) => part.title.length > 0);
+  if (headed.length === 0) return renderPieces(parts, parts, budget);
+  const intro = "No section matched this query. Section index:";
+  const lines: string[] = [];
+  const kept: Piece[] = [];
+  let used = intro.length;
+  for (const part of headed) {
+    const line = `\n- ${part.title}`;
+    if (used + line.length > budget && kept.length > 0) break;
+    if (used + line.length > budget) break;
+    lines.push(line);
+    used += line.length;
+    kept.push(part);
+  }
+  return {
+    body: `${intro}${lines.join("")}`,
+    marker: formatOmittedSections(omittedTitles(headed, kept)),
+    truncated: kept.length < headed.length,
+  };
+}
+
+function rankSections(parts: Piece[], query: string): Piece[] {
+  const docs: IndexedDoc[] = parts.map((part) => ({
+    manualId: "page-section",
+    title: part.title || "preamble",
+    url: `section:${part.index}`,
+    text: part.text,
+    kind: part.title ? "heading" : "page",
+  }));
+  const hits = rankHits(docs, query, Math.max(parts.length, 1));
+  const byUrl = new Map<string, Piece>(parts.map((part) => [`section:${part.index}`, part]));
+  const ranked: Piece[] = [];
+  for (const hit of hits) {
+    if (!(hit.score > 0)) continue;
+    const part = byUrl.get(hit.url);
+    if (part) ranked.push(part);
+  }
+  return ranked;
+}
+
+function pickRanked(ranked: Piece[], budget: number): Piece[] {
+  const picked: Piece[] = [];
+  let used = 0;
+  for (const part of ranked) {
+    const sep = picked.length > 0 ? 2 : 0;
+    if (used + sep + part.text.length <= budget) {
+      picked.push(part);
+      used += sep + part.text.length;
+    } else if (picked.length === 0) {
+      picked.push(part);
+      break;
+    }
+  }
+  return picked.sort((a, b) => a.index - b.index);
+}
+
+export type PackedSections = SectionSlice & { truncated: boolean };
+
+/**
+ * Several sections, in document order, under maxChars. A query keeps the
+ * sections that match it. When none do, the page's own sections are ranked
+ * with BM25. When that is also empty, the result is a heading index.
+ * Without a query, the leading sections are kept whole.
+ * Dropped headings are listed after the body as `… omitted sections: …`.
+ * That list is at most 800 characters and is not taken out of the body budget.
+ * The page URL is the first line.
+ */
+export function packRelevantSections(
+  markdown: string,
+  opts: { query?: string; pageUrl: string; maxChars?: number },
+): PackedSections {
+  const cap = opts.maxChars ?? RELEVANT_SECTION_CAP;
+  const header = `Source: ${opts.pageUrl}`;
+  const budget = Math.max(0, cap - header.length - 2);
+  const parts = pieces(markdown);
+  const query = opts.query?.trim();
+  let chosen = parts;
+  let matched = false;
+  let section: string | undefined;
+  let anchor: string | undefined;
+  let indexOnly = false;
+
+  if (query && parts.length > 0) {
+    for (const part of parts) {
+      part.score = scoreText(query, `${part.title}\n${part.text.slice(0, 2000)}`);
+    }
+    const direct = parts
+      .filter((part) => part.score >= 3)
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+    const ranked = direct.length > 0 ? direct : rankSections(parts, query);
+    if (ranked.length > 0) {
+      matched = true;
+      section = ranked[0]?.title || undefined;
+      anchor = ranked[0]?.anchor;
+      chosen = pickRanked(ranked, budget);
+    } else {
+      indexOnly = true;
+    }
+  }
+
+  const fitted = indexOnly ? sectionIndex(parts, budget) : renderPieces(chosen, parts, budget);
+  const notes = imageNotes(fitted.body);
+  const withNotes = notes.imageOnly && notes.contentNotes[0] ? `${notes.contentNotes[0]}\n\n${fitted.body}` : fitted.body;
+  const core = withNotes ? `${header}\n\n${withNotes}` : header;
+  const packed = fitted.marker ? `${core}\n\n${fitted.marker}` : core;
+  return {
+    markdown: packed,
+    matched,
+    section,
+    anchor,
+    imageOnly: notes.imageOnly,
+    contentNotes: notes.contentNotes,
+    truncated: fitted.truncated,
   };
 }

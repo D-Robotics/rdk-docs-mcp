@@ -25,7 +25,7 @@ async function main() {
         );
     let markdown: string | undefined;
     if (hit) {
-      const page = await getPage({ url: hit.url, maxChars: 8000 }, fetchText);
+      const page = await getPage({ url: hit.url, maxChars: 8000, full: true }, fetchText);
       markdown = page.markdown;
     }
     const score = scoreCase(evalCase, search.hits, markdown);
@@ -50,7 +50,7 @@ async function main() {
   });
 
   if (toc.pages[0]) {
-    const topic = await getPage({ url: toc.pages[0].url, maxChars: 4000 }, fetchText);
+    const topic = await getPage({ url: toc.pages[0].url, maxChars: 4000, full: true }, fetchText);
     const pageOk = inspectPage(topic.markdown).valid && topic.url.includes("forum.d-robotics.cc");
     const reason = pageOk
       ? `opened ${topic.title}`
