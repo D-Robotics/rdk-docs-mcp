@@ -11,6 +11,9 @@ import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } fro
 import { searchGuidance } from "./routes.js";
 import { fusePageHits, groupHits, matchQuality, normalizeAltQueries, searchManuals } from "./search.js";
 import { formatOmittedSections, imageNotes, packRelevantSections, RELEVANT_SECTION_CAP, selectSection } from "./sections.js";
+
+/** Best-matching section(s) when the caller names a query, section, or anchor. */
+const FOCUSED_SECTION_CAP = 2_000;
 import { compactSphinxIndex } from "./sphinx.js";
 import {
   drainIndexNotes,
@@ -66,6 +69,14 @@ function honoredChars(input: PageInput, fallback: number): number {
   const requested = input.maxChars ?? fallback;
   if (!Number.isFinite(requested) || requested <= 0) return fallback;
   return Math.min(requested, PAGE_CHAR_LIMIT);
+}
+
+/** Explicit maxChars and full win. A query or anchor otherwise stays near 2000 characters. */
+function sectionBudget(input: PageInput, explicit: boolean): number {
+  if (input.full) return honoredChars(input, 16_000);
+  if (input.maxChars != null) return honoredChars(input, input.maxChars);
+  if (explicit || input.query?.trim()) return FOCUSED_SECTION_CAP;
+  return RELEVANT_SECTION_CAP;
 }
 
 function headingOffsets(markdown: string): Array<{ start: number; title: string }> {
@@ -480,7 +491,7 @@ function finishPage(
       query: input.query,
       anchor: hash || undefined,
     });
-    const maxChars = honoredChars(input, input.full ? 16_000 : RELEVANT_SECTION_CAP);
+    const maxChars = sectionBudget(input, true);
     const clipped = clipMarkdown(picked.markdown, maxChars);
     return {
       title: page.title,
@@ -498,7 +509,7 @@ function finishPage(
   const packed = packRelevantSections(page.markdown, {
     query: input.query,
     pageUrl: page.url,
-    maxChars: honoredChars(input, RELEVANT_SECTION_CAP),
+    maxChars: sectionBudget(input, false),
   });
   return {
     title: page.title,

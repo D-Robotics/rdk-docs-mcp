@@ -259,6 +259,18 @@ describe("getPage", () => {
     expect(asked.sectionMatched).toBe(true);
     expect(asked.markdown).toContain("… omitted sections:");
 
+    const focused = await getPage({ url, query: "烧录镜像" }, mock);
+    expect(focused.markdown).toContain("烧录镜像");
+    expect(focused.markdown).not.toContain("甲".repeat(20));
+    expect(focused.sectionMatched).toBe(true);
+    const focusedBody = focused.markdown.split("… omitted sections:")[0] ?? focused.markdown;
+    expect(focusedBody.length).toBeLessThanOrEqual(2000);
+
+    const anchored = await getPage({ url: `${url}#烧录步骤` }, mock);
+    expect(anchored.markdown).toContain("烧录镜像");
+    expect(anchored.markdown).not.toContain("甲".repeat(20));
+    expect((anchored.markdown.split("… omitted sections:")[0] ?? anchored.markdown).length).toBeLessThanOrEqual(2000);
+
     const whole = await getPage({ url, full: true }, mock);
     expect(whole.markdown.length).toBeGreaterThan(6000);
     expect(whole.markdown).toContain("烧录镜像");

@@ -8,6 +8,7 @@ import { listManuals } from "./catalog.js";
 import { fetchText } from "./http.js";
 import { SkillError } from "./skill-catalog.js";
 import { getSkillDetail, searchSkills, type SkillServiceDeps } from "./skill-service.js";
+import { COMPACT_HIT_LIMIT, COMPACT_RESULT_CHARS, compactSearchResult } from "./present.js";
 import { getPage, listToc, searchDocs } from "./service.js";
 
 /** Single source of truth for the advertised version: the package itself. */
@@ -82,7 +83,7 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "search_docs",
     {
       description:
-        "Search RDK manuals with BM25 over heading chunks, including FAQ question/answer sections. Pass a short focused query: the error text, a command or API, or a few content words — not the user's whole paragraph. Pass board (x3|x5|s100|s600) whenever you know the board, even if the user left it out. When the user spoke colloquially, or the query is a pasted log or traceback, also pass alt_queries: up to 3 short reformulations in the wording of the manuals. Drop timestamps, host paths, and hex dumps; name the task the way a chapter title would, without adding facts the user did not state. Leave alt_queries empty when query is already a short manual phrase, a command, or an API name. The server searches each string and merges pages; it does not rewrite the query itself. Each hit has title, url, manual, snippet, score, coverage, confidence, and board when known. Read the top snippets and decide yourself whether they answer the question. confidence is advisory. noGoodMatch=false is not proof of relevance. noGoodMatch=true only when the query contains a package, command, API, or error code that appears in none of the searched manuals and not in the top hit: do not invent that identifier. If the snippets do not answer, reformulate and search again. Try 2 reformulations (different keywords, the error string, or the FAQ wording) before concluding nothing is documented. groups clusters hits by board. ambiguousBoard=true means the query named no board: do not treat hits[0] as the user's board, and do not assume one product series. A named board hard-filters the other family, so an X3/X5 question will not return S-series OE pages. source=forum or manual=forum for community posts; source=all only when the user asked for forum input. Keep models separate. Do not invent commands or pinouts.",
+        "Search RDK manuals with BM25 over heading chunks, including FAQ question/answer sections. The default result is compact: up to 5 hits, each with title, url, section anchor, and a snippet of about 200 characters, together about 2000 characters. Open at most 1–2 of those pages with get_page, passing the hit url and its anchor. Pass limit for more hits, or verbose=true for scores, groups, coverage, and full snippets. Pass a short focused query: the error text, a command or API, or a few content words — not the user's whole paragraph. Pass board (x3|x5|s100|s600) whenever you know the board, even if the user left it out. When the user spoke colloquially, or the query is a pasted log or traceback, also pass alt_queries: up to 3 short reformulations in the wording of the manuals. Drop timestamps, host paths, and hex dumps; name the task the way a chapter title would, without adding facts the user did not state. Leave alt_queries empty when query is already a short manual phrase, a command, or an API name. The server searches each string and merges pages; it does not rewrite the query itself. confidence is advisory. noGoodMatch=false is not proof of relevance. noGoodMatch=true only when the query contains a package, command, API, or error code that appears in none of the searched manuals and not in the top hit: do not invent that identifier. If the snippets do not answer, reformulate and search again. Try 2 reformulations before concluding nothing is documented. ambiguousBoard=true means the query named no board: do not treat hits[0] as the user's board. A named board hard-filters the other family. source=forum or manual=forum for community posts; source=all only when the user asked for forum input. Do not invent commands or pinouts.",
       inputSchema: {
         query: z.string().describe("Short keywords, error string, or identifier. Not a full paragraph. Keep identifiers whole, e.g. hobot_dnn, hrt_model_exec, AttributeError"),
         manual: z
@@ -97,7 +98,17 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
           .enum(["x3", "x5", "s100", "s600"])
           .optional()
           .describe("Pass when the board is known (x3|x5|s100|s600), even if the query omitted it. Omit when comparing boards or the board is unknown"),
-        limit: z.number().int().min(1).max(20).optional().describe("Max hits, default 8"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(20)
+          .optional()
+          .describe("Max hits. Default 5 in the compact result. Raise it to see more."),
+        verbose: z
+          .boolean()
+          .optional()
+          .describe("Return full hit records (score, coverage, confidence, board, groups, longer snippets). Default is the compact list."),
         alt_queries: z
           .array(z.string())
           .max(3)
@@ -107,9 +118,15 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
           ),
       },
     },
-    async ({ query, manual, source, board, limit, alt_queries }) => {
+    async ({ query, manual, source, board, limit, verbose, alt_queries }) => {
         try {
-          return ok(await searchDocs({ query, manual, source, board, limit, altQueries: alt_queries }, fetchText));
+          const resolvedLimit = limit ?? (verbose ? 8 : COMPACT_HIT_LIMIT);
+          const result = await searchDocs(
+            { query, manual, source, board, limit: resolvedLimit, altQueries: alt_queries },
+            fetchText,
+          );
+          if (verbose) return ok(result);
+          return ok(compactSearchResult(result, limit == null ? { capChars: COMPACT_RESULT_CHARS } : {}));
       } catch (error) {
         return fail(error);
       }
@@ -120,7 +137,7 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "get_page",
     {
       description:
-        "Read one official page or public forum topic as Markdown. By default returns the most relevant sections, about 6000 characters, each with its heading, plus the page URL. Pass query so those sections match the question. If the query matches no section, the page's own sections are ranked with BM25; if that still matches nothing, the response is a section index of headings so you can request one with section or a #anchor. Omit query to get the leading sections. Omit maxChars to keep that 6000-character cap. An explicit maxChars is honored up to 40000 even when full is not set. Pass full=true for the whole page (maxChars then defaults to 16000, at most 40000). Pass section, or a URL hash, to extract one heading. When headings are left out, the markdown ends with '… omitted sections: <headings>' (at most 800 characters, then '…and N more'). That list is not taken out of the body budget. imageOnly=true means the pin map is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means the page has more text: pass full=true, a larger maxChars, or a narrower query.",
+        "Read one official page or public forum topic as Markdown. Open at most 1–2 pages per question, and pass the section anchor from search_docs (the hit url plus its anchor, or section). When query or a section/anchor is given, returns only the best-matching section(s), about 2000 characters, plus a capped list of omitted headings. If the query matches no section, the page's own sections are ranked with BM25; if that still matches nothing, the response is a section index of headings. Omit query to get the leading sections, about 6000 characters. An explicit maxChars is honored up to 40000 even when full is not set. Pass full=true for the whole page (maxChars then defaults to 16000, at most 40000). When headings are left out, the markdown ends with '… omitted sections: <headings>' (at most 800 characters, then '…and N more'). That list is not taken out of the body budget. imageOnly=true means the pin map is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means the page has more text: pass full=true or a larger maxChars.",
       inputSchema: {
         url: z
           .string()
@@ -133,7 +150,7 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
           .min(1000)
           .max(40000)
           .optional()
-          .describe("Maximum characters to return, honored up to 40000. When omitted, section mode stays near 6000 and full=true uses 16000."),
+          .describe("Maximum characters to return, honored up to 40000. When omitted, a query or section/anchor stays near 2000, leading sections stay near 6000, and full=true uses 16000."),
         section: z.string().optional().describe("Heading to extract, e.g. 40PIN 管脚定义"),
         query: z.string().optional().describe("Prefer sections that answer this. If none match, sections of this page are ranked with BM25; if that is also empty, a heading index is returned. Omit to return the leading sections."),
         full: z.boolean().optional().describe("Return the whole page instead of the relevant sections."),

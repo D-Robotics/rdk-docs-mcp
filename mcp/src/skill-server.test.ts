@@ -145,12 +145,17 @@ describe("MCP server: skill tools over the protocol", () => {
     ]);
     const search = tools.tools.find((tool) => tool.name === "search_docs");
     expect(search?.inputSchema.properties).toHaveProperty("alt_queries");
+    expect(search?.inputSchema.properties).toHaveProperty("verbose");
     expect(search?.description).toMatch(/colloquial/i);
     expect(search?.description).toMatch(/log/i);
+    expect(search?.description).toMatch(/at most 1/);
+    expect(search?.description).toMatch(/anchor/i);
     const pageTool = tools.tools.find((tool) => tool.name === "get_page");
     expect(pageTool?.inputSchema.properties).toHaveProperty("full");
     expect(pageTool?.inputSchema.properties).toHaveProperty("query");
     expect(pageTool?.description).toMatch(/6000/);
+    expect(pageTool?.description).toMatch(/2000/);
+    expect(pageTool?.description).toMatch(/at most 1/);
     expect(pageTool?.description).toMatch(/full/i);
     await client.close();
   });
