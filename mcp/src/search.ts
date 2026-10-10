@@ -88,6 +88,7 @@ export function searchManuals(
 }
 
 const ALT_QUERY_LIMIT = 3;
+export const ALT_QUERY_MAX_CHARS = 300;
 const PAGE_RRF_K = 10;
 
 /** Keep at most 3 non-empty alternates that differ from the original query. */
@@ -97,6 +98,9 @@ export function normalizeAltQueries(query: string, alts: string[] | undefined): 
   for (const alt of alts ?? []) {
     const text = alt.trim();
     if (!text || seen.has(text)) continue;
+    if (text.length > ALT_QUERY_MAX_CHARS) {
+      throw new Error(`alt query is ${text.length} characters; the limit is ${ALT_QUERY_MAX_CHARS}`);
+    }
     seen.add(text);
     out.push(text);
     if (out.length === ALT_QUERY_LIMIT) break;

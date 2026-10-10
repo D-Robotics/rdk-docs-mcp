@@ -168,6 +168,13 @@ describe("searchDocs", () => {
     expect(JSON.stringify(empty)).toBe(JSON.stringify(plain));
   });
 
+  it("rejects an alt query longer than 300 characters before searching", async () => {
+    const blocked: HttpGet = async () => {
+      throw new Error("should not fetch");
+    };
+    await expect(searchDocs({ query: "PoE", altQueries: ["a".repeat(301)] }, blocked)).rejects.toThrow(/300/);
+  });
+
   it("merges an alternate query into the same hit list", async () => {
     const fused = await searchDocs(
       { query: "PoE", manual: "x5", limit: 5, altQueries: ["WiFi 天线"] },

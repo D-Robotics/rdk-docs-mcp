@@ -233,6 +233,7 @@ export async function searchDocs(
   if (!query) {
     throw new Error("query is required");
   }
+  const altQueries = normalizeAltQueries(query, input.altQueries);
   if (indexWarm) await indexWarm;
   const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
   const source = resolveSource(input.manual, input.source);
@@ -268,7 +269,6 @@ export async function searchDocs(
     warnings.push(...loaded.map((item) => item.warning).filter((item): item is string => Boolean(item)));
     warnings.push(...drainIndexNotes());
     searched = loaded.map((item) => item.docs);
-    const altQueries = normalizeAltQueries(query, input.altQueries);
     const tagDocs = (hits: SearchHit[]): SearchHit[] => hits.map((hit) => ({ ...hit, source: "docs" as const }));
     if (altQueries.length === 0) {
       docHits = tagDocs(searchManuals(searched, query, limit, { board: input.board }));

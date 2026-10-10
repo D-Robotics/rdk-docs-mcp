@@ -877,6 +877,8 @@ describe("alt query fusion", () => {
       "工具",
     ]);
     expect(normalizeAltQueries("烧录", undefined)).toEqual([]);
+    expect(normalizeAltQueries("烧录", ["a".repeat(300)])).toEqual(["a".repeat(300)]);
+    expect(() => normalizeAltQueries("烧录", ["a".repeat(301)])).toThrow(/300/);
   });
 
   it("ranks a page both lists agree on above a page only one list ranks first", () => {
