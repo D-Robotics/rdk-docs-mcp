@@ -162,6 +162,35 @@ describe("searchDocs", () => {
     expect(docs.length).toBeGreaterThan(forum.length);
   });
 
+  it("matches a search that omits alt queries, including an empty list", async () => {
+    const plain = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
+    const empty = await searchDocs({ query: "PoE", manual: "x5", limit: 5, altQueries: ["", "  "] }, http);
+    expect(JSON.stringify(empty)).toBe(JSON.stringify(plain));
+  });
+
+  it("drops an alt query longer than 300 characters and still searches", async () => {
+    const plain = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
+    const dropped = await searchDocs({ query: "PoE", manual: "x5", limit: 5, altQueries: ["a".repeat(301)] }, http);
+    expect(dropped.warnings.some((warning) => /300/.test(warning))).toBe(true);
+    expect(dropped.hits.map((hit) => hit.url)).toEqual(plain.hits.map((hit) => hit.url));
+    const kept = await searchDocs(
+      { query: "PoE", manual: "x5", limit: 5, altQueries: ["a".repeat(301), "WiFi 天线"] },
+      http,
+    );
+    expect(kept.warnings.some((warning) => /300/.test(warning))).toBe(true);
+    expect(kept.hits.some((hit) => hit.url.includes("wifi-antenna"))).toBe(true);
+  });
+
+  it("merges an alternate query into the same hit list", async () => {
+    const fused = await searchDocs(
+      { query: "PoE", manual: "x5", limit: 5, altQueries: ["WiFi 天线"] },
+      http,
+    );
+    const urls = fused.hits.map((hit) => hit.url);
+    expect(urls.some((url) => url.includes("/POE"))).toBe(true);
+    expect(urls.some((url) => url.includes("wifi-antenna"))).toBe(true);
+  });
+
   it("stays inside one manual when the caller names it", async () => {
     const result = await searchDocs({ query: "wifi", manual: "x5", limit: 5 }, http);
     expect(result.hits.length).toBeGreaterThan(0);

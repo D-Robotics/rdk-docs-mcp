@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { compactSphinxIndex } from "./sphinx.js";
-import { groupHits, rankHits } from "./search.js";
-import type { IndexedDoc } from "./types.js";
+import { fusePageHits, groupHits, normalizeAltQueries, rankHits } from "./search.js";
+import type { IndexedDoc, SearchHit } from "./types.js";
 
 const docusaurusFixture = [
   {
@@ -857,5 +857,43 @@ describe("rankHits", () => {
     const plain = maxOnly[0]?.score ?? 0;
     expect(lifted).toBeGreaterThan(plain);
     expect(lifted).toBeLessThanOrEqual(plain * 1.3 + 1e-9);
+  });
+});
+
+describe("alt query fusion", () => {
+  const hit = (url: string, title: string): SearchHit => ({
+    title,
+    url,
+    manual: "rdk-x",
+    snippet: title,
+    score: 1,
+    source: "docs",
+  });
+
+  it("keeps at most three alternates and drops blanks and copies of the query", () => {
+    expect(normalizeAltQueries("烧录", ["  ", "烧录", "镜像下载", "SD 卡", "工具", "多余"])).toEqual({
+      queries: ["镜像下载", "SD 卡", "工具"],
+      warnings: [],
+    });
+    expect(normalizeAltQueries("烧录", undefined)).toEqual({ queries: [], warnings: [] });
+    expect(normalizeAltQueries("烧录", ["a".repeat(300)])).toEqual({
+      queries: ["a".repeat(300)],
+      warnings: [],
+    });
+    const dropped = normalizeAltQueries("烧录", ["a".repeat(301), "镜像"]);
+    expect(dropped.queries).toEqual(["镜像"]);
+    expect(dropped.warnings[0]).toMatch(/301/);
+  });
+
+  it("ranks a page both lists agree on above a page only one list ranks first", () => {
+    const fused = fusePageHits(
+      [
+        [hit("https://example.test/x", "x"), hit("https://example.test/y#a", "y")],
+        [hit("https://example.test/y", "y"), hit("https://example.test/z", "z")],
+      ],
+      3,
+    );
+    expect(fused.map((item) => item.url.split("/").at(-1)?.split("#")[0])).toEqual(["y", "x", "z"]);
+    expect(fused[0]?.url).toBe("https://example.test/y");
   });
 });
