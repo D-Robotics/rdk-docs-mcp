@@ -117,6 +117,17 @@ function isCatalogPath(value: string): boolean {
   return isSafeRelativePath(value) && value.startsWith("skills/") && value.length > "skills/".length;
 }
 
+/**
+ * workspace_dir is the hidden directory a pack's setup script creates in the
+ * user's project. It is checked by family, not by exact name: upstream renamed
+ * `.drobotics` / `.horizon` to `.drobotics-x5` / `.drobotics-s` on 2026-09-24,
+ * and an exact enum here rejected the whole catalog (search_skills/get_skill
+ * failed for everyone). Any `.drobotics` or `.horizon` name with optional
+ * lowercase `-suffix` segments is accepted; anything else (`.ssh`, `.git`,
+ * paths, uppercase, `_` separators) is still refused.
+ */
+export const WORKSPACE_DIR_PATTERN = /^\.(?:drobotics|horizon)(?:-[a-z0-9]+)*$/;
+
 const skillRecordSchema = z
   .object({
     name: z.string().min(1).regex(SKILL_NAME_PATTERN),
@@ -135,7 +146,7 @@ const packRecordSchema = z
     ref: z.string().min(1).regex(GIT_REF_PATTERN).refine((value) => !value.includes("..")),
     catalog_dir: z.string().refine(isSafeRelativePath),
     install_script: z.string().refine(isSafeRelativePath),
-    workspace_dir: z.enum([".drobotics", ".horizon"]),
+    workspace_dir: z.string().regex(WORKSPACE_DIR_PATTERN, "workspace_dir must be .drobotics[-<suffix>] or .horizon[-<suffix>]"),
     verify_paths: z.array(z.string().refine(isSafeRelativePath)).min(1),
     install_type: z.literal("workspace"),
   })
@@ -487,6 +498,8 @@ const PACK_NAME_BOARD_FAMILIES: Readonly<Record<string, readonly BoardId[]>> = {
 const WORKSPACE_DIR_BOARD_FAMILIES: Readonly<Record<string, readonly BoardId[]>> = {
   ".drobotics": ["x5"],
   ".horizon": ["s100", "s600"],
+  ".drobotics-x5": ["x5"],
+  ".drobotics-s": ["s100", "s600"],
 };
 
 export function packBoardFamilies(pack: {
@@ -499,6 +512,12 @@ export function packBoardFamilies(pack: {
   if (pack.workspace_dir) {
     const byDir = WORKSPACE_DIR_BOARD_FAMILIES[pack.workspace_dir];
     if (byDir) return byDir;
+    // `.drobotics-<board>` names carry the board in the suffix (e.g. a future `.drobotics-s600`).
+    const suffix = /^\.(?:drobotics|horizon)-(.+)$/.exec(pack.workspace_dir)?.[1];
+    if (suffix) {
+      const derived = mentionedBoards(suffix.replace(/-/g, " "));
+      if (derived.length > 0) return derived;
+    }
   }
   if (pack.catalog_dir) {
     const derived = mentionedBoards(pack.catalog_dir.toLowerCase());

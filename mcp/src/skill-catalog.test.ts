@@ -253,12 +253,37 @@ describe("skill catalog: schema and loading", () => {
     await expectSkillError(load({ indexBody: indexFile(skills) }), "invalid_catalog");
   });
 
+  it("accepts the renamed upstream workspace dirs (.drobotics-s / .drobotics-x5, 2026-09-24)", async () => {
+    // Mirrors D-Robotics/rdk-skills pack-registry.json after the rename; the old exact
+    // enum rejected this whole catalog, so search_skills/get_skill failed for everyone.
+    const renamed = [
+      { ...PACKS[0], ref: "v1.1.2", workspace_dir: ".drobotics-s", verify_paths: [".drobotics-s/VERSION", ".drobotics-s/skills/drobotics-router/SKILL.md"] },
+      { ...PACKS[1], ref: "v1.1.1", workspace_dir: ".drobotics-x5", verify_paths: [".drobotics-x5/VERSION", ".drobotics-x5/skills/x5-router/SKILL.md"] },
+    ];
+    const result = await load({ packBody: packFile(renamed) });
+    expect(result.snapshot.packs.map((pack) => pack.workspace_dir)).toEqual([".drobotics-s", ".drobotics-x5"]);
+    expect(packBoardFamilyIndex(result.snapshot.packs).get("OE Tool Chain (S)")).toEqual(["s100", "s600"]);
+  });
+
+  for (const dir of [".drobotics", ".horizon", ".drobotics-s", ".drobotics-x5", ".horizon-s600", ".drobotics-s100-v2"]) {
+    it(`accepts workspace_dir family name ${dir}`, async () => {
+      await expect(load({ packBody: packFile([{ ...PACKS[0], workspace_dir: dir }, PACKS[1]]) })).resolves.toBeDefined();
+    });
+  }
+
   const invalidPacks: Array<[string, unknown[]]> = [
     ["duplicate pack name", [PACKS[0], { ...PACKS[0], repo: "D-Robotics/oe-skills-s-2" }, PACKS[1]]],
     ["absolute install_script", [{ ...PACKS[0], install_script: "/bin/sh" }, PACKS[1]]],
     ["traversal install_script", [{ ...PACKS[0], install_script: "../run.sh" }, PACKS[1]]],
     ["ref with traversal", [{ ...PACKS[0], ref: "refs/../../evil" }, PACKS[1]]],
     ["workspace_dir outside the allowed set", [{ ...PACKS[0], workspace_dir: ".ssh" }, PACKS[1]]],
+    ["workspace_dir with a path", [{ ...PACKS[0], workspace_dir: ".drobotics/../.ssh" }, PACKS[1]]],
+    ["workspace_dir with a nested path", [{ ...PACKS[0], workspace_dir: ".drobotics-s/skills" }, PACKS[1]]],
+    ["workspace_dir that only starts like the family", [{ ...PACKS[0], workspace_dir: ".droboticsx" }, PACKS[1]]],
+    ["workspace_dir with an empty suffix", [{ ...PACKS[0], workspace_dir: ".drobotics-" }, PACKS[1]]],
+    ["workspace_dir with uppercase", [{ ...PACKS[0], workspace_dir: ".Drobotics-S" }, PACKS[1]]],
+    ["workspace_dir without the leading dot", [{ ...PACKS[0], workspace_dir: "drobotics-s" }, PACKS[1]]],
+    ["workspace_dir .git", [{ ...PACKS[0], workspace_dir: ".git" }, PACKS[1]]],
     ["verify_paths traversal", [{ ...PACKS[0], verify_paths: ["../outside.txt"] }, PACKS[1]]],
     ["empty verify_paths", [{ ...PACKS[0], verify_paths: [] }, PACKS[1]]],
     ["flat install_type on a pack", [{ ...PACKS[0], install_type: "flat" }, PACKS[1]]],
@@ -342,6 +367,13 @@ describe("pack board families (retest 2026-09-21)", () => {
   it("derives families from workspace_dir metadata for unknown pack names", () => {
     expect(packBoardFamilies({ name: "Future X5 Pack", workspace_dir: ".drobotics", catalog_dir: "future-x5" })).toEqual(["x5"]);
     expect(packBoardFamilies({ name: "Future S Pack", workspace_dir: ".horizon", catalog_dir: "future-s" })).toEqual(["s100", "s600"]);
+    expect(packBoardFamilies({ name: "Future X5 Pack", workspace_dir: ".drobotics-x5", catalog_dir: "future" })).toEqual(["x5"]);
+    expect(packBoardFamilies({ name: "Future S Pack", workspace_dir: ".drobotics-s", catalog_dir: "future" })).toEqual(["s100", "s600"]);
+  });
+
+  it("reads the board from a .drobotics-<board> suffix, and never from a bare letter", () => {
+    expect(packBoardFamilies({ name: "Next Pack", workspace_dir: ".drobotics-s600", catalog_dir: "next" })).toEqual(["s600"]);
+    expect(packBoardFamilies({ name: "Next Pack", workspace_dir: ".drobotics-tools", catalog_dir: "next" })).toBeUndefined();
   });
 
   it("falls back to board words in catalog_dir, and never guesses from bare letters", () => {
