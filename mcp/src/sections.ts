@@ -85,22 +85,27 @@ function immediateBody(markdown: string, block: Block, all: Block[]): string {
 function sliceFromAnchor(markdown: string, anchor: string): { markdown: string; title: string } | undefined {
   const needle = normalize(anchor);
   if (needle.length < 2) return undefined;
-  const lines = markdown.split("\n");
+  // Only heading-like lines can be anchor targets. Code lines such as "deb ... #RDK S100" and body links that
+  // merely contain the page URL must not match, and a short fragment must not match by containment.
+  const headings: { start: number; line: string; hrefNorm: string; titleNorm: string }[] = [];
   let offset = 0;
-  for (const line of lines) {
-    const href = line.match(/#([^)\s]+)/);
-    const hrefNorm = href ? normalize(href[1] ?? "") : "";
-    if ((hrefNorm && (hrefNorm === needle || hrefNorm.includes(needle) || needle.includes(hrefNorm))) || normalize(line).includes(needle)) {
-      const start = offset;
-      const rest = markdown.slice(start);
-      const next = rest.slice(1).search(/\n#{1,6}\s+/);
-      const sliced = (next === -1 ? rest : rest.slice(0, next + 1)).trim();
-      const title = line.replace(/\[\]\([^)]+\)/g, "").trim();
-      return { markdown: sliced, title };
+  for (const line of markdown.split("\n")) {
+    // Anchor targets: markdown headings, lines that end in the docs' own empty self-link "[](url#anchor)",
+    // or Rspress headings rendered as plain text with a trailing "#" ("模型量化 #").
+    if (/^#{1,6}\s+/.test(line) || /\[\]\([^)\s]*#[^)\s]+\)\s*$/.test(line) || /\S\s*#\s*$/.test(line)) {
+      const parsed = headingTitle(line.replace(/^#{1,6}\s+/, ""));
+      headings.push({ start: offset, line, hrefNorm: parsed.anchor ? normalize(parsed.anchor) : "", titleNorm: normalize(parsed.title) });
     }
     offset += line.length + 1;
   }
-  return undefined;
+  const hit =
+    headings.find((h) => h.hrefNorm === needle || h.titleNorm === needle) ??
+    headings.find((h) => (h.hrefNorm.length >= 4 && h.hrefNorm.includes(needle)) || (h.titleNorm.length >= 4 && h.titleNorm.includes(needle)));
+  if (!hit) return undefined;
+  const rest = markdown.slice(hit.start);
+  const next = rest.slice(1).search(/\n#{1,6}\s+/);
+  const sliced = (next === -1 ? rest : rest.slice(0, next + 1)).trim();
+  return { markdown: sliced, title: hit.line.replace(/\[\]\([^)]+\)/g, "").trim() };
 }
 
 const PIN_TOPIC = /管脚定义|引脚定义|接口定义|pin\s*map|40pin/i;

@@ -6,7 +6,7 @@ import { encodeBm25 } from "./bm25.js";
 import { listManuals } from "./catalog.js";
 import { fetchText } from "./http.js";
 import { prebuiltDir } from "./index-store.js";
-import { dropDocsForDeadPages, findDeadPageUrls, formatManualDropError, pageUrl, pageUrlsOf, proxyFetchWarning } from "./link-check.js";
+import { dropDocsForDeadPages, findDeadPageUrls, formatManualDropError, linkCheckDropCounts, pageUrl, pageUrlsOf, proxyFetchWarning } from "./link-check.js";
 import { loadIndexFromOrigin } from "./service.js";
 import type { IndexedDoc } from "./types.js";
 
@@ -54,8 +54,56 @@ function readSnapshot(path: string, manualId: string): { builtAt: string; docs: 
   throw new Error(`${manualId} snapshot is not an index`);
 }
 
+function pageUrlSet(docs: IndexedDoc[]): Set<string> {
+  return new Set(docs.filter((doc) => doc.kind === "page").map((doc) => pageUrl(doc.url)));
+}
+
 function pageCount(docs: IndexedDoc[]): number {
-  return new Set(docs.filter((doc) => doc.kind === "page").map((doc) => pageUrl(doc.url))).size;
+  return pageUrlSet(docs).size;
+}
+
+function docIdentity(doc: IndexedDoc): string {
+  return JSON.stringify([doc.kind, doc.url, doc.title, doc.snippet ?? "", doc.text ?? "", doc.answer ?? "", doc.breadcrumbs ?? []]);
+}
+
+/**
+ * Keep the previous snapshot's document order when the text matches.
+ * A fresh index fetch is not ordered, and BM25 tie breaks follow that order.
+ */
+export function sameSnapshotDocs(prior: readonly IndexedDoc[] | undefined, next: readonly IndexedDoc[]): boolean {
+  if (!prior || prior.length !== next.length) return false;
+  return next.every((doc, index) => docIdentity(doc) === docIdentity(prior[index]));
+}
+
+export function preserveSnapshotOrder(prior: readonly IndexedDoc[] | undefined, next: readonly IndexedDoc[]): IndexedDoc[] {
+  if (!prior || prior.length === 0) return [...next];
+  const buckets = new Map<string, IndexedDoc[]>();
+  for (const doc of next) {
+    const key = docIdentity(doc);
+    const list = buckets.get(key);
+    if (list) list.push(doc);
+    else buckets.set(key, [doc]);
+  }
+  const ordered: IndexedDoc[] = [];
+  for (const doc of prior) {
+    const list = buckets.get(docIdentity(doc));
+    const taken = list?.shift();
+    if (taken) ordered.push(taken);
+  }
+  const rest: IndexedDoc[] = [];
+  for (const list of buckets.values()) rest.push(...list.filter((doc) => doc));
+  rest.sort((a, b) => docIdentity(a).localeCompare(docIdentity(b)));
+  return ordered.concat(rest);
+}
+
+function priorPageUrls(dir: string, manualId: string): Set<string> | undefined {
+  const path = join(dir, `${manualId}.json.gz`);
+  if (!existsSync(path)) return undefined;
+  try {
+    return pageUrlSet(readSnapshot(path, manualId).docs);
+  } catch {
+    return undefined;
+  }
 }
 
 async function withoutDeadLinks(manualId: string, docs: IndexedDoc[]): Promise<{ docs: IndexedDoc[]; before: number; after: number }> {
@@ -78,6 +126,8 @@ export type CheckedManual = {
   after: number;
   builtAt: string;
   changed: boolean;
+  /** Docs match the previous snapshot, so the existing posting table stays. */
+  reusePostings?: boolean;
 };
 
 /**
@@ -96,7 +146,9 @@ export function commitCheckedManuals(dir: string, checks: readonly CheckedManual
       continue;
     }
     const bytes = writeSnapshot(dir, check.manualId, check.docs, check.builtAt);
-    const postings = writePostings(dir, check.manualId, check.docs);
+    const postingPath = join(dir, `${check.manualId}.bm25.gz`);
+    const postings =
+      check.reusePostings && existsSync(postingPath) ? statSync(postingPath).size : writePostings(dir, check.manualId, check.docs);
     process.stderr.write(`wrote\t${check.manualId}\t${check.docs.length}\t${bytes}\tpostings ${postings}\n`);
   }
   writeManifest(dir, builtAt, manuals.sort());
@@ -108,7 +160,7 @@ function writeManifest(dir: string, builtAt: string, manuals: string[]): void {
     maxAgeDays: 14,
     manuals,
     refresh:
-      "npm run build:index regenerates this directory and drops pages that return HTTP 404. npm publish runs it from prepublishOnly.",
+      "npm run build:index regenerates this directory and drops pages that return HTTP 404. Commit the result before publishing; npm publish packs this snapshot and does not rebuild it.",
   };
   writeFileSync(join(dir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 }
@@ -161,13 +213,18 @@ async function rebuild(): Promise<void> {
         failed += 1;
         continue;
       }
+      const priorDocs = existsSync(join(dir, `${manual.id}.json.gz`)) ? readSnapshot(join(dir, `${manual.id}.json.gz`), manual.id).docs : undefined;
+      const ordered = preserveSnapshotOrder(priorDocs, docs);
+      const reusePostings = sameSnapshotDocs(priorDocs, ordered);
+      const counts = linkCheckDropCounts(priorPageUrls(dir, manual.id), [...pageUrlSet(loaded)], [...pageUrlSet(ordered)]);
       prepared.push({
         manualId: manual.id,
-        docs,
-        before: checked.before,
-        after: checked.after,
+        docs: ordered,
+        before: counts.before,
+        after: counts.after,
         builtAt,
         changed: true,
+        reusePostings,
       });
       process.stderr.write(`ready\t${manual.id}\t${docs.length}\t${Date.now() - started}ms\n`);
     } catch (error) {

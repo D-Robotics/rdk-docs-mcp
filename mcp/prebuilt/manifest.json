@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-10T02:38:07.827Z",
+  "builtAt": "2026-10-10T04:35:09.172Z",
   "maxAgeDays": 14,
   "manuals": [
     "bmi088",
@@ -20,5 +20,5 @@
     "x5-sdk",
     "xburn"
   ],
-  "refresh": "npm run build:index regenerates this directory and drops pages that return HTTP 404. npm publish runs it from prepublishOnly."
+  "refresh": "npm run build:index regenerates this directory and drops pages that return HTTP 404. Commit the result before publishing; npm publish packs this snapshot and does not rebuild it."
 }

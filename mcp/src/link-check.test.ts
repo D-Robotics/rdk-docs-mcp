@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDocsForDeadPages, excessivePageDrop, findDeadPageUrls, formatManualDropError, pageUrl, proxyFetchWarning } from "./link-check.js";
+import { dropDocsForDeadPages, excessivePageDrop, findDeadPageUrls, formatManualDropError, linkCheckDropCounts, pageUrl, proxyFetchWarning } from "./link-check.js";
 import type { IndexedDoc } from "./types.js";
 
 const doc = (url: string, kind: IndexedDoc["kind"]): IndexedDoc => ({
@@ -49,6 +49,15 @@ describe("page link check", () => {
     const stripped = await findDeadPageUrls(["https://example.test/oe_x5_doc/cn"], probe);
     expect(slashed.dead).toEqual([]);
     expect(stripped.dead).toEqual([]);
+  });
+
+  it("does not count a dead URL the previous snapshot already omitted", () => {
+    const prior = new Set(["https://example.test/keep", "https://example.test/also"]);
+    const loaded = ["https://example.test/keep", "https://example.test/also", "https://example.test/guide/qwen2.5"];
+    const kept = ["https://example.test/keep", "https://example.test/also"];
+    expect(linkCheckDropCounts(prior, loaded, kept)).toEqual({ before: 2, after: 2 });
+    expect(linkCheckDropCounts(prior, loaded, ["https://example.test/keep"])).toEqual({ before: 2, after: 1 });
+    expect(linkCheckDropCounts(undefined, loaded, kept)).toEqual({ before: 3, after: 2 });
   });
 
   it("fails a build that drops more than 2% of pages and warns when a proxy is set", () => {

@@ -59,6 +59,30 @@ describe("selectSection", () => {
     expect(picked.markdown.slice(0, 2500)).toContain("软件源");
   });
 
+  it("does not match an anchor against a code comment or a body link to the page", () => {
+    const page = `# 8.1 硬件、系统与环境配置
+
+\`\`\`
+deb [signed-by=/usr/share/keyrings/sunrise.gpg] http://archive.d-robotics.cc/ubuntu-rdk-s100 jammy main #RDK S100
+\`\`\`
+
+### Q11: 如何查看 RDK X3 的 CPU、BPU 等硬件单元的运行状态?[](https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system#q11-如何查看-rdk-x3-的-cpubpu-等硬件单元的运行状态)
+
+使用 hrut_somstatus。
+`;
+    const picked = selectSection(page, { anchor: "q11-%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B-rdk-x3-%E7%9A%84-cpubpu-%E7%AD%89%E7%A1%AC%E4%BB%B6%E5%8D%95%E5%85%83%E7%9A%84%E8%BF%90%E8%A1%8C%E7%8A%B6%E6%80%81" });
+    expect(picked.matched).toBe(true);
+    expect(picked.markdown).toContain("hrut_somstatus");
+    expect(picked.section).toContain("Q11");
+
+    const pageAnchor = selectSection(`# 管脚定义与应用\n\n## 硬件使用说明[](https://x.test/40pin_define#硬件使用说明)\n\n电平。\n\n## 40PIN 管脚定义[](https://x.test/40pin_define#40pin-管脚定义)\n\n表。\n`, { anchor: "40pin_define" });
+    expect(pageAnchor.section ?? "").not.toContain("硬件使用说明");
+
+    const rspress = selectSection(`前言\n\n环境准备 #\n\n装依赖。\n\n模型量化 #\n\n若您通过 resolve_model.txt 获取模型，则可跳过此模型量化步骤。\n`, { anchor: "模型量化" });
+    expect(rspress.matched).toBe(true);
+    expect(rspress.section).toBe("模型量化 #");
+  });
+
   it("flags an image-only pin map and names the picture", () => {
     const picked = selectSection(pins, { section: "40PIN 管脚定义" });
     expect(picked.matched).toBe(true);
