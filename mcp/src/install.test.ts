@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseToml } from "smol-toml";
 import { describe, expect, it } from "vitest";
-import { ensureCodexMcpServer, installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
+import { backupBeforeWrite, ensureCodexMcpServer, installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
 
 const skillBody = `---
 name: rdk-docs
@@ -325,15 +325,133 @@ describe("Codex MCP registration — TOML semantics (retest 2026-09-21)", () => 
   });
 });
 
+describe("installer backups (0.3.0)", () => {
+  it("backs up an existing Cursor mcp.json to .bak before changing it", () => {
+    const root = home();
+    mkdirSync(join(root, ".cursor"));
+    const path = join(root, ".cursor", "mcp.json");
+    const original = `{ "mcpServers": { "other": { "command": "keep-me" } } }`;
+    writeFileSync(path, original);
+    installRdkDocs({ home: root, skillSource: skillBody });
+    expect(readFileSync(`${path}.bak`, "utf8")).toBe(original);
+    expect(JSON.parse(readFileSync(path, "utf8")).mcpServers.other.command).toBe("keep-me");
+  });
+
+  it("writes no backup when the file did not exist or nothing changes", () => {
+    const root = home();
+    mkdirSync(join(root, ".cursor"));
+    installRdkDocs({ home: root, skillSource: skillBody });
+    const path = join(root, ".cursor", "mcp.json");
+    expect(existsSync(`${path}.bak`)).toBe(false);
+    installRdkDocs({ home: root, skillSource: skillBody });
+    expect(existsSync(`${path}.bak`)).toBe(false);
+  });
+
+  it("never overwrites an existing .bak; a later change gets a timestamped copy", () => {
+    const root = home();
+    const path = join(root, "config.json");
+    writeFileSync(path, "v1");
+    writeFileSync(`${path}.bak`, "users-own-backup");
+    const target = backupBeforeWrite(path, "v2");
+    expect(readFileSync(`${path}.bak`, "utf8")).toBe("users-own-backup");
+    expect(target).toMatch(/config\.json\.bak\.\d{8}T\d{6}/);
+    expect(readFileSync(target as string, "utf8")).toBe("v1");
+    // Same content as the existing .bak: no extra copy.
+    writeFileSync(path, "users-own-backup");
+    expect(backupBeforeWrite(path, "v3")).toBe(`${path}.bak`);
+    expect(readdirSync(root).filter((name) => name.startsWith("config.json.bak"))).toHaveLength(2);
+  });
+
+  it("backs up ZCode, Codex and DeepSeek Harness configs before appending", () => {
+    const root = home();
+    mkdirSync(join(root, ".zcode", "cli"), { recursive: true });
+    mkdirSync(join(root, ".codex"));
+    mkdirSync(join(root, ".dsh"));
+    const zcode = join(root, ".zcode", "cli", "config.json");
+    const codex = join(root, ".codex", "config.toml");
+    const dsh = join(root, ".dsh", "cordis.patch.yml");
+    writeFileSync(zcode, `{"theme":"dark"}`);
+    writeFileSync(codex, `model = "o3"\n`);
+    writeFileSync(dsh, `- insert: []\n`);
+    installRdkDocs({ home: root, skillSource: skillBody });
+    expect(readFileSync(`${zcode}.bak`, "utf8")).toBe(`{"theme":"dark"}`);
+    expect(readFileSync(`${codex}.bak`, "utf8")).toBe(`model = "o3"\n`);
+    expect(readFileSync(`${dsh}.bak`, "utf8")).toBe(`- insert: []\n`);
+  });
+});
+
+describe("installer keeps a user-edited rdk-docs entry (0.3.0)", () => {
+  const windowsEntry = { command: "cmd", args: ["/c", "npx", "-y", "rdk-docs-mcp@latest"] };
+
+  it("leaves a Windows cmd /c Cursor entry and the file's bytes untouched on re-run", () => {
+    const root = home();
+    mkdirSync(join(root, ".cursor"));
+    const path = join(root, ".cursor", "mcp.json");
+    const original = JSON.stringify({ mcpServers: { "rdk-docs": windowsEntry, other: { url: "http://x" } } });
+    writeFileSync(path, original);
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+    expect(readFileSync(path, "utf8")).toBe(original);
+    expect(existsSync(`${path}.bak`)).toBe(false);
+    expect(result.mcp).toContain(path);
+  });
+
+  it("keeps a ZCode entry that uses a registry mirror", () => {
+    const root = home();
+    mkdirSync(join(root, ".zcode", "cli"), { recursive: true });
+    const path = join(root, ".zcode", "cli", "config.json");
+    const mirror = { type: "stdio", command: "npx", args: ["-y", "--registry=https://registry.npmmirror.com", "rdk-docs-mcp@latest"] };
+    writeFileSync(path, JSON.stringify({ mcp: { servers: { "rdk-docs": mirror } } }));
+    installRdkDocs({ home: root, skillSource: skillBody });
+    expect(JSON.parse(readFileSync(path, "utf8")).mcp.servers["rdk-docs"]).toEqual(mirror);
+  });
+
+  it("repairs an entry that cannot launch (no command or url) and backs the old file up", () => {
+    const root = home();
+    mkdirSync(join(root, ".cursor"));
+    const path = join(root, ".cursor", "mcp.json");
+    const original = JSON.stringify({ mcpServers: { "rdk-docs": { args: ["-y"] } } });
+    writeFileSync(path, original);
+    installRdkDocs({ home: root, skillSource: skillBody });
+    expect(JSON.parse(readFileSync(path, "utf8")).mcpServers["rdk-docs"]).toEqual(MCP_SERVER);
+    expect(readFileSync(`${path}.bak`, "utf8")).toBe(original);
+  });
+});
+
+describe("skills for clients without installer MCP support (0.3.0)", () => {
+  it("writes skills only into clients whose own directory already exists", () => {
+    const root = home();
+    mkdirSync(join(root, ".gemini"));
+    mkdirSync(join(root, ".qoderwork"));
+    const result = installRdkDocs({ home: root, skillSource: skillBody });
+    expect(readFileSync(join(root, ".gemini", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
+    expect(readFileSync(join(root, ".qoderwork", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
+    for (const absent of [".openclaw", ".workbuddy", ".codeium", join(".config", "devin"), join(".gemini", "config"), join(".gemini", "antigravity")]) {
+      expect(existsSync(join(root, absent))).toBe(false);
+    }
+    expect(result.mcp).toEqual([]);
+  });
+
+  it("startup refresh updates those copies too, without creating new ones", () => {
+    const root = home();
+    mkdirSync(join(root, ".openclaw", "skills", "rdk-docs"), { recursive: true });
+    writeFileSync(join(root, ".openclaw", "skills", "rdk-docs", "SKILL.md"), "old");
+    mkdirSync(join(root, ".workbuddy"));
+    const updated = refreshInstalledSkills({ home: root, skillSource: skillBody });
+    expect(readFileSync(join(root, ".openclaw", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
+    expect(updated).toEqual([join(root, ".openclaw", "skills", "rdk-docs", "SKILL.md")]);
+    expect(existsSync(join(root, ".workbuddy", "skills"))).toBe(false);
+  });
+});
+
 describe("install.md", () => {
   it("tells the agent to run the one-line installer and not clone a repo", () => {
     const path = join(dirname(fileURLToPath(import.meta.url)), "..", "install.md");
     const body = readFileSync(path, "utf8");
     expect(body).toContain("npx -y rdk-docs-mcp@latest --install");
-    expect(body).toContain("不要 `git clone`");
+    expect(body).toContain("do not `git clone` anything");
     expect(body).toContain("cdn.jsdelivr.net/npm/rdk-docs-mcp@latest/skills/$s/SKILL.md");
     expect(body).toContain("~/.zcode/cli/config.json");
     expect(body).toContain("~/.dsh/cordis.patch.yml");
-    expect(body).toContain("MCP 启动时");
+    expect(body).toContain("MCP 每次启动时");
   });
 });
