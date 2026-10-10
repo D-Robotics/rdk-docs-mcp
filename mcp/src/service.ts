@@ -9,7 +9,7 @@ import { fetchText, type HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
 import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } from "./bm25.js";
 import { searchGuidance } from "./routes.js";
-import { groupHits, matchQuality, searchManuals } from "./search.js";
+import { fusePageHits, groupHits, matchQuality, normalizeAltQueries, searchManuals } from "./search.js";
 import { selectSection } from "./sections.js";
 import { compactSphinxIndex } from "./sphinx.js";
 import {
@@ -33,6 +33,11 @@ export type SearchInput = {
   limit?: number;
   /** Board the agent is on. Used when the query itself does not name one. */
   board?: BoardId;
+  /**
+   * Up to 3 extra queries in documentation wording. Merged with `query` by page.
+   * Ignored when empty, so a caller that omits them gets the single-query result.
+   */
+  altQueries?: string[];
 };
 
 export type TocInput = {
@@ -263,10 +268,18 @@ export async function searchDocs(
     warnings.push(...loaded.map((item) => item.warning).filter((item): item is string => Boolean(item)));
     warnings.push(...drainIndexNotes());
     searched = loaded.map((item) => item.docs);
-    docHits = searchManuals(searched, query, limit, { board: input.board }).map((hit) => ({
-      ...hit,
-      source: "docs" as const,
-    }));
+    const altQueries = normalizeAltQueries(query, input.altQueries);
+    const tagDocs = (hits: SearchHit[]): SearchHit[] => hits.map((hit) => ({ ...hit, source: "docs" as const }));
+    if (altQueries.length === 0) {
+      docHits = tagDocs(searchManuals(searched, query, limit, { board: input.board }));
+    } else {
+      // Each query is ranked on its own, then fused by page (weight 1, k=10).
+      const pool = Math.max(limit, 20);
+      const lists = [query, ...altQueries].map((text) =>
+        tagDocs(searchManuals(searched, text, pool, { board: input.board })),
+      );
+      docHits = fusePageHits(lists, limit);
+    }
   }
 
   let forumHits: SearchHit[] = [];

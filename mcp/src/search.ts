@@ -87,6 +87,54 @@ export function searchManuals(
   return orderHits(groups, query, limit, options);
 }
 
+const ALT_QUERY_LIMIT = 3;
+const PAGE_RRF_K = 10;
+
+/** Keep at most 3 non-empty alternates that differ from the original query. */
+export function normalizeAltQueries(query: string, alts: string[] | undefined): string[] {
+  const seen = new Set<string>([query.trim()]);
+  const out: string[] = [];
+  for (const alt of alts ?? []) {
+    const text = alt.trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    out.push(text);
+    if (out.length === ALT_QUERY_LIMIT) break;
+  }
+  return out;
+}
+
+function pageKey(url: string): string {
+  return (url.split("#")[0] ?? url).replace(/\/+$/, "");
+}
+
+/**
+ * Merge one ranked list per query by page. Each list has weight 1.
+ * Rank is 0-based and the first time a page appears in that list.
+ */
+export function fusePageHits(lists: SearchHit[][], limit: number): SearchHit[] {
+  const score = new Map<string, number>();
+  const best = new Map<string, { hit: SearchHit; rank: number }>();
+  for (const list of lists) {
+    const seen = new Set<string>();
+    list.forEach((hit, index) => {
+      const key = pageKey(hit.url);
+      if (seen.has(key)) return;
+      seen.add(key);
+      score.set(key, (score.get(key) ?? 0) + 1 / (PAGE_RRF_K + index));
+      const prev = best.get(key);
+      if (!prev || index < prev.rank) best.set(key, { hit, rank: index });
+    });
+  }
+  return [...score.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .flatMap(([key, rrf]) => {
+      const hit = best.get(key)?.hit;
+      return hit ? [{ ...hit, score: rrf }] : [];
+    });
+}
+
 export function matchQuality(
   hits: SearchHit[],
   groups: IndexedDoc[][] = [],
