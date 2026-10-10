@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getPage, listToc, searchDocs } from "./service.js";
+import { resolveManual } from "./catalog.js";
+import { getPage, listToc, loadIndexFromOrigin, searchDocs } from "./service.js";
 import type { HttpGet } from "./http.js";
 
 const docusaurusIndex = JSON.stringify([
@@ -336,6 +337,35 @@ describe("getPage", () => {
       true,
     );
     expect(requested.some((url) => url.includes("/rdk_doc/"))).toBe(false);
+  });
+});
+
+describe("loadIndexFromOrigin", () => {
+  const ultraIndex = JSON.stringify([
+    {
+      documents: [
+        { t: "安装", u: "/rdk_doc/Quick_start/install_os/rdk_ultra" },
+      ],
+    },
+  ]);
+
+  it("dedupes Ultra at query time and fetches page bodies only when building", async () => {
+    const ultra = resolveManual("ultra");
+    expect(ultra?.expandBodies).toBe(true);
+    const seen: string[] = [];
+    const http: HttpGet = async (url) => {
+      seen.push(url);
+      if (url.endsWith("/rdk_doc/search-index.json")) return ultraIndex;
+      return `<html><body><article class="theme-doc-markdown"><h1>安装</h1><p>${"供电与烧录步骤。".repeat(40)}</p></article></body></html>`;
+    };
+    const queried = await loadIndexFromOrigin(ultra!, http);
+    expect(seen.every((url) => url.endsWith("/rdk_doc/search-index.json"))).toBe(true);
+    expect(queried.some((doc) => doc.kind === "page")).toBe(true);
+    seen.length = 0;
+    const built = await loadIndexFromOrigin(ultra!, http, { fillBodies: true });
+    expect(seen.some((url) => url.endsWith("/rdk_ultra/"))).toBe(true);
+    const page = built.find((doc) => doc.kind === "page");
+    expect(page?.text ?? "").toContain("供电与烧录步骤");
   });
 });
 

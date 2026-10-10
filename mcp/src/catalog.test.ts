@@ -48,6 +48,9 @@ describe("catalog", () => {
     expect(resolveManual("s100")?.id).toBe("rdk-s");
     expect(resolveManual("tros")?.id).toBe("tros");
     expect(resolveManual("ultra")?.id).toBe("rdk-ultra");
+    expect(resolveManual("ultra")?.noBoard).toBe(true);
+    expect(resolveManual("ultra")?.expandBodies).toBe(true);
+    expect(resolveManual("x5")?.noBoard).toBeUndefined();
     expect(resolveManual("studio")?.id).toBe("rdk-studio");
     expect(resolveManual("unknown-board")).toBeUndefined();
   });

@@ -16,6 +16,16 @@ export type Manual = {
    * pages out of the shared legacy `/rdk_doc` index.
    */
   includePath?: RegExp;
+  /**
+   * This manual is not one of the named boards. A board filter skips it.
+   * An unscoped query still searches it.
+   */
+  noBoard?: boolean;
+  /**
+   * The search index stores a short snippet and may list the same page twice.
+   * Dedupe on load. Live page text is fetched only while building the snapshot.
+   */
+  expandBodies?: boolean;
 };
 
 const ORIGIN = "https://developer.d-robotics.cc";
@@ -57,6 +67,8 @@ export const MANUALS: Manual[] = [
     indexKind: "docusaurus",
     indexPath: "/rdk_doc/search-index.json",
     includePath: /\/rdk_ultra(?:\/|$)|\/RDK_Ultra(?:\/|$)/i,
+    noBoard: true,
+    expandBodies: true,
   },
   {
     id: "tros",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDocsForDeadPages, excessivePageDrop, findDeadPageUrls, pageUrl, proxyFetchWarning } from "./link-check.js";
+import { dropDocsForDeadPages, excessivePageDrop, findDeadPageUrls, formatManualDropError, pageUrl, proxyFetchWarning } from "./link-check.js";
 import type { IndexedDoc } from "./types.js";
 
 const doc = (url: string, kind: IndexedDoc["kind"]): IndexedDoc => ({
@@ -54,6 +54,18 @@ describe("page link check", () => {
   it("fails a build that drops more than 2% of pages and warns when a proxy is set", () => {
     expect(excessivePageDrop(100, 97)).toBe(true);
     expect(excessivePageDrop(1000, 980)).toBe(false);
+    const perManual = formatManualDropError([
+      { manualId: "small", before: 10, after: 7 },
+      { manualId: "large", before: 1000, after: 1000 },
+    ]);
+    expect(perManual).toMatch(/small: 3 of 10/);
+    expect(perManual).not.toMatch(/large/);
+    expect(
+      formatManualDropError([
+        { manualId: "a", before: 1000, after: 980 },
+        { manualId: "b", before: 50, after: 49 },
+      ]),
+    ).toBeUndefined();
     const previous = process.env.HTTPS_PROXY;
     delete process.env.HTTPS_PROXY;
     expect(proxyFetchWarning()).toBeUndefined();

@@ -325,9 +325,6 @@ const MANUAL_BOARDS: Record<string, BoardId[]> = {
   "oe-llm-s100": ["s100"],
   "oe-llm-s600": ["s600"],
   "case-s600": ["s600"],
-  // Ultra is its own board. An empty list matches no named board, so x3/x5/s100/s600
-  // queries do not search it. An unscoped query still does.
-  "rdk-ultra": [],
 };
 
 export type RankOptions = { board?: BoardId };
@@ -378,8 +375,13 @@ export function contextBoards(query: string, options: RankOptions = {}): BoardId
 }
 
 /** Drop the other product family before the index is even parsed. */
+function manualHasNoBoard(manualId: string): boolean {
+  return MANUALS.some((manual) => manual.id === manualId && manual.noBoard === true);
+}
+
 export function manualMatchesBoards(manualId: string, boards: BoardId[]): boolean {
   if (boards.length === 0) return true;
+  if (manualHasNoBoard(manualId)) return false;
   const pinned = MANUAL_BOARDS[manualId];
   if (pinned && !pinned.some((board) => boards.includes(board))) return false;
   const xOnly = boards.every((board) => board === "x3" || board === "x5");

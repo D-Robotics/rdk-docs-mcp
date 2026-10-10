@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { encodeBm25 } from "./bm25.js";
 import { listManuals } from "./catalog.js";
 import { fetchText } from "./http.js";
 import { prebuiltDir } from "./index-store.js";
-import { dropDocsForDeadPages, excessivePageDrop, findDeadPageUrls, pageUrl, pageUrlsOf, proxyFetchWarning } from "./link-check.js";
+import { dropDocsForDeadPages, findDeadPageUrls, formatManualDropError, pageUrl, pageUrlsOf, proxyFetchWarning } from "./link-check.js";
 import { loadIndexFromOrigin } from "./service.js";
 import type { IndexedDoc } from "./types.js";
 
@@ -70,10 +71,35 @@ async function withoutDeadLinks(manualId: string, docs: IndexedDoc[]): Promise<{
   return { docs: kept, before, after: pageCount(kept) };
 }
 
-function assertDropRate(before: number, after: number): void {
-  if (!excessivePageDrop(before, after)) return;
-  const dropped = before - after;
-  throw new Error(`link check dropped ${dropped} of ${before} pages (${((dropped / before) * 100).toFixed(1)}% > 2%)`);
+export type CheckedManual = {
+  manualId: string;
+  docs: IndexedDoc[];
+  before: number;
+  after: number;
+  builtAt: string;
+  changed: boolean;
+};
+
+/**
+ * Reject a per-manual drop before any file is replaced. A failed check leaves
+ * the previous snapshot and manifest untouched.
+ */
+export function commitCheckedManuals(dir: string, checks: readonly CheckedManual[], builtAt: string): void {
+  const message = formatManualDropError(checks);
+  if (message) throw new Error(message);
+  mkdirSync(dir, { recursive: true });
+  const manuals: string[] = [];
+  for (const check of checks) {
+    manuals.push(check.manualId);
+    if (!check.changed) {
+      process.stderr.write(`kept\t${check.manualId}\t${check.docs.length}\n`);
+      continue;
+    }
+    const bytes = writeSnapshot(dir, check.manualId, check.docs, check.builtAt);
+    const postings = writePostings(dir, check.manualId, check.docs);
+    process.stderr.write(`wrote\t${check.manualId}\t${check.docs.length}\t${bytes}\tpostings ${postings}\n`);
+  }
+  writeManifest(dir, builtAt, manuals.sort());
 }
 
 function writeManifest(dir: string, builtAt: string, manuals: string[]): void {
@@ -120,40 +146,40 @@ async function rebuild(): Promise<void> {
   const proxy = proxyFetchWarning();
   if (proxy) process.stderr.write(`${proxy}\n`);
   const dir = prebuiltDir();
-  mkdirSync(dir, { recursive: true });
   const builtAt = new Date().toISOString();
   const manuals = listManuals().filter((manual) => manual.searchable);
-  const written: string[] = [];
+  const prepared: CheckedManual[] = [];
   let failed = 0;
-  let pagesBefore = 0;
-  let pagesAfter = 0;
   for (const manual of manuals) {
     const started = Date.now();
     try {
-      const loaded = (await loadIndexFromOrigin(manual, fetchText)).map(compact);
+      const loaded = (await loadIndexFromOrigin(manual, fetchText, { fillBodies: true })).map(compact);
       const checked = await withoutDeadLinks(manual.id, loaded);
-      pagesBefore += checked.before;
-      pagesAfter += checked.after;
       const docs = checked.docs;
       if (docs.length === 0) {
         process.stderr.write(`empty\t${manual.id}\n`);
         failed += 1;
         continue;
       }
-      const bytes = writeSnapshot(dir, manual.id, docs, builtAt);
-      const postings = writePostings(dir, manual.id, docs);
-      written.push(manual.id);
-      process.stderr.write(`ok\t${manual.id}\t${docs.length}\t${bytes}\tpostings ${postings}\t${Date.now() - started}ms\n`);
+      prepared.push({
+        manualId: manual.id,
+        docs,
+        before: checked.before,
+        after: checked.after,
+        builtAt,
+        changed: true,
+      });
+      process.stderr.write(`ready\t${manual.id}\t${docs.length}\t${Date.now() - started}ms\n`);
     } catch (error) {
       failed += 1;
       process.stderr.write(`fail\t${manual.id}\t${error instanceof Error ? error.message : String(error)}\n`);
     }
   }
-  if (written.length === 0 || failed > 0) process.exitCode = 1;
-  else {
-    assertDropRate(pagesBefore, pagesAfter);
-    writeManifest(dir, builtAt, written.sort());
+  if (prepared.length === 0 || failed > 0) {
+    process.exitCode = 1;
+    return;
   }
+  commitCheckedManuals(dir, prepared, builtAt);
 }
 
 async function checkExistingLinks(): Promise<void> {
@@ -165,45 +191,47 @@ async function checkExistingLinks(): Promise<void> {
     process.exit(1);
     return;
   }
-  const manuals: string[] = [];
+  const prepared: CheckedManual[] = [];
   let builtAt = "";
-  let pagesBefore = 0;
-  let pagesAfter = 0;
   for (const name of readdirSync(dir)) {
     if (!name.endsWith(".json.gz")) continue;
     const manualId = name.replace(/\.json\.gz$/, "");
     const path = join(dir, name);
     const snapshot = readSnapshot(path, manualId);
     const checked = await withoutDeadLinks(manualId, snapshot.docs);
-    pagesBefore += checked.before;
-    pagesAfter += checked.after;
-    const docs = checked.docs;
     builtAt = builtAt > snapshot.builtAt ? builtAt : snapshot.builtAt;
-    manuals.push(manualId);
-    if (docs.length === snapshot.docs.length) {
-      process.stderr.write(`kept\t${manualId}\t${docs.length}\n`);
-      continue;
-    }
-    const bytes = writeSnapshot(dir, manualId, docs, snapshot.builtAt);
-    const postings = writePostings(dir, manualId, docs);
-    process.stderr.write(`rewrote\t${manualId}\t${snapshot.docs.length}->${docs.length}\t${bytes}\tpostings ${postings}\n`);
+    prepared.push({
+      manualId,
+      docs: checked.docs,
+      before: checked.before,
+      after: checked.after,
+      builtAt: snapshot.builtAt,
+      changed: checked.docs.length !== snapshot.docs.length,
+    });
   }
-  assertDropRate(pagesBefore, pagesAfter);
-  if (!manuals.length) process.exit(1);
-  else writeManifest(dir, builtAt, manuals.sort());
+  if (!prepared.length) {
+    process.exit(1);
+    return;
+  }
+  commitCheckedManuals(dir, prepared, builtAt);
 }
 
-const stamp = process.argv.includes("--stamp");
-const checkLinks = process.argv.includes("--check-links");
-if (stamp) stampExisting();
-else if (checkLinks) {
-  checkExistingLinks().catch((error: unknown) => {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    process.exit(1);
-  });
-} else {
-  rebuild().catch((error: unknown) => {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    process.exit(1);
-  });
+function runCli(): void {
+  const stamp = process.argv.includes("--stamp");
+  const checkLinks = process.argv.includes("--check-links");
+  if (stamp) stampExisting();
+  else if (checkLinks) {
+    checkExistingLinks().catch((error: unknown) => {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(1);
+    });
+  } else {
+    rebuild().catch((error: unknown) => {
+      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(1);
+    });
+  }
 }
+
+const entry = process.argv[1];
+if (entry && import.meta.url === pathToFileURL(entry).href) runCli();

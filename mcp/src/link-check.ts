@@ -20,6 +20,21 @@ export function excessivePageDrop(before: number, after: number): boolean {
   return (before - after) / before > 0.02;
 }
 
+export type ManualPageCounts = { manualId: string; before: number; after: number };
+
+/** Per manual, not across the whole corpus. One small manual can fail on its own. */
+export function formatManualDropError(rows: readonly ManualPageCounts[]): string | undefined {
+  const bad = rows.filter((row) => excessivePageDrop(row.before, row.after));
+  if (bad.length === 0) return undefined;
+  const detail = bad
+    .map((row) => {
+      const dropped = row.before - row.after;
+      return `${row.manualId}: ${dropped} of ${row.before} (${((dropped / row.before) * 100).toFixed(1)}%)`;
+    })
+    .join("; ");
+  return `link check dropped more than 2% of pages in ${detail}`;
+}
+
 /** Node's fetch does not read HTTP(S)_PROXY or ALL_PROXY, so a proxy looks like a timeout. */
 export function proxyFetchWarning(): string | undefined {
   const keys = ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "https_proxy", "http_proxy", "all_proxy"];
