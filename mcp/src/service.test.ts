@@ -240,17 +240,24 @@ describe("getPage", () => {
       throw new Error(`unexpected url ${requested}`);
     };
     const brief = await getPage({ url, maxChars: 40000 }, mock);
-    expect(brief.markdown.length).toBeLessThanOrEqual(6000);
+    expect(brief.markdown.length).toBeGreaterThan(6000);
+    expect(brief.markdown.length).toBeLessThanOrEqual(40000);
     expect(brief.markdown).toContain(`Source: ${url}`);
-    expect(brief.markdown).toContain("## 开头");
-    expect(brief.markdown).not.toContain("烧录镜像");
-    expect(brief.truncated).toBe(true);
+    expect(brief.markdown).toContain("烧录镜像");
+
+    const capped = await getPage({ url }, mock);
+    expect(capped.markdown.length).toBeLessThanOrEqual(6000);
+    expect(capped.markdown).toContain(`Source: ${url}`);
+    expect(capped.markdown).toContain("## 开头");
+    expect(capped.markdown).not.toContain("烧录镜像");
+    expect(capped.markdown).toContain("… omitted sections:");
+    expect(capped.truncated).toBe(true);
 
     const asked = await getPage({ url, query: "烧录镜像", maxChars: 40000 }, mock);
-    expect(asked.markdown.length).toBeLessThanOrEqual(6000);
     expect(asked.markdown).toContain("烧录镜像");
     expect(asked.markdown).toContain(`Source: ${url}`);
     expect(asked.sectionMatched).toBe(true);
+    expect(asked.markdown).toContain("… omitted sections:");
 
     const whole = await getPage({ url, full: true }, mock);
     expect(whole.markdown.length).toBeGreaterThan(6000);

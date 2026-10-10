@@ -52,9 +52,47 @@ export type PageInput = {
   section?: string;
   /** Find the sections that answer this query, even when they sit past the default cap. */
   query?: string;
-  /** Return the whole page. Omit to receive relevant sections capped at about 6000 characters. */
+  /**
+   * Return the whole page. Omit to receive relevant sections.
+   * The section cap is about 6000 characters unless maxChars is set.
+   */
   full?: boolean;
 };
+
+/** Explicit maxChars is honored up to this. The tool schema uses the same ceiling. */
+const PAGE_CHAR_LIMIT = 40_000;
+
+function honoredChars(input: PageInput, fallback: number): number {
+  const requested = input.maxChars ?? fallback;
+  if (!Number.isFinite(requested) || requested <= 0) return fallback;
+  return Math.min(requested, PAGE_CHAR_LIMIT);
+}
+
+function headingOffsets(markdown: string): Array<{ start: number; title: string }> {
+  const found: Array<{ start: number; title: string }> = [];
+  for (const match of markdown.matchAll(/^(#{1,6})\s+(.+)$/gm)) {
+    const title = (match[2] ?? "").replace(/\[\]\([^)]+\)\s*$/, "").trim();
+    if (title) found.push({ start: match.index ?? 0, title });
+  }
+  return found;
+}
+
+/** Keep maxChars, and name the headings that fell past the cut. */
+function clipMarkdown(markdown: string, maxChars: number): { markdown: string; truncated: boolean } {
+  if (markdown.length <= maxChars) return { markdown, truncated: false };
+  const headings = headingOffsets(markdown);
+  let room = maxChars;
+  let marker = "…[truncated]";
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const omitted = headings.filter((heading) => heading.start >= room).map((heading) => heading.title);
+    marker = omitted.length > 0 ? `… omitted sections: ${omitted.join(", ")}` : "…[truncated]";
+    const next = Math.max(0, maxChars - marker.length - 2);
+    if (next === room) break;
+    room = next;
+  }
+  const cut = markdown.slice(0, room).replace(/\s+$/, "");
+  return { markdown: cut ? `${cut}\n\n${marker}` : marker.slice(0, maxChars), truncated: true };
+}
 
 function requireManual(idOrAlias: string): Manual {
   const manual = resolveManual(idOrAlias);
@@ -428,16 +466,15 @@ function finishPage(
   }
   const explicit = Boolean(hash || input.section?.trim());
   if (input.full && !explicit) {
-    const maxChars = input.maxChars ?? 16_000;
+    const maxChars = honoredChars(input, 16_000);
     const notes = imageNotes(page.markdown);
     const body = notes.imageOnly ? `${notes.contentNotes[0]}\n\n${page.markdown}` : page.markdown;
-    const truncated = body.length > maxChars;
-    const markdown = truncated ? `${body.slice(0, maxChars)}\n\n…[truncated]` : body;
+    const clipped = clipMarkdown(body, maxChars);
     return {
       title: page.title,
       url: page.url,
-      markdown,
-      truncated,
+      markdown: clipped.markdown,
+      truncated: clipped.truncated,
       imageOnly: notes.imageOnly,
       contentNotes: notes.contentNotes.length > 0 ? notes.contentNotes : undefined,
     };
@@ -449,14 +486,13 @@ function finishPage(
       query: input.query,
       anchor: hash || undefined,
     });
-    const maxChars = input.full ? (input.maxChars ?? 16_000) : Math.min(input.maxChars ?? RELEVANT_SECTION_CAP, RELEVANT_SECTION_CAP);
-    const truncated = picked.markdown.length > maxChars;
-    const markdown = truncated ? `${picked.markdown.slice(0, maxChars)}\n\n…[truncated]` : picked.markdown;
+    const maxChars = honoredChars(input, input.full ? 16_000 : RELEVANT_SECTION_CAP);
+    const clipped = clipMarkdown(picked.markdown, maxChars);
     return {
       title: page.title,
       url: page.url,
-      markdown,
-      truncated,
+      markdown: clipped.markdown,
+      truncated: clipped.truncated,
       section: picked.section,
       anchor: picked.anchor,
       sectionMatched: picked.matched,
@@ -468,7 +504,7 @@ function finishPage(
   const packed = packRelevantSections(page.markdown, {
     query: input.query,
     pageUrl: page.url,
-    maxChars: Math.min(input.maxChars ?? RELEVANT_SECTION_CAP, RELEVANT_SECTION_CAP),
+    maxChars: honoredChars(input, RELEVANT_SECTION_CAP),
   });
   return {
     title: page.title,

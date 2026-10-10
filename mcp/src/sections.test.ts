@@ -78,6 +78,7 @@ describe("packRelevantSections", () => {
     section("网络", "丙".repeat(2500)),
     section("烧录准备", "烧录镜像前先检查 SD 卡。"),
     section("烧录步骤", `烧录镜像的命令如下。${"丁".repeat(200)}`),
+    section("适配器", "设备供电需要 5V 适配器。"),
     section("结尾", "戊".repeat(2500)),
   ].join("\n\n");
 
@@ -88,6 +89,8 @@ describe("packRelevantSections", () => {
     expect(packed.markdown).toContain("## 开头");
     expect(packed.markdown).not.toContain("烧录镜像");
     expect(packed.truncated).toBe(true);
+    expect(packed.markdown).toContain("… omitted sections:");
+    expect(packed.markdown).toContain("烧录准备");
     expect(packed.markdown).not.toContain("…[truncated]");
   });
 
@@ -100,10 +103,37 @@ describe("packRelevantSections", () => {
     expect(packed.markdown).not.toContain("甲".repeat(20));
     expect(packed.markdown.length).toBeLessThanOrEqual(6000);
     expect(packed.section).toBe("烧录准备");
+    expect(packed.markdown).toContain("… omitted sections:");
   });
 
-  it("does not grow past the cap when the caller asks for 40000 characters", () => {
+  it("stays within an explicit maxChars below the default cap", () => {
     const packed = packRelevantSections(long, { pageUrl, maxChars: 4000 });
     expect(packed.markdown.length).toBeLessThanOrEqual(4000);
+  });
+
+  it("honors an explicit maxChars above 6000", () => {
+    const packed = packRelevantSections(long, { pageUrl, maxChars: 20000 });
+    expect(packed.markdown.length).toBeGreaterThan(6000);
+    expect(packed.markdown.length).toBeLessThanOrEqual(20000);
+    expect(packed.markdown).toContain("烧录镜像");
+  });
+
+  it("ranks the page's own sections with BM25 when the query matches none directly", () => {
+    const packed = packRelevantSections(long, { pageUrl, query: "供电", maxChars: 6000 });
+    expect(packed.matched).toBe(true);
+    expect(packed.section).toBe("适配器");
+    expect(packed.markdown).toContain("5V 适配器");
+    expect(packed.markdown).not.toContain("甲".repeat(20));
+    expect(packed.markdown).toContain("… omitted sections:");
+  });
+
+  it("returns a heading index when BM25 also matches nothing", () => {
+    const packed = packRelevantSections(long, { pageUrl, query: "量子纠缠", maxChars: 6000 });
+    expect(packed.matched).toBe(false);
+    expect(packed.markdown).toContain("Section index:");
+    expect(packed.markdown).toContain("- 适配器");
+    expect(packed.markdown).toContain("- 烧录准备");
+    expect(packed.markdown).not.toContain("甲".repeat(20));
+    expect(packed.markdown).not.toContain("烧录镜像");
   });
 });

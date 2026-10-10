@@ -120,7 +120,7 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "get_page",
     {
       description:
-        "Read one official page or public forum topic as Markdown. By default returns the most relevant sections, about 6000 characters, each with its heading, plus the page URL. Pass query so those sections match the question; omit query to get the leading sections. Pass full=true for the whole page (maxChars then applies, default 16000, at most 40000). Pass section, or a URL hash, to extract one heading. imageOnly=true means the pin map is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means the page has more text: pass full=true or a narrower query.",
+        "Read one official page or public forum topic as Markdown. By default returns the most relevant sections, about 6000 characters, each with its heading, plus the page URL. Pass query so those sections match the question. If the query matches no section, the page's own sections are ranked with BM25; if that still matches nothing, the response is a section index of headings so you can request one with section or a #anchor. Omit query to get the leading sections. Omit maxChars to keep that 6000-character cap. An explicit maxChars is honored up to 40000 even when full is not set. Pass full=true for the whole page (maxChars then defaults to 16000, at most 40000). Pass section, or a URL hash, to extract one heading. When headings are left out, the markdown ends with '… omitted sections: <headings>'. imageOnly=true means the pin map is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means the page has more text: pass full=true, a larger maxChars, or a narrower query.",
       inputSchema: {
         url: z
           .string()
@@ -133,9 +133,9 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
           .min(1000)
           .max(40000)
           .optional()
-          .describe("With full=true, maximum characters of the page (default 16000). The default section mode stays near 6000 even if this is higher."),
+          .describe("Maximum characters to return, honored up to 40000. When omitted, section mode stays near 6000 and full=true uses 16000."),
         section: z.string().optional().describe("Heading to extract, e.g. 40PIN 管脚定义"),
-        query: z.string().optional().describe("Prefer sections that answer this. Omit to return the leading sections."),
+        query: z.string().optional().describe("Prefer sections that answer this. If none match, sections of this page are ranked with BM25; if that is also empty, a heading index is returned. Omit to return the leading sections."),
         full: z.boolean().optional().describe("Return the whole page instead of the relevant sections."),
       },
     },
