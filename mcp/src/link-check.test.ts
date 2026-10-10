@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropDocsForDeadPages, findDeadPageUrls, pageUrl } from "./link-check.js";
+import { dropDocsForDeadPages, excessivePageDrop, findDeadPageUrls, pageUrl, proxyFetchWarning } from "./link-check.js";
 import type { IndexedDoc } from "./types.js";
 
 const doc = (url: string, kind: IndexedDoc["kind"]): IndexedDoc => ({
@@ -10,13 +10,13 @@ const doc = (url: string, kind: IndexedDoc["kind"]): IndexedDoc => ({
 });
 
 describe("page link check", () => {
-  it("strips the hash, query, and trailing slash", () => {
-    expect(pageUrl("https://example.test/oe_x5_doc/cn/?x=1#top")).toBe("https://example.test/oe_x5_doc/cn");
+  it("keeps the trailing slash and strips the hash and query", () => {
+    expect(pageUrl("https://example.test/oe_x5_doc/cn/?x=1#top")).toBe("https://example.test/oe_x5_doc/cn/");
   });
 
   it("drops a dead page together with its headings", () => {
     const docs = [
-      doc("https://example.test/guide/qwen2.5/", "page"),
+      doc("https://example.test/guide/qwen2.5", "page"),
       doc("https://example.test/guide/qwen2.5#测试条件", "heading"),
       doc("https://example.test/guide/keep", "page"),
     ];
@@ -29,9 +29,10 @@ describe("page link check", () => {
     const probe = async (url: string): Promise<number> => {
       const n = (seen.get(url) ?? 0) + 1;
       seen.set(url, n);
-      if (url.endsWith("/gone")) return 404;
-      if (url.endsWith("/flaky")) return n === 1 ? 404 : 200;
-      if (url.endsWith("/slow")) return 0;
+      const key = url.replace(/\/+$/, "");
+      if (key.endsWith("/gone")) return 404;
+      if (key.endsWith("/flaky")) return url.endsWith("/") || n > 1 ? (url.endsWith("/") ? 404 : 200) : 404;
+      if (key.endsWith("/slow")) return 0;
       return 200;
     };
     const result = await findDeadPageUrls(
@@ -40,5 +41,28 @@ describe("page link check", () => {
     );
     expect(result.dead).toEqual(["https://example.test/gone"]);
     expect(result.unchecked).toEqual(["https://example.test/flaky", "https://example.test/slow"]);
+  });
+
+  it("keeps a page when only the no-slash form is a 404", async () => {
+    const probe = async (url: string): Promise<number> => (url.endsWith("/cn/") ? 200 : 404);
+    const slashed = await findDeadPageUrls(["https://example.test/oe_x5_doc/cn/"], probe);
+    const stripped = await findDeadPageUrls(["https://example.test/oe_x5_doc/cn"], probe);
+    expect(slashed.dead).toEqual([]);
+    expect(stripped.dead).toEqual([]);
+  });
+
+  it("fails a build that drops more than 2% of pages and warns when a proxy is set", () => {
+    expect(excessivePageDrop(100, 97)).toBe(true);
+    expect(excessivePageDrop(1000, 980)).toBe(false);
+    const previous = process.env.HTTPS_PROXY;
+    delete process.env.HTTPS_PROXY;
+    expect(proxyFetchWarning()).toBeUndefined();
+    process.env.HTTPS_PROXY = "http://proxy.example:8080";
+    try {
+      expect(proxyFetchWarning()).toMatch(/ignores/i);
+    } finally {
+      if (previous === undefined) delete process.env.HTTPS_PROXY;
+      else process.env.HTTPS_PROXY = previous;
+    }
   });
 });

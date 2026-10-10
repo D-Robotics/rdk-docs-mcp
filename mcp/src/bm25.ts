@@ -325,6 +325,9 @@ const MANUAL_BOARDS: Record<string, BoardId[]> = {
   "oe-llm-s100": ["s100"],
   "oe-llm-s600": ["s600"],
   "case-s600": ["s600"],
+  // Ultra is its own board. An empty list matches no named board, so x3/x5/s100/s600
+  // queries do not search it. An unscoped query still does.
+  "rdk-ultra": [],
 };
 
 export type RankOptions = { board?: BoardId };

@@ -809,8 +809,12 @@ describe("rankHits", () => {
     const boards = groupHits(hits).map((group) => group.board);
     expect(boards).toContain("x5");
     const previous = process.env.RDK_ABLATE;
-    process.env.RDK_ABLATE = "no_diversify";
     try {
+      process.env.RDK_ABLATE = "no_diversify";
+      const stillByScore = rankHits(docs, "BPU inference", 5);
+      expect(stillByScore[0]?.url).toContain("RDK_X5");
+      expect(stillByScore[1]?.url).toContain("RDK_X5");
+      process.env.RDK_ABLATE = "diversify";
       const roundRobin = rankHits(docs, "BPU inference", 5);
       expect(roundRobin[0]?.url).toContain("RDK_X5");
       expect(roundRobin[1]?.url).toContain("RDK_X3");
@@ -824,25 +828,25 @@ describe("rankHits", () => {
     const docs: IndexedDoc[] = [
       {
         manualId: "rdk-x",
-        title: "GPIO 电平",
-        url: "https://developer.d-robotics.cc/rdk_x_doc/gpio",
+        title: "PWM 占空比",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/pwm",
         kind: "page",
-        text: "GPIO 电平 输出",
+        text: "PWM 占空比 输出",
       },
       {
         manualId: "rdk-x",
-        title: "输出电平",
-        url: "https://developer.d-robotics.cc/rdk_x_doc/gpio#out",
+        title: "占空比输出",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/pwm#out",
         kind: "heading",
-        text: "GPIO 电平 配置",
+        text: "PWM 占空比 配置",
       },
     ];
-    const aggregated = rankHits(docs, "GPIO 电平", 3);
+    const aggregated = rankHits(docs, "PWM 占空比", 3);
     const previous = process.env.RDK_ABLATE;
     process.env.RDK_ABLATE = "page_agg";
     let maxOnly: ReturnType<typeof rankHits>;
     try {
-      maxOnly = rankHits(docs, "GPIO 电平", 3);
+      maxOnly = rankHits(docs, "PWM 占空比", 3);
     } finally {
       if (previous === undefined) delete process.env.RDK_ABLATE;
       else process.env.RDK_ABLATE = previous;

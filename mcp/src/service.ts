@@ -1,6 +1,7 @@
 import { docInManual, listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { mentionedBoards, urlLooksLikeBoard, type BoardId } from "./products.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
+import { dedupeMirrorPages, fillPageBodies } from "./mirror-pages.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
@@ -161,7 +162,11 @@ export async function loadIndexFromOrigin(manual: Manual, http: HttpGet): Promis
   const url = `${origin()}${manual.indexPath}`;
   const body = await http(url);
   if (manual.indexKind === "docusaurus") {
-    return compactDocusaurusIndex(JSON.parse(body), manual.id).filter((doc) => docInManual(manual, doc.url));
+    const docs = compactDocusaurusIndex(JSON.parse(body), manual.id).filter((doc) => docInManual(manual, doc.url));
+    if (manual.id !== "rdk-ultra") return docs;
+    // The shared legacy index stores a few words per Ultra page, and publishes
+    // the same page under two paths. Keep the shorter path and read the live body.
+    return fillPageBodies(dedupeMirrorPages(docs), http);
   }
   if (manual.indexKind === "sphinx") {
     return compactSphinxIndex(body, manual.id, manual.basePath);

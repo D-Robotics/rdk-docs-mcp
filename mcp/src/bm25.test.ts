@@ -509,7 +509,9 @@ describe("bm25", () => {
     expect(manualMatchesBoards("oe-x3", ["x3"])).toBe(true);
     expect(manualMatchesBoards("rdk-x", ["s100"])).toBe(false);
     expect(manualMatchesBoards("rdk-ultra", ["s100"])).toBe(false);
-    expect(manualMatchesBoards("rdk-ultra", ["x5"])).toBe(true);
+    expect(manualMatchesBoards("rdk-ultra", ["x5"])).toBe(false);
+    expect(manualMatchesBoards("rdk-ultra", ["x3"])).toBe(false);
+    expect(manualMatchesBoards("rdk-ultra", [])).toBe(true);
     expect(manualMatchesBoards("tros", ["x3"])).toBe(true);
     expect(manualMatchesBoards("oe-s", ["x5", "s100"])).toBe(true);
   });

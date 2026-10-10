@@ -4,11 +4,27 @@ const USER_AGENT = "rdk-docs-mcp/0.2 (+https://developer.d-robotics.cc/rdk_doc_c
 const TIMEOUT_MS = 12_000;
 const DEAD_STATUS = new Set([404, 410]);
 
-/** Page identity: no hash, no query, no trailing slash. */
+/** Page identity: no hash, no query. The trailing slash is kept — `/cn` and `/cn/` are different URLs. */
 export function pageUrl(url: string): string {
   const noHash = url.split("#")[0] ?? url;
-  const noQuery = noHash.split("?")[0] ?? noHash;
-  return noQuery.replace(/\/+$/, "");
+  return noHash.split("?")[0] ?? noHash;
+}
+
+function slashVariant(url: string): string {
+  return url.endsWith("/") ? url.replace(/\/+$/, "") : `${url}/`;
+}
+
+/** True when more than 2% of the probed pages were removed. */
+export function excessivePageDrop(before: number, after: number): boolean {
+  if (before <= 0 || after >= before) return false;
+  return (before - after) / before > 0.02;
+}
+
+/** Node's fetch does not read HTTP(S)_PROXY or ALL_PROXY, so a proxy looks like a timeout. */
+export function proxyFetchWarning(): string | undefined {
+  const keys = ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "https_proxy", "http_proxy", "all_proxy"];
+  if (!keys.some((key) => (process.env[key] ?? "").trim())) return undefined;
+  return "warn\tNode fetch ignores HTTP(S)_PROXY and ALL_PROXY, so the link check can time out and skip pages when a proxy is required.";
 }
 
 export function pageUrlsOf(docs: IndexedDoc[]): string[] {
@@ -59,13 +75,18 @@ export async function findDeadPageUrls(
 
   async function classify(url: string): Promise<void> {
     const first = await probe(url);
-    if (!DEAD_STATUS.has(first)) {
-      if (first !== 200) unchecked.push(url);
+    if (first === 200) return;
+    const otherUrl = slashVariant(url);
+    if (DEAD_STATUS.has(first)) {
+      // `/cn` is 404 while `/cn/` is the live page. A slash-only difference is not a dead link.
+      const other = otherUrl === url ? first : await probe(otherUrl);
+      if (other === 200) return;
+      const second = await probe(url);
+      if (DEAD_STATUS.has(second) && DEAD_STATUS.has(other)) dead.push(url);
+      else unchecked.push(url);
       return;
     }
-    const second = await probe(url);
-    if (DEAD_STATUS.has(second)) dead.push(url);
-    else unchecked.push(url);
+    unchecked.push(url);
   }
 
   async function worker(): Promise<void> {
