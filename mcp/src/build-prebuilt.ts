@@ -5,6 +5,7 @@ import { encodeBm25 } from "./bm25.js";
 import { listManuals } from "./catalog.js";
 import { fetchText } from "./http.js";
 import { prebuiltDir } from "./index-store.js";
+import { dropDocsForDeadPages, findDeadPageUrls, pageUrlsOf } from "./link-check.js";
 import { loadIndexFromOrigin } from "./service.js";
 import type { IndexedDoc } from "./types.js";
 
@@ -42,13 +43,26 @@ function writeSnapshot(dir: string, manualId: string, docs: IndexedDoc[], builtA
   return gzip.length;
 }
 
-function readDocs(path: string, manualId: string): IndexedDoc[] {
+function readSnapshot(path: string, manualId: string): { builtAt: string; docs: IndexedDoc[] } {
   const parsed = JSON.parse(gunzipSync(readFileSync(path)).toString("utf8")) as unknown;
-  if (Array.isArray(parsed)) return parsed as IndexedDoc[];
+  if (Array.isArray(parsed)) return { builtAt: "", docs: parsed as IndexedDoc[] };
   if (parsed && typeof parsed === "object" && Array.isArray((parsed as { docs?: unknown }).docs)) {
-    return (parsed as { docs: IndexedDoc[] }).docs;
+    const body = parsed as { builtAt?: string; docs: IndexedDoc[] };
+    return { builtAt: body.builtAt ?? "", docs: body.docs };
   }
   throw new Error(`${manualId} snapshot is not an index`);
+}
+
+async function withoutDeadLinks(manualId: string, docs: IndexedDoc[]): Promise<IndexedDoc[]> {
+  const { dead, unchecked } = await findDeadPageUrls(pageUrlsOf(docs));
+  if (unchecked.length > 0) {
+    process.stderr.write(`link-unchecked\t${manualId}\t${unchecked.length}\n`);
+  }
+  if (dead.length === 0) return docs;
+  process.stderr.write(`drop-404\t${manualId}\t${dead.join(" ")}\n`);
+  const kept = dropDocsForDeadPages(docs, new Set(dead));
+  if (kept.length === 0) throw new Error(`${manualId}: every page returned 404`);
+  return kept;
 }
 
 function writeManifest(dir: string, builtAt: string, manuals: string[]): void {
@@ -56,7 +70,8 @@ function writeManifest(dir: string, builtAt: string, manuals: string[]): void {
     builtAt,
     maxAgeDays: 14,
     manuals,
-    refresh: "npm run build:index regenerates this directory. npm publish runs it from prepublishOnly.",
+    refresh:
+      "npm run build:index regenerates this directory and drops pages that return HTTP 404. npm publish runs it from prepublishOnly.",
   };
   writeFileSync(join(dir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 }
@@ -73,7 +88,7 @@ function stampExisting(): void {
     if (!name.endsWith(".json.gz")) continue;
     const manualId = name.replace(/\.json\.gz$/, "");
     const path = join(dir, name);
-    const docs = readDocs(path, manualId);
+    const docs = readSnapshot(path, manualId).docs;
     if (docs.length === 0) {
       process.stderr.write(`empty\t${manualId}\n`);
       process.exitCode = 1;
@@ -100,7 +115,8 @@ async function rebuild(): Promise<void> {
   for (const manual of manuals) {
     const started = Date.now();
     try {
-      const docs = (await loadIndexFromOrigin(manual, fetchText)).map(compact);
+      const loaded = (await loadIndexFromOrigin(manual, fetchText)).map(compact);
+      const docs = await withoutDeadLinks(manual.id, loaded);
       if (docs.length === 0) {
         process.stderr.write(`empty\t${manual.id}\n`);
         failed += 1;
@@ -119,9 +135,44 @@ async function rebuild(): Promise<void> {
   else writeManifest(dir, builtAt, written.sort());
 }
 
+async function checkExistingLinks(): Promise<void> {
+  const dir = prebuiltDir();
+  if (!existsSync(dir)) {
+    process.stderr.write(`missing ${dir}\n`);
+    process.exit(1);
+    return;
+  }
+  const manuals: string[] = [];
+  let builtAt = "";
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith(".json.gz")) continue;
+    const manualId = name.replace(/\.json\.gz$/, "");
+    const path = join(dir, name);
+    const snapshot = readSnapshot(path, manualId);
+    const docs = await withoutDeadLinks(manualId, snapshot.docs);
+    builtAt = builtAt > snapshot.builtAt ? builtAt : snapshot.builtAt;
+    manuals.push(manualId);
+    if (docs.length === snapshot.docs.length) {
+      process.stderr.write(`kept\t${manualId}\t${docs.length}\n`);
+      continue;
+    }
+    const bytes = writeSnapshot(dir, manualId, docs, snapshot.builtAt);
+    const postings = writePostings(dir, manualId, docs);
+    process.stderr.write(`rewrote\t${manualId}\t${snapshot.docs.length}->${docs.length}\t${bytes}\tpostings ${postings}\n`);
+  }
+  if (!manuals.length) process.exit(1);
+  else writeManifest(dir, builtAt, manuals.sort());
+}
+
 const stamp = process.argv.includes("--stamp");
+const checkLinks = process.argv.includes("--check-links");
 if (stamp) stampExisting();
-else {
+else if (checkLinks) {
+  checkExistingLinks().catch((error: unknown) => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
+  });
+} else {
   rebuild().catch((error: unknown) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exit(1);
