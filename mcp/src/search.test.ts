@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { compactSphinxIndex } from "./sphinx.js";
-import { rankHits } from "./search.js";
+import { groupHits, rankHits } from "./search.js";
 import type { IndexedDoc } from "./types.js";
 
 const docusaurusFixture = [
@@ -777,5 +777,81 @@ describe("rankHits", () => {
       5,
     );
     expect(hits[0]?.url).toContain("/t/topic/2");
+  });
+
+  it("ranks unscoped hits by score and still groups them by board", () => {
+    const docs: IndexedDoc[] = [
+      {
+        manualId: "rdk-x",
+        title: "BPU inference API",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/bpu_api",
+        kind: "page",
+        text: "BPU inference API reference",
+      },
+      {
+        manualId: "rdk-x",
+        title: "BPU inference sample",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X5/cdev_multimedia_api_x5/bpu_sample",
+        kind: "page",
+        text: "BPU inference sample code",
+      },
+      {
+        manualId: "rdk-x",
+        title: "供电说明",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/multi_media_sp_dev_api/RDK_X3/cdev_multimedia_api_x3/power",
+        kind: "page",
+        text: "BPU 供电",
+      },
+    ];
+    const hits = rankHits(docs, "BPU inference", 5);
+    expect(hits[0]?.url).toContain("RDK_X5");
+    expect(hits[1]?.url).toContain("RDK_X5");
+    const boards = groupHits(hits).map((group) => group.board);
+    expect(boards).toContain("x5");
+    const previous = process.env.RDK_ABLATE;
+    process.env.RDK_ABLATE = "no_diversify";
+    try {
+      const roundRobin = rankHits(docs, "BPU inference", 5);
+      expect(roundRobin[0]?.url).toContain("RDK_X5");
+      expect(roundRobin[1]?.url).toContain("RDK_X3");
+    } finally {
+      if (previous === undefined) delete process.env.RDK_ABLATE;
+      else process.env.RDK_ABLATE = previous;
+    }
+  });
+
+  it("adds 0.3 times the second chunk to the page score", () => {
+    const docs: IndexedDoc[] = [
+      {
+        manualId: "rdk-x",
+        title: "GPIO 电平",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/gpio",
+        kind: "page",
+        text: "GPIO 电平 输出",
+      },
+      {
+        manualId: "rdk-x",
+        title: "输出电平",
+        url: "https://developer.d-robotics.cc/rdk_x_doc/gpio#out",
+        kind: "heading",
+        text: "GPIO 电平 配置",
+      },
+    ];
+    const aggregated = rankHits(docs, "GPIO 电平", 3);
+    const previous = process.env.RDK_ABLATE;
+    process.env.RDK_ABLATE = "page_agg";
+    let maxOnly: ReturnType<typeof rankHits>;
+    try {
+      maxOnly = rankHits(docs, "GPIO 电平", 3);
+    } finally {
+      if (previous === undefined) delete process.env.RDK_ABLATE;
+      else process.env.RDK_ABLATE = previous;
+    }
+    expect(aggregated).toHaveLength(1);
+    expect(maxOnly).toHaveLength(1);
+    const lifted = aggregated[0]?.score ?? 0;
+    const plain = maxOnly[0]?.score ?? 0;
+    expect(lifted).toBeGreaterThan(plain);
+    expect(lifted).toBeLessThanOrEqual(plain * 1.3 + 1e-9);
   });
 });

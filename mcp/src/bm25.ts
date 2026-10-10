@@ -1619,7 +1619,12 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
     pool.sort((a, b) => b.score - a.score || a.doc - b.doc);
   }
 
-  const best = new Map<string, { hit: SearchHit; page: boolean; doc: IndexedDoc }>();
+  // Page score starts at the best chunk. Each extra chunk adds
+  // 0.3 × min(best, that chunk) / chunks_already_merged, so the second
+  // chunk contributes 0.3× and later chunks a smaller share.
+  // Weight 0.3 was selected on train. RDK_ABLATE=page_agg keeps max-only.
+  const PAGE_SECOND_WEIGHT = 0.3;
+  const best = new Map<string, { hit: SearchHit; page: boolean; doc: IndexedDoc; best: number; n: number }>();
   for (const cand of pool) {
     const doc = cand.corpus.docs[cand.doc];
     const base = doc.url.split("#")[0] ?? doc.url;
@@ -1639,17 +1644,23 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
     };
     const prev = best.get(base);
     if (!prev) {
-      best.set(base, { hit, page: doc.kind === "page", doc });
+      best.set(base, { hit, page: doc.kind === "page", doc, best: hit.score, n: 1 });
       continue;
     }
     const nextIsPage = doc.kind === "page";
-    const winnerIsNew = hit.score > prev.hit.score;
+    const raw = hit.score;
+    const top = Math.max(prev.best, raw);
+    const winnerIsNew = raw > prev.best;
     const winner = winnerIsNew ? hit : prev.hit;
     const snippet = winnerIsNew ? hit.snippet : prev.hit.snippet;
     const url = winnerIsNew ? hit.url : prev.hit.url;
     const coverageOut = winnerIsNew ? hit.coverage : prev.hit.coverage;
     const confidenceOut = winnerIsNew ? hit.confidence : prev.hit.confidence;
     const winnerDoc = winnerIsNew ? doc : prev.doc;
+    const running = Math.max(raw, prev.hit.score);
+    const pageScore = ablate("page_agg")
+      ? top
+      : running + (PAGE_SECOND_WEIGHT * Math.min(raw, prev.hit.score)) / prev.n;
     // The chunk that won keeps its title. A lower-scoring page must not
     // replace a question heading with the section name.
     const title = winner.title;
@@ -1659,13 +1670,15 @@ export function rankCorpora(groups: IndexedDoc[][], query: string, options: Rank
         title,
         snippet: snippet || hit.snippet || prev.hit.snippet,
         url,
-        score: Math.max(hit.score, prev.hit.score),
+        score: pageScore,
         coverage: coverageOut,
         confidence: confidenceOut,
         quality: "good",
       },
       page: prev.page || nextIsPage,
       doc: winnerDoc,
+      best: top,
+      n: prev.n + 1,
     });
   }
 

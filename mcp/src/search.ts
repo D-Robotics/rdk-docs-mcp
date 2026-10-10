@@ -55,10 +55,19 @@ function diversifyByBoard(hits: SearchHit[]): SearchHit[] {
   return [...first, ...hits.filter((hit) => !seen.has(hit))];
 }
 
+function rollback(part: string): boolean {
+  return (process.env.RDK_ABLATE ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .includes(part);
+}
+
 function orderHits(docsGroups: IndexedDoc[][], query: string, limit: number, options: RankOptions): SearchHit[] {
   const ranked = rankCorpora(docsGroups, query, options);
   const unscoped = contextBoards(query, options).length === 0;
-  const ordered = unscoped ? diversifyByBoard(ranked) : ranked;
+  // Unscoped hits follow score. Groups still cluster by board.
+  // RDK_ABLATE=no_diversify restores the per-board round-robin.
+  const ordered = unscoped && rollback("no_diversify") ? diversifyByBoard(ranked) : ranked;
   return ordered.slice(0, limit).map((hit) => aliasNote(query, hit));
 }
 

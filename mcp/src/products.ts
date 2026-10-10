@@ -7,16 +7,55 @@ const RULES: Array<{ id: BoardId; re: RegExp }> = [
   { id: "s100", re: /\bs100p?\b|\bs100\s*p\b/i },
 ];
 
+/**
+ * Board tokens already recognized above, longest first.
+ * Glued names are split with this list instead of a separate regex per board.
+ */
+const BOARD_TOKENS = ["s100p", "s100", "s600", "x5", "x3"];
+
+function rollback(part: string): boolean {
+  return (process.env.RDK_ABLATE ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .includes(part);
+}
+
 /** Treat `_`, `-`, and path punctuation as spaces so `driver_development_x5` names x5. */
 function loose(value: string): string {
   return value.replace(/[_./#+-]+/g, " ");
 }
 
+/** List punctuation separates names: `x5、s100` is two boards. */
+function separateLists(value: string): string {
+  return value.replace(/[\u3001\uFF0C,;；]+/g, " ");
+}
+
+/**
+ * Insert the boundaries the existing rules already understand.
+ * `RDKS100` / `RDKX5` / `x3m` become spaced forms. No extra per-board pattern.
+ * `RDK_ABLATE=board_glued` restores recognition of spaced names only.
+ */
+function unglue(value: string): string {
+  let text = value.replace(/旭日\s*x?\s*(?=\d)/gi, "旭日 x");
+  for (const token of BOARD_TOKENS) {
+    const id = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    text = text.replace(new RegExp(`rdk(?=${id}(?![0-9a-z]))`, "gi"), "rdk ");
+    text = text.replace(new RegExp(`\\b${id}(?=[a-z]{1,2}\\b)`, "gi"), `${token} `);
+  }
+  return text;
+}
+
+function boardText(value: string): string {
+  const separated = separateLists(value);
+  return rollback("board_glued") ? loose(separated) : unglue(loose(separated));
+}
+
 export function mentionedBoards(query: string): BoardId[] {
   const found = new Set<BoardId>();
-  const hay = loose(query);
+  const hay = boardText(query);
+  const raw = rollback("board_glued") ? separateLists(query) : unglue(separateLists(query));
   for (const rule of RULES) {
-    if (rule.re.test(query) || rule.re.test(hay)) found.add(rule.id);
+    if (rule.re.test(raw) || rule.re.test(hay)) found.add(rule.id);
   }
   return [...found];
 }

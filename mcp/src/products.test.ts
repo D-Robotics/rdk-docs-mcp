@@ -34,7 +34,33 @@ describe("mentionedBoards", () => {
     expect(mentionedBoards("X 3.3V")).toEqual([]);
     expect(mentionedBoards("s1000 算力")).toEqual([]);
     expect(mentionedBoards("as100")).toEqual([]);
+    expect(mentionedBoards("ks100")).toEqual([]);
     expect(soleBoard("RDK X5 几路 USB")).toBe("x5");
+  });
+
+  it("reads board names glued to the brand or to a short suffix", () => {
+    expect(mentionedBoards("RDKS100 linux 交叉编译")).toEqual(["s100"]);
+    expect(mentionedBoards("rdks100p 多少算力")).toEqual(["s100"]);
+    expect(mentionedBoards("RDK-S600 供电")).toEqual(["s600"]);
+    expect(mentionedBoards("RDKX5 GPIO")).toEqual(["x5"]);
+    expect(mentionedBoards("RDKX3 镜像")).toEqual(["x3"]);
+    expect(mentionedBoards("x3m 模组")).toEqual(["x3"]);
+    expect(mentionedBoards("旭日3派")).toEqual(["x3"]);
+    expect(mentionedBoards("x5、s100 的 USB").sort()).toEqual(["s100", "x5"]);
+    expect(soleBoard("RDKS100")).toBe("s100");
+  });
+
+  it("rolls glued-name recognition back with RDK_ABLATE=board_glued", () => {
+    const previous = process.env.RDK_ABLATE;
+    process.env.RDK_ABLATE = "board_glued";
+    try {
+      expect(mentionedBoards("RDKS100")).toEqual([]);
+      expect(mentionedBoards("RDK X5")).toEqual(["x5"]);
+      expect(mentionedBoards("s1000")).toEqual([]);
+    } finally {
+      if (previous === undefined) delete process.env.RDK_ABLATE;
+      else process.env.RDK_ABLATE = previous;
+    }
   });
 });
 
