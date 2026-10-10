@@ -120,21 +120,28 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "get_page",
     {
       description:
-        "Read one official page or public forum topic as Markdown. Pass query or section to jump to that part (apt source steps are not at the start of the FAQ). A URL hash is an anchor. imageOnly=true means the pin map or table is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means raise maxChars or pass query.",
+        "Read one official page or public forum topic as Markdown. By default returns the most relevant sections, about 6000 characters, each with its heading, plus the page URL. Pass query so those sections match the question; omit query to get the leading sections. Pass full=true for the whole page (maxChars then applies, default 16000, at most 40000). Pass section, or a URL hash, to extract one heading. imageOnly=true means the pin map is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means the page has more text: pass full=true or a narrower query.",
       inputSchema: {
         url: z
           .string()
           .describe(
             "URL returned by search_docs: official documentation on developer.d-robotics.cc or a public read-only forum topic on forum.d-robotics.cc",
           ),
-        maxChars: z.number().int().min(1000).max(40000).optional(),
+        maxChars: z
+          .number()
+          .int()
+          .min(1000)
+          .max(40000)
+          .optional()
+          .describe("With full=true, maximum characters of the page (default 16000). The default section mode stays near 6000 even if this is higher."),
         section: z.string().optional().describe("Heading to extract, e.g. 40PIN 管脚定义"),
-        query: z.string().optional().describe("Return the section that answers this, instead of the start of the page"),
+        query: z.string().optional().describe("Prefer sections that answer this. Omit to return the leading sections."),
+        full: z.boolean().optional().describe("Return the whole page instead of the relevant sections."),
       },
     },
-    async ({ url, maxChars, section, query }) => {
+    async ({ url, maxChars, section, query, full }) => {
       try {
-        return ok(await getPage({ url, maxChars, section, query }, fetchText));
+        return ok(await getPage({ url, maxChars, section, query, full }, fetchText));
       } catch (error) {
         return fail(error);
       }

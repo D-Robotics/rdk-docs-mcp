@@ -10,7 +10,7 @@ import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } fr
 import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } from "./bm25.js";
 import { searchGuidance } from "./routes.js";
 import { fusePageHits, groupHits, matchQuality, normalizeAltQueries, searchManuals } from "./search.js";
-import { selectSection } from "./sections.js";
+import { imageNotes, packRelevantSections, RELEVANT_SECTION_CAP, selectSection } from "./sections.js";
 import { compactSphinxIndex } from "./sphinx.js";
 import {
   drainIndexNotes,
@@ -50,8 +50,10 @@ export type PageInput = {
   maxChars?: number;
   /** Heading text to return instead of the start of the page. */
   section?: string;
-  /** Find the section that answers this query, even when it sits past maxChars. */
+  /** Find the sections that answer this query, even when they sit past the default cap. */
   query?: string;
+  /** Return the whole page. Omit to receive relevant sections capped at about 6000 characters. */
+  full?: boolean;
 };
 
 function requireManual(idOrAlias: string): Manual {
@@ -424,24 +426,60 @@ function finishPage(
   } catch {
     hash = "";
   }
-  const picked = selectSection(page.markdown, {
-    section: input.section,
+  const explicit = Boolean(hash || input.section?.trim());
+  if (input.full && !explicit) {
+    const maxChars = input.maxChars ?? 16_000;
+    const notes = imageNotes(page.markdown);
+    const body = notes.imageOnly ? `${notes.contentNotes[0]}\n\n${page.markdown}` : page.markdown;
+    const truncated = body.length > maxChars;
+    const markdown = truncated ? `${body.slice(0, maxChars)}\n\n…[truncated]` : body;
+    return {
+      title: page.title,
+      url: page.url,
+      markdown,
+      truncated,
+      imageOnly: notes.imageOnly,
+      contentNotes: notes.contentNotes.length > 0 ? notes.contentNotes : undefined,
+    };
+  }
+
+  if (explicit) {
+    const picked = selectSection(page.markdown, {
+      section: input.section,
+      query: input.query,
+      anchor: hash || undefined,
+    });
+    const maxChars = input.full ? (input.maxChars ?? 16_000) : Math.min(input.maxChars ?? RELEVANT_SECTION_CAP, RELEVANT_SECTION_CAP);
+    const truncated = picked.markdown.length > maxChars;
+    const markdown = truncated ? `${picked.markdown.slice(0, maxChars)}\n\n…[truncated]` : picked.markdown;
+    return {
+      title: page.title,
+      url: page.url,
+      markdown,
+      truncated,
+      section: picked.section,
+      anchor: picked.anchor,
+      sectionMatched: picked.matched,
+      imageOnly: picked.imageOnly,
+      contentNotes: picked.contentNotes.length > 0 ? picked.contentNotes : undefined,
+    };
+  }
+
+  const packed = packRelevantSections(page.markdown, {
     query: input.query,
-    anchor: hash || undefined,
+    pageUrl: page.url,
+    maxChars: Math.min(input.maxChars ?? RELEVANT_SECTION_CAP, RELEVANT_SECTION_CAP),
   });
-  const maxChars = input.maxChars ?? 16_000;
-  const truncated = picked.markdown.length > maxChars;
-  const markdown = truncated ? `${picked.markdown.slice(0, maxChars)}\n\n…[truncated]` : picked.markdown;
   return {
     title: page.title,
     url: page.url,
-    markdown,
-    truncated,
-    section: picked.section,
-    anchor: picked.anchor,
-    sectionMatched: picked.matched,
-    imageOnly: picked.imageOnly,
-    contentNotes: picked.contentNotes.length > 0 ? picked.contentNotes : undefined,
+    markdown: packed.markdown,
+    truncated: packed.truncated,
+    section: packed.section,
+    anchor: packed.anchor,
+    sectionMatched: packed.matched,
+    imageOnly: packed.imageOnly,
+    contentNotes: packed.contentNotes.length > 0 ? packed.contentNotes : undefined,
   };
 }
 

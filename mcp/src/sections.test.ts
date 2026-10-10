@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectSection } from "./sections.js";
+import { packRelevantSections, selectSection } from "./sections.js";
 
 const faq = `# 常见问题
 
@@ -66,5 +66,44 @@ describe("selectSection", () => {
     expect(picked.markdown).toContain("只在图片里");
     expect(picked.markdown).toContain("https://example.test/x5-pin.png");
     expect(picked.markdown).not.toContain("uart3");
+  });
+});
+
+describe("packRelevantSections", () => {
+  const pageUrl = "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system";
+  const section = (title: string, body: string) => `## ${title}\n\n${body}`;
+  const long = [
+    section("开头", "甲".repeat(2500)),
+    section("接口", "乙".repeat(2500)),
+    section("网络", "丙".repeat(2500)),
+    section("烧录准备", "烧录镜像前先检查 SD 卡。"),
+    section("烧录步骤", `烧录镜像的命令如下。${"丁".repeat(200)}`),
+    section("结尾", "戊".repeat(2500)),
+  ].join("\n\n");
+
+  it("keeps leading sections under the cap and names the page", () => {
+    const packed = packRelevantSections(long, { pageUrl, maxChars: 6000 });
+    expect(packed.markdown.startsWith(`Source: ${pageUrl}`)).toBe(true);
+    expect(packed.markdown.length).toBeLessThanOrEqual(6000);
+    expect(packed.markdown).toContain("## 开头");
+    expect(packed.markdown).not.toContain("烧录镜像");
+    expect(packed.truncated).toBe(true);
+    expect(packed.markdown).not.toContain("…[truncated]");
+  });
+
+  it("returns matching sections in document order, not the page start", () => {
+    const packed = packRelevantSections(long, { pageUrl, query: "烧录镜像", maxChars: 6000 });
+    expect(packed.matched).toBe(true);
+    expect(packed.markdown).toContain("## 烧录准备");
+    expect(packed.markdown).toContain("## 烧录步骤");
+    expect(packed.markdown.indexOf("烧录准备")).toBeLessThan(packed.markdown.indexOf("烧录步骤"));
+    expect(packed.markdown).not.toContain("甲".repeat(20));
+    expect(packed.markdown.length).toBeLessThanOrEqual(6000);
+    expect(packed.section).toBe("烧录准备");
+  });
+
+  it("does not grow past the cap when the caller asks for 40000 characters", () => {
+    const packed = packRelevantSections(long, { pageUrl, maxChars: 4000 });
+    expect(packed.markdown.length).toBeLessThanOrEqual(4000);
   });
 });

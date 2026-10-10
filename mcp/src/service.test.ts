@@ -231,6 +231,33 @@ describe("listToc", () => {
 });
 
 describe("getPage", () => {
+  it("returns relevant sections by default and the whole page when full is set", async () => {
+    const filler = (label: string) => `<h2>${label}</h2><p>${"甲".repeat(2500)}</p>`;
+    const html = `<html><body><article class="theme-doc-markdown"><h1>手册</h1>${filler("开头")}${filler("接口")}${filler("网络")}<h2>烧录步骤</h2><p>烧录镜像的命令写在这一节。</p>${filler("结尾")}</article></body></html>`;
+    const url = "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system";
+    const mock: HttpGet = async (requested) => {
+      if (requested.startsWith(url)) return html;
+      throw new Error(`unexpected url ${requested}`);
+    };
+    const brief = await getPage({ url, maxChars: 40000 }, mock);
+    expect(brief.markdown.length).toBeLessThanOrEqual(6000);
+    expect(brief.markdown).toContain(`Source: ${url}`);
+    expect(brief.markdown).toContain("## 开头");
+    expect(brief.markdown).not.toContain("烧录镜像");
+    expect(brief.truncated).toBe(true);
+
+    const asked = await getPage({ url, query: "烧录镜像", maxChars: 40000 }, mock);
+    expect(asked.markdown.length).toBeLessThanOrEqual(6000);
+    expect(asked.markdown).toContain("烧录镜像");
+    expect(asked.markdown).toContain(`Source: ${url}`);
+    expect(asked.sectionMatched).toBe(true);
+
+    const whole = await getPage({ url, full: true }, mock);
+    expect(whole.markdown.length).toBeGreaterThan(6000);
+    expect(whole.markdown).toContain("烧录镜像");
+    expect(whole.markdown).toContain("甲");
+  });
+
   it("returns markdown for an allowed documentation URL", async () => {
     const page = await getPage(
       { url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE" },
@@ -317,7 +344,7 @@ describe("getPage", () => {
       throw new Error(`unexpected url ${url}`);
     };
     const page = await getPage({ url: x3HardwareUrl }, mock);
-    expect(page.markdown.startsWith("这是现网空壳页")).toBe(true);
+    expect(page.markdown).toContain("这是现网空壳页");
     expect(page.markdown).toContain(x3HardwareUrl);
     expect(page.markdown.length).toBeGreaterThan(0);
   });
