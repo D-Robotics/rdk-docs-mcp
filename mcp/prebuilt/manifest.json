@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-09T05:59:28.737Z",
+  "builtAt": "2026-10-10T02:38:07.827Z",
   "maxAgeDays": 14,
   "manuals": [
     "bmi088",
@@ -13,6 +13,7 @@
     "oe-x5",
     "rdk-s",
     "rdk-studio",
+    "rdk-ultra",
     "rdk-x",
     "stereo-camera",
     "tros",

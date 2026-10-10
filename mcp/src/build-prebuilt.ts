@@ -24,6 +24,7 @@ function compact(doc: IndexedDoc): IndexedDoc {
   };
   if (doc.snippet) out.snippet = doc.snippet;
   if (doc.text) out.text = doc.text;
+  if (doc.answer) out.answer = doc.answer;
   if (doc.breadcrumbs?.length) out.breadcrumbs = doc.breadcrumbs;
   return out;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { origin } from "./catalog.js";
 import {
   compactRspressIndex,
+  dedupeLanguageCopies,
   normalizeDocPath,
   parseRspressIndexGroups,
   rspressAppBundleUrls,
@@ -79,6 +80,48 @@ describe("compactRspressIndex", () => {
   it("lets body text match even when the title does not", () => {
     const hits = rankHits(docs, "量化", 5);
     expect(hits[0]?.url).toContain("/oe_s_doc/guide/advanced_content/hat/examples/bev");
+  });
+});
+
+describe("dedupeLanguageCopies", () => {
+  it("drops the English copy when the same page exists without /en/", () => {
+    const docs = dedupeLanguageCopies([
+      {
+        manualId: "oe-s",
+        title: "BEV",
+        url: "https://developer.d-robotics.cc/oe_s_doc/guide/advanced_content/hat/examples/bev",
+        kind: "page",
+      },
+      {
+        manualId: "oe-s",
+        title: "训练流程",
+        url: "https://developer.d-robotics.cc/oe_s_doc/guide/advanced_content/hat/examples/bev#train",
+        kind: "heading",
+      },
+      {
+        manualId: "oe-s",
+        title: "BEV",
+        url: "https://developer.d-robotics.cc/oe_s_doc/en/guide/advanced_content/hat/examples/bev",
+        kind: "page",
+      },
+      {
+        manualId: "oe-s",
+        title: "Training",
+        url: "https://developer.d-robotics.cc/oe_s_doc/en/guide/advanced_content/hat/examples/bev#train",
+        kind: "heading",
+      },
+      {
+        manualId: "oe-s",
+        title: "English only",
+        url: "https://developer.d-robotics.cc/oe_s_doc/en/guide/only-en",
+        kind: "page",
+      },
+    ]);
+    const urls = docs.map((doc) => doc.url);
+    expect(urls).toContain("https://developer.d-robotics.cc/oe_s_doc/guide/advanced_content/hat/examples/bev");
+    expect(urls).toContain("https://developer.d-robotics.cc/oe_s_doc/guide/advanced_content/hat/examples/bev#train");
+    expect(urls.some((url) => url.includes("/en/guide/advanced_content"))).toBe(false);
+    expect(urls).toContain("https://developer.d-robotics.cc/oe_s_doc/en/guide/only-en");
   });
 });
 

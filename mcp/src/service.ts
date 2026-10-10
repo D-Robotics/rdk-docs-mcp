@@ -1,4 +1,4 @@
-import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
+import { docInManual, listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { mentionedBoards, urlLooksLikeBoard, type BoardId } from "./products.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
@@ -161,7 +161,7 @@ export async function loadIndexFromOrigin(manual: Manual, http: HttpGet): Promis
   const url = `${origin()}${manual.indexPath}`;
   const body = await http(url);
   if (manual.indexKind === "docusaurus") {
-    return compactDocusaurusIndex(JSON.parse(body), manual.id);
+    return compactDocusaurusIndex(JSON.parse(body), manual.id).filter((doc) => docInManual(manual, doc.url));
   }
   if (manual.indexKind === "sphinx") {
     return compactSphinxIndex(body, manual.id, manual.basePath);
