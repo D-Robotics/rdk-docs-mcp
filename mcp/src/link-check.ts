@@ -14,6 +14,30 @@ function slashVariant(url: string): string {
   return url.endsWith("/") ? url.replace(/\/+$/, "") : `${url}/`;
 }
 
+/**
+ * Drop rate for the build. Pages the previous snapshot never contained are not a new loss:
+ * a dead URL that was already left out must not block a refresh of the manuals we ship.
+ * With no previous snapshot, every loaded page counts.
+ */
+export function linkCheckDropCounts(
+  prior: ReadonlySet<string> | undefined,
+  loaded: readonly string[],
+  kept: readonly string[],
+): { before: number; after: number } {
+  const loadedPages = new Set(loaded.map(pageUrl));
+  const keptPages = new Set(kept.map(pageUrl));
+  if (!prior) return { before: loadedPages.size, after: keptPages.size };
+  let before = 0;
+  let after = 0;
+  for (const url of prior) {
+    const page = pageUrl(url);
+    if (!loadedPages.has(page)) continue;
+    before += 1;
+    if (keptPages.has(page)) after += 1;
+  }
+  return { before, after };
+}
+
 /** True when more than 2% of the probed pages were removed. */
 export function excessivePageDrop(before: number, after: number): boolean {
   if (before <= 0 || after >= before) return false;

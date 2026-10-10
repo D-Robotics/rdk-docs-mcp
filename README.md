@@ -123,7 +123,7 @@ npm run eval
 
 `npm run eval` 跑 `mcp/eval/retrieval-cases.json`（约 60 条中英检索 + 3 条小节读取），报告 hit@1、hit@3、MRR 和冷/热/论坛延迟。基线在 `mcp/eval/baseline.json`。`eval:live` 用另一组真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。`eval:skills` 起真实 stdio MCP 连接打 rdk-skills 在线目录，验证六个工具与 flat/workspace 安装引导（需要网络；用隔离 HOME/缓存目录，不碰用户配置）。
 
-冷启动检索读包内 `mcp/prebuilt/*.json.gz`（文档快照）和同名 `.bm25.gz`（倒排表，避免每次现场切词）。这不是整站镜像。`get_page` 仍向资料中心拉正文。快照超过 14 天（`RDK_DOCS_PREBUILT_MAX_AGE_DAYS`）会改拉线上索引并在 `warnings` 里说明；线上失败才退回旧快照并警告结果可能过期。设 `RDK_DOCS_PREBUILT=0` 可强制每次拉线上索引。刷新：`npm run build:index`（同时重写倒排表）。`prepublishOnly` 会在发布前跑同一命令，所以发布需要能访问资料中心。`npm run eval:offline` 只用包内快照，不访问网络（跳过论坛用例和 `get_page`）。`npm run eval:paraphrase` 跑另一组 40 条口语/错字/报错开发集（`eval/paraphrase-cases.json`），结果写 `eval/paraphrase-after.json`，改 BM25 之前同一组的结果留在 `eval/paraphrase-before.json` 作对照。排序是 BM25，没有额外的向量模型：常见多语小模型有几十到几百 MB，放不进这个包，也做不到冷启动 300ms 以内。
+冷启动检索读包内 `mcp/prebuilt/*.json.gz`（文档快照）和同名 `.bm25.gz`（倒排表，避免每次现场切词）。这不是整站镜像。`get_page` 仍向资料中心拉正文。快照超过 14 天（`RDK_DOCS_PREBUILT_MAX_AGE_DAYS`）会改拉线上索引并在 `warnings` 里说明；线上失败才退回旧快照并警告结果可能过期。设 `RDK_DOCS_PREBUILT=0` 可强制每次拉线上索引。刷新：`npm run build:index`（同时重写倒排表），然后提交 `mcp/prebuilt/`。`npm publish` 不再在 `prepublishOnly` 里重建索引，打包的是仓库里已提交、已验证的快照。发布时再拉线上索引会让包内容和验证过的 tarball 不一致。`npm run eval:offline` 只用包内快照，不访问网络（跳过论坛用例和 `get_page`）。`npm run eval:paraphrase` 跑另一组 40 条口语/错字/报错开发集（`eval/paraphrase-cases.json`），结果写 `eval/paraphrase-after.json`，改 BM25 之前同一组的结果留在 `eval/paraphrase-before.json` 作对照。排序是 BM25，没有额外的向量模型：常见多语小模型有几十到几百 MB，放不进这个包，也做不到冷启动 300ms 以内。
 
 磁盘缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），默认 TTL 24 小时。官方改文档后，缓存过期会重新拉最新索引；要立刻跟上就删掉缓存目录，或设 `RDK_DOCS_CACHE_TTL_MS=0`。
 

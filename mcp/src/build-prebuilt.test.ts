@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { commitCheckedManuals, type CheckedManual } from "./build-prebuilt.js";
+import { commitCheckedManuals, preserveSnapshotOrder, sameSnapshotDocs, type CheckedManual } from "./build-prebuilt.js";
 import type { IndexedDoc } from "./types.js";
 
 function sample(manualId: string): IndexedDoc {
@@ -26,6 +26,27 @@ function checked(manualId: string, before: number, after: number): CheckedManual
     changed: true,
   };
 }
+
+describe("preserveSnapshotOrder", () => {
+  it("keeps the previous order and appends a new document", () => {
+    const prior = [sample("b"), sample("a")];
+    const next = [sample("a"), { ...sample("c"), title: "新" }, sample("b")];
+    const ordered = preserveSnapshotOrder(prior, next);
+    expect(ordered.map((doc) => doc.url)).toEqual([
+      "https://example.test/b/page",
+      "https://example.test/a/page",
+      "https://example.test/c/page",
+    ]);
+    expect(ordered[2]?.title).toBe("新");
+  });
+
+  it("treats the same documents as reusable postings", () => {
+    const prior = [sample("a"), sample("b")];
+    expect(sameSnapshotDocs(prior, [sample("a"), sample("b")])).toBe(true);
+    expect(sameSnapshotDocs(prior, [sample("b"), sample("a")])).toBe(false);
+    expect(sameSnapshotDocs(undefined, prior)).toBe(false);
+  });
+});
 
 describe("commitCheckedManuals", () => {
   it("leaves the previous snapshot and manifest in place when one manual drops more than 2%", () => {
