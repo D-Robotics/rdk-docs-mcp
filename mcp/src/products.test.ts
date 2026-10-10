@@ -39,11 +39,11 @@ describe("mentionedBoards", () => {
   });
 
   it("reads board names glued to the brand or to a short suffix", () => {
-    expect(mentionedBoards("RDKS100 linux 交叉编译")).toEqual(["s100"]);
-    expect(mentionedBoards("rdks100p 多少算力")).toEqual(["s100"]);
+    expect(mentionedBoards("RDKS100 说明书")).toEqual(["s100"]);
+    expect(mentionedBoards("rdks100p 规格")).toEqual(["s100"]);
     expect(mentionedBoards("RDK-S600 供电")).toEqual(["s600"]);
-    expect(mentionedBoards("RDKX5 GPIO")).toEqual(["x5"]);
-    expect(mentionedBoards("RDKX3 镜像")).toEqual(["x3"]);
+    expect(mentionedBoards("RDKX5 引脚")).toEqual(["x5"]);
+    expect(mentionedBoards("RDKX3 引脚")).toEqual(["x3"]);
     expect(mentionedBoards("x3m 模组")).toEqual(["x3"]);
     expect(mentionedBoards("旭日3派")).toEqual(["x3"]);
     expect(mentionedBoards("x5、s100 的 USB").sort()).toEqual(["s100", "x5"]);

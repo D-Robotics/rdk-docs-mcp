@@ -1,6 +1,7 @@
-import { listManuals, origin, resolveManual, type Manual } from "./catalog.js";
+import { docInManual, listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { mentionedBoards, urlLooksLikeBoard, type BoardId } from "./products.js";
 import { compactDocusaurusIndex } from "./docusaurus.js";
+import { dedupeMirrorPages, fillPageBodies } from "./mirror-pages.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
@@ -133,6 +134,16 @@ async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
       return snapshot.docs;
     }
     if (snapshot && prebuiltIsStale(snapshot.builtAt)) {
+      if (manual.expandBodies) {
+        // Page text was filled at build time. Fetching it again walks every
+        // page and adds seconds to the first query.
+        markPackagedIndex(snapshot.docs);
+        rememberIndex(http, manual.id, snapshot.docs);
+        noteIndex(
+          `Prebuilt index for ${manual.id} is stale. Keeping the packaged page text; live page bodies are fetched only while building the snapshot.`,
+        );
+        return snapshot.docs;
+      }
       try {
         const live = await loadIndexFromOrigin(manual, http);
         rememberIndex(http, manual.id, live);
@@ -153,7 +164,11 @@ async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
   return docs;
 }
 
-export async function loadIndexFromOrigin(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
+export async function loadIndexFromOrigin(
+  manual: Manual,
+  http: HttpGet,
+  opts?: { fillBodies?: boolean },
+): Promise<IndexedDoc[]> {
   if (manual.indexKind === "rspress") {
     return loadRspressDocs(manual, http);
   }
@@ -161,7 +176,11 @@ export async function loadIndexFromOrigin(manual: Manual, http: HttpGet): Promis
   const url = `${origin()}${manual.indexPath}`;
   const body = await http(url);
   if (manual.indexKind === "docusaurus") {
-    return compactDocusaurusIndex(JSON.parse(body), manual.id);
+    const docs = compactDocusaurusIndex(JSON.parse(body), manual.id).filter((doc) => docInManual(manual, doc.url));
+    if (!manual.expandBodies) return docs;
+    const deduped = dedupeMirrorPages(docs);
+    if (!opts?.fillBodies) return deduped;
+    return fillPageBodies(deduped, http);
   }
   if (manual.indexKind === "sphinx") {
     return compactSphinxIndex(body, manual.id, manual.basePath);

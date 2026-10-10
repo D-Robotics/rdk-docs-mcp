@@ -315,7 +315,7 @@ for (const manual of MANUALS) {
 }
 
 const S_SERIES_MANUALS = new Set(["rdk-s", "oe-s", "oe-llm-s100", "oe-llm-s600", "case-s600"]);
-const X_SERIES_MANUALS = new Set(["rdk-x", "oe-x3", "oe-x5", "x5-sdk", "magicbox"]);
+const X_SERIES_MANUALS = new Set(["rdk-x", "rdk-ultra", "oe-x3", "oe-x5", "x5-sdk", "magicbox"]);
 /** Manuals that are entirely about one board. Mixed manuals (rdk-x, rdk-s, oe-s) stay. */
 const MANUAL_BOARDS: Record<string, BoardId[]> = {
   "oe-x3": ["x3"],
@@ -375,8 +375,13 @@ export function contextBoards(query: string, options: RankOptions = {}): BoardId
 }
 
 /** Drop the other product family before the index is even parsed. */
+function manualHasNoBoard(manualId: string): boolean {
+  return MANUALS.some((manual) => manual.id === manualId && manual.noBoard === true);
+}
+
 export function manualMatchesBoards(manualId: string, boards: BoardId[]): boolean {
   if (boards.length === 0) return true;
+  if (manualHasNoBoard(manualId)) return false;
   const pinned = MANUAL_BOARDS[manualId];
   if (pinned && !pinned.some((board) => boards.includes(board))) return false;
   const xOnly = boards.every((board) => board === "x3" || board === "x5");

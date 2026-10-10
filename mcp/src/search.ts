@@ -66,8 +66,10 @@ function orderHits(docsGroups: IndexedDoc[][], query: string, limit: number, opt
   const ranked = rankCorpora(docsGroups, query, options);
   const unscoped = contextBoards(query, options).length === 0;
   // Unscoped hits follow score. Groups still cluster by board.
-  // RDK_ABLATE=no_diversify restores the per-board round-robin.
-  const ordered = unscoped && rollback("no_diversify") ? diversifyByBoard(ranked) : ranked;
+  // `RDK_ABLATE=no_diversify` means do not round-robin. It used to turn
+  // round-robin on, which inverted the name. `RDK_ABLATE=diversify` restores it.
+  const roundRobin = unscoped && rollback("diversify") && !rollback("no_diversify");
+  const ordered = roundRobin ? diversifyByBoard(ranked) : ranked;
   return ordered.slice(0, limit).map((hit) => aliasNote(query, hit));
 }
 

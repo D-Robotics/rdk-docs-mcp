@@ -11,6 +11,21 @@ export type Manual = {
   searchable: boolean;
   indexKind: IndexKind;
   indexPath?: string;
+  /**
+   * When set, only index rows whose URL matches. Used to take the Ultra
+   * pages out of the shared legacy `/rdk_doc` index.
+   */
+  includePath?: RegExp;
+  /**
+   * This manual is not one of the named boards. A board filter skips it.
+   * An unscoped query still searches it.
+   */
+  noBoard?: boolean;
+  /**
+   * The search index stores a short snippet and may list the same page twice.
+   * Dedupe on load. Live page text is fetched only while building the snapshot.
+   */
+  expandBodies?: boolean;
 };
 
 const ORIGIN = "https://developer.d-robotics.cc";
@@ -39,6 +54,21 @@ export const MANUALS: Manual[] = [
     searchable: true,
     indexKind: "docusaurus",
     indexPath: "/rdk_s_doc/search-index.json",
+  },
+  {
+    id: "rdk-ultra",
+    title: "RDK Ultra 用户手册",
+    category: "RDK 用户手册",
+    description: "RDK Ultra 硬件、系统安装与多媒体开发说明。",
+    homeUrl: `${ORIGIN}/rdk_doc/Quick_start/hardware_introduction/rdk_ultra`,
+    basePath: "/rdk_doc",
+    aliases: ["ultra", "rdk-ultra"],
+    searchable: true,
+    indexKind: "docusaurus",
+    indexPath: "/rdk_doc/search-index.json",
+    includePath: /\/rdk_ultra(?:\/|$)|\/RDK_Ultra(?:\/|$)/i,
+    noBoard: true,
+    expandBodies: true,
   },
   {
     id: "tros",
@@ -222,4 +252,9 @@ export function resolveManual(idOrAlias: string): Manual | undefined {
 
 export function origin(): string {
   return ORIGIN;
+}
+
+/** Drop rows a manual pulled from a shared index but does not own. */
+export function docInManual(manual: Manual, url: string): boolean {
+  return manual.includePath ? manual.includePath.test(url) : true;
 }
