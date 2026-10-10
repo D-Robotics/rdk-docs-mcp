@@ -168,11 +168,17 @@ describe("searchDocs", () => {
     expect(JSON.stringify(empty)).toBe(JSON.stringify(plain));
   });
 
-  it("rejects an alt query longer than 300 characters before searching", async () => {
-    const blocked: HttpGet = async () => {
-      throw new Error("should not fetch");
-    };
-    await expect(searchDocs({ query: "PoE", altQueries: ["a".repeat(301)] }, blocked)).rejects.toThrow(/300/);
+  it("drops an alt query longer than 300 characters and still searches", async () => {
+    const plain = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
+    const dropped = await searchDocs({ query: "PoE", manual: "x5", limit: 5, altQueries: ["a".repeat(301)] }, http);
+    expect(dropped.warnings.some((warning) => /300/.test(warning))).toBe(true);
+    expect(dropped.hits.map((hit) => hit.url)).toEqual(plain.hits.map((hit) => hit.url));
+    const kept = await searchDocs(
+      { query: "PoE", manual: "x5", limit: 5, altQueries: ["a".repeat(301), "WiFi 天线"] },
+      http,
+    );
+    expect(kept.warnings.some((warning) => /300/.test(warning))).toBe(true);
+    expect(kept.hits.some((hit) => hit.url.includes("wifi-antenna"))).toBe(true);
   });
 
   it("merges an alternate query into the same hit list", async () => {

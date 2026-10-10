@@ -871,14 +871,18 @@ describe("alt query fusion", () => {
   });
 
   it("keeps at most three alternates and drops blanks and copies of the query", () => {
-    expect(normalizeAltQueries("烧录", ["  ", "烧录", "镜像下载", "SD 卡", "工具", "多余"])).toEqual([
-      "镜像下载",
-      "SD 卡",
-      "工具",
-    ]);
-    expect(normalizeAltQueries("烧录", undefined)).toEqual([]);
-    expect(normalizeAltQueries("烧录", ["a".repeat(300)])).toEqual(["a".repeat(300)]);
-    expect(() => normalizeAltQueries("烧录", ["a".repeat(301)])).toThrow(/300/);
+    expect(normalizeAltQueries("烧录", ["  ", "烧录", "镜像下载", "SD 卡", "工具", "多余"])).toEqual({
+      queries: ["镜像下载", "SD 卡", "工具"],
+      warnings: [],
+    });
+    expect(normalizeAltQueries("烧录", undefined)).toEqual({ queries: [], warnings: [] });
+    expect(normalizeAltQueries("烧录", ["a".repeat(300)])).toEqual({
+      queries: ["a".repeat(300)],
+      warnings: [],
+    });
+    const dropped = normalizeAltQueries("烧录", ["a".repeat(301), "镜像"]);
+    expect(dropped.queries).toEqual(["镜像"]);
+    expect(dropped.warnings[0]).toMatch(/301/);
   });
 
   it("ranks a page both lists agree on above a page only one list ranks first", () => {

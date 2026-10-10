@@ -233,13 +233,14 @@ export async function searchDocs(
   if (!query) {
     throw new Error("query is required");
   }
-  const altQueries = normalizeAltQueries(query, input.altQueries);
+  const normalizedAlts = normalizeAltQueries(query, input.altQueries);
+  const altQueries = normalizedAlts.queries;
   if (indexWarm) await indexWarm;
   const limit = Math.min(Math.max(input.limit ?? 8, 1), 20);
   const source = resolveSource(input.manual, input.source);
   const includeDocs = source === "docs" || source === "all";
   const includeForum = source === "forum" || source === "all";
-  const warnings: string[] = [];
+  const warnings: string[] = [...normalizedAlts.warnings];
   const mentioned = mentionedBoards(query);
   const needsBoard = /升级|烧录|镜像|驱动|安装|系统|GPIO|PoE|WiFi|摄像头/i.test(query);
   if (needsBoard && mentioned.length === 0 && !input.manual && !input.board)

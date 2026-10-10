@@ -99,11 +99,11 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
           .describe("Pass when the board is known (x3|x5|s100|s600), even if the query omitted it. Omit when comparing boards or the board is unknown"),
         limit: z.number().int().min(1).max(20).optional().describe("Max hits, default 8"),
         alt_queries: z
-          .array(z.string().max(300))
+          .array(z.string())
           .max(3)
           .optional()
           .describe(
-            "Up to 3 short reformulations in documentation wording. Pass when the user was colloquial or pasted a log. Omit when query is already a manual phrase.",
+            "Up to 3 short reformulations in documentation wording, each at most 300 characters. A longer one is dropped and listed in warnings; the search still runs. Pass when the user was colloquial or pasted a log. Omit when query is already a manual phrase.",
           ),
       },
     },
