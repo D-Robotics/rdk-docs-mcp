@@ -265,6 +265,26 @@ describe("getPage", () => {
     expect(whole.markdown).toContain("甲");
   });
 
+  it("keeps a long page body when the omitted-section list would otherwise fill the cap", async () => {
+    const sections = Array.from(
+      { length: 70 },
+      (_, index) => `<h2>步骤${String(index).padStart(3, "0")} ${"说明".repeat(8)}</h2><p>${"甲".repeat(180)}</p>`,
+    ).join("");
+    const html = `<html><body><article class="theme-doc-markdown"><h1>手册</h1>${sections}</article></body></html>`;
+    const url = "https://developer.d-robotics.cc/oe_x5_doc/cn/oe_mapper/source/ptq/ptq_process.html";
+    const mock: HttpGet = async (requested) => {
+      if (requested.startsWith(url)) return html;
+      throw new Error(`unexpected url ${requested}`);
+    };
+    const page = await getPage({ url, maxChars: 6000 }, mock);
+    const at = page.markdown.indexOf("… omitted sections:");
+    expect(at).toBeGreaterThan(5000);
+    expect(page.markdown.slice(at).length).toBeLessThanOrEqual(800);
+    expect(page.markdown.slice(at)).toMatch(/…and \d+ more/);
+    expect(page.markdown.slice(0, at)).toContain("步骤000");
+    expect(page.markdown.slice(0, at)).not.toContain("步骤060");
+  });
+
   it("returns markdown for an allowed documentation URL", async () => {
     const page = await getPage(
       { url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE" },

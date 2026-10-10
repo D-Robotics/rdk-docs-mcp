@@ -222,9 +222,30 @@ function pieces(markdown: string): Piece[] {
   return out;
 }
 
-function omittedLine(titles: string[]): string {
+/** The omitted-section list stays short and is not taken out of the body budget. */
+export const OMITTED_MARKER_CAP = 800;
+
+export function formatOmittedSections(titles: string[]): string {
   if (titles.length === 0) return "";
-  return `… omitted sections: ${titles.join(", ")}`;
+  const prefix = "… omitted sections: ";
+  const suffix = (count: number) => ` …and ${count} more`;
+  const kept: string[] = [];
+  for (let index = 0; index < titles.length; index += 1) {
+    const title = titles[index] ?? "";
+    const restAfter = titles.length - index - 1;
+    const tail = restAfter > 0 ? suffix(restAfter) : "";
+    const sep = kept.length > 0 ? ", " : "";
+    const next = `${prefix}${kept.join(", ")}${sep}${title}${tail}`;
+    if (next.length > OMITTED_MARKER_CAP) break;
+    kept.push(title);
+  }
+  const rest = titles.length - kept.length;
+  if (kept.length === 0) {
+    const tail = titles.length > 1 ? suffix(titles.length - 1) : "";
+    const room = Math.max(0, OMITTED_MARKER_CAP - prefix.length - tail.length);
+    return `${prefix}${(titles[0] ?? "").slice(0, room)}${tail}`.slice(0, OMITTED_MARKER_CAP);
+  }
+  return `${prefix}${kept.join(", ")}${rest > 0 ? suffix(rest) : ""}`;
 }
 
 function omittedTitles(all: Piece[], kept: Piece[]): string[] {
@@ -253,44 +274,24 @@ function selectByBudget(parts: Piece[], budget: number): { kept: Piece[]; sliced
 }
 
 function markerFor(titles: string[], sliced: boolean): string {
-  const line = omittedLine(titles);
+  const line = formatOmittedSections(titles);
   if (line && sliced) return `${line}\n\n…[truncated]`;
   if (line) return line;
   return sliced ? "…[truncated]" : "";
 }
 
-function renderPieces(chosen: Piece[], all: Piece[], budget: number): { text: string; truncated: boolean } {
-  let room = budget;
-  let fitted = selectByBudget(chosen, room);
-  let text = "";
-  let omitted: string[] = [];
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    omitted = omittedTitles(all, fitted.kept);
-    const marker = markerFor(omitted, fitted.sliced);
-    const body = fitted.kept.map((part) => part.text).join("\n\n");
-    text = marker ? (body ? `${body}\n\n${marker}` : marker) : body;
-    if (text.length <= budget) break;
-    const nextRoom = Math.max(0, room - (text.length - budget));
-    const next = selectByBudget(chosen, nextRoom);
-    const same =
-      next.kept.length === fitted.kept.length &&
-      next.sliced === fitted.sliced &&
-      next.kept[0]?.text.length === fitted.kept[0]?.text.length;
-    fitted = next;
-    room = nextRoom;
-    if (same) {
-      text = text.slice(0, budget).replace(/\s+$/, "");
-      break;
-    }
-  }
+function renderPieces(chosen: Piece[], all: Piece[], budget: number): { body: string; marker: string; truncated: boolean } {
+  const fitted = selectByBudget(chosen, budget);
+  const omitted = omittedTitles(all, fitted.kept);
   return {
-    text,
+    body: fitted.kept.map((part) => part.text).join("\n\n"),
+    marker: markerFor(omitted, fitted.sliced),
     truncated: fitted.sliced || omitted.length > 0 || fitted.kept.length < all.length,
   };
 }
 
 /** Headings only, so the caller can request one section instead of the page start. */
-function sectionIndex(parts: Piece[], budget: number): { text: string; truncated: boolean } {
+function sectionIndex(parts: Piece[], budget: number): { body: string; marker: string; truncated: boolean } {
   const headed = parts.filter((part) => part.title.length > 0);
   if (headed.length === 0) return renderPieces(parts, parts, budget);
   const intro = "No section matched this query. Section index:";
@@ -300,22 +301,16 @@ function sectionIndex(parts: Piece[], budget: number): { text: string; truncated
   for (const part of headed) {
     const line = `\n- ${part.title}`;
     if (used + line.length > budget && kept.length > 0) break;
+    if (used + line.length > budget) break;
     lines.push(line);
     used += line.length;
     kept.push(part);
-    if (used > budget) break;
   }
-  let omitted = omittedTitles(headed, kept);
-  let marker = omittedLine(omitted);
-  while (marker && kept.length > 1 && intro.length + lines.join("").length + 2 + marker.length > budget) {
-    lines.pop();
-    kept.pop();
-    omitted = omittedTitles(headed, kept);
-    marker = omittedLine(omitted);
-  }
-  let text = `${intro}${lines.join("")}`;
-  if (marker && text.length + 2 + marker.length <= budget) text = `${text}\n\n${marker}`;
-  return { text, truncated: kept.length < headed.length };
+  return {
+    body: `${intro}${lines.join("")}`,
+    marker: formatOmittedSections(omittedTitles(headed, kept)),
+    truncated: kept.length < headed.length,
+  };
 }
 
 function rankSections(parts: Piece[], query: string): Piece[] {
@@ -360,7 +355,8 @@ export type PackedSections = SectionSlice & { truncated: boolean };
  * sections that match it. When none do, the page's own sections are ranked
  * with BM25. When that is also empty, the result is a heading index.
  * Without a query, the leading sections are kept whole.
- * Dropped headings are listed as `… omitted sections: …`.
+ * Dropped headings are listed after the body as `… omitted sections: …`.
+ * That list is at most 800 characters and is not taken out of the body budget.
  * The page URL is the first line.
  */
 export function packRelevantSections(
@@ -397,18 +393,17 @@ export function packRelevantSections(
   }
 
   const fitted = indexOnly ? sectionIndex(parts, budget) : renderPieces(chosen, parts, budget);
-  const body = fitted.text;
-  const notes = imageNotes(body);
-  const withNotes = notes.imageOnly && notes.contentNotes[0] ? `${notes.contentNotes[0]}\n\n${body}` : body;
-  const packed = withNotes ? `${header}\n\n${withNotes}` : header;
-  const over = packed.length > cap;
+  const notes = imageNotes(fitted.body);
+  const withNotes = notes.imageOnly && notes.contentNotes[0] ? `${notes.contentNotes[0]}\n\n${fitted.body}` : fitted.body;
+  const core = withNotes ? `${header}\n\n${withNotes}` : header;
+  const packed = fitted.marker ? `${core}\n\n${fitted.marker}` : core;
   return {
-    markdown: over ? `${packed.slice(0, Math.max(0, cap - 16)).replace(/\s+$/, "")}\n\n…[truncated]` : packed,
+    markdown: packed,
     matched,
     section,
     anchor,
     imageOnly: notes.imageOnly,
     contentNotes: notes.contentNotes,
-    truncated: fitted.truncated || over,
+    truncated: fitted.truncated,
   };
 }

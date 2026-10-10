@@ -136,4 +136,18 @@ describe("packRelevantSections", () => {
     expect(packed.markdown).not.toContain("甲".repeat(20));
     expect(packed.markdown).not.toContain("烧录镜像");
   });
+
+  it("keeps the body budget when a page has many omitted sections", () => {
+    const many = Array.from({ length: 80 }, (_, index) =>
+      section(`章节${String(index).padStart(3, "0")} ${"标题".repeat(6)}`, "甲".repeat(180)),
+    ).join("\n\n");
+    const packed = packRelevantSections(many, { pageUrl, maxChars: 6000 });
+    const at = packed.markdown.indexOf("… omitted sections:");
+    expect(at).toBeGreaterThan(5000);
+    const marker = packed.markdown.slice(at);
+    expect(marker.length).toBeLessThanOrEqual(800);
+    expect(marker).toMatch(/…and \d+ more/);
+    expect(packed.markdown.slice(0, at)).toContain("## 章节000");
+    expect(packed.markdown.slice(0, at)).not.toContain("## 章节070");
+  });
 });

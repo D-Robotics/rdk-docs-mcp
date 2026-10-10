@@ -10,7 +10,7 @@ import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } fr
 import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } from "./bm25.js";
 import { searchGuidance } from "./routes.js";
 import { fusePageHits, groupHits, matchQuality, normalizeAltQueries, searchManuals } from "./search.js";
-import { imageNotes, packRelevantSections, RELEVANT_SECTION_CAP, selectSection } from "./sections.js";
+import { formatOmittedSections, imageNotes, packRelevantSections, RELEVANT_SECTION_CAP, selectSection } from "./sections.js";
 import { compactSphinxIndex } from "./sphinx.js";
 import {
   drainIndexNotes,
@@ -77,21 +77,15 @@ function headingOffsets(markdown: string): Array<{ start: number; title: string 
   return found;
 }
 
-/** Keep maxChars, and name the headings that fell past the cut. */
+/** Keep maxChars of body. The omitted-section list is appended and capped, not subtracted. */
 function clipMarkdown(markdown: string, maxChars: number): { markdown: string; truncated: boolean } {
   if (markdown.length <= maxChars) return { markdown, truncated: false };
-  const headings = headingOffsets(markdown);
-  let room = maxChars;
-  let marker = "…[truncated]";
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const omitted = headings.filter((heading) => heading.start >= room).map((heading) => heading.title);
-    marker = omitted.length > 0 ? `… omitted sections: ${omitted.join(", ")}` : "…[truncated]";
-    const next = Math.max(0, maxChars - marker.length - 2);
-    if (next === room) break;
-    room = next;
-  }
-  const cut = markdown.slice(0, room).replace(/\s+$/, "");
-  return { markdown: cut ? `${cut}\n\n${marker}` : marker.slice(0, maxChars), truncated: true };
+  const cut = markdown.slice(0, maxChars).replace(/\s+$/, "");
+  const omitted = headingOffsets(markdown)
+    .filter((heading) => heading.start >= cut.length)
+    .map((heading) => heading.title);
+  const marker = omitted.length > 0 ? formatOmittedSections(omitted) : "…[truncated]";
+  return { markdown: cut ? `${cut}\n\n${marker}` : marker, truncated: true };
 }
 
 function requireManual(idOrAlias: string): Manual {
