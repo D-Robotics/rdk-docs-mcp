@@ -1,0 +1,228 @@
+{
+  "search": [
+    {
+      "id": "p-flash-colloquial",
+      "query": "SD 卡插上没反应，系统老是刷不进去",
+      "manual": "x5",
+      "expectUrlIncludes": ["system-burn"]
+    },
+    {
+      "id": "p-flash-typo",
+      "query": "x5 烧录镜象到 sdcard，卡刷失败",
+      "manual": "x5",
+      "expectUrlIncludes": ["system-burn"]
+    },
+    {
+      "id": "p-s100-flash",
+      "query": "s100 的镜像写不进 emmc，烧录一直失败",
+      "manual": "s100",
+      "expectUrlIncludes": ["rdk_s100/burn", "install_os/rdk_s100"]
+    },
+    {
+      "id": "p-wifi-colloquial",
+      "query": "右上角没有无线网图标，热点根本搜不到",
+      "manual": "x5",
+      "expectUrlIncludes": ["remote_login", "network"]
+    },
+    {
+      "id": "p-wifi-en",
+      "query": "the board will not join the wireless network",
+      "manual": "x5",
+      "expectUrlIncludes": ["remote_login", "network"]
+    },
+    {
+      "id": "p-gpio-colloquial",
+      "query": "40 针那排引脚怎么读高低电平",
+      "manual": "x5",
+      "expectUrlIncludes": ["40pin_user_sample/gpio", "40pin_define"]
+    },
+    {
+      "id": "p-gpio-typo",
+      "query": "x5 gpion 脚拉高点亮 led",
+      "manual": "x5",
+      "expectUrlIncludes": ["gpio"]
+    },
+    {
+      "id": "p-i2c",
+      "query": "想在扩展排针上挂一个 i2c 温湿度传感器",
+      "manual": "x5",
+      "expectUrlIncludes": ["40pin_user_sample/i2c"]
+    },
+    {
+      "id": "p-uart",
+      "query": "串口一直没有打印，那路 tty 该怎么接",
+      "manual": "x5",
+      "expectUrlIncludes": ["40pin_user_sample/uart", "uart"]
+    },
+    {
+      "id": "p-mipi-black",
+      "query": "摄像头黑屏，mipi 那路完全没图像",
+      "manual": "x5",
+      "expectUrlIncludes": ["mipi_camera"]
+    },
+    {
+      "id": "p-usb-cam",
+      "query": "usb 摄像头插上了但是不出画面",
+      "manual": "x5",
+      "expectUrlIncludes": ["usb_camera"]
+    },
+    {
+      "id": "p-v4l2-typo",
+      "query": "v4l2ctl 列不出 video 节点",
+      "manual": "x5",
+      "expectUrlIncludes": ["V4l2", "v4l2"]
+    },
+    {
+      "id": "p-apt-colloquial",
+      "query": "apt 更新失败，提示签名不对，软件源是不是挂了",
+      "manual": "x5",
+      "expectUrlIncludes": ["FAQ/hardware_and_system", "cmd_apt"]
+    },
+    {
+      "id": "p-apt-error",
+      "query": "E: The repository is not signed，地瓜的源加不上",
+      "manual": "x5",
+      "expectUrlIncludes": ["FAQ/hardware_and_system", "cmd_apt"]
+    },
+    {
+      "id": "p-apt-s100",
+      "query": "s100 换了软件源之后 apt update 报 NO_PUBKEY",
+      "manual": "s100",
+      "expectUrlIncludes": ["FAQ/hardware_and_system", "cmd_apt"]
+    },
+    {
+      "id": "p-tros",
+      "query": "ros2 humble 已经装好了，togetheros 要怎么启动",
+      "expectUrlIncludes": ["install_tros", "tros_doc"]
+    },
+    {
+      "id": "p-x5-quant",
+      "query": "我这台是 x5，onnx 模型量化一下再丢到板子上跑",
+      "expectUrlIncludes": ["oe_x5_doc"]
+    },
+    {
+      "id": "p-x3-convert",
+      "query": "x3 浮点模型转定点，hb_mapper 那套流程在哪",
+      "expectUrlIncludes": ["oe_x3_doc"]
+    },
+    {
+      "id": "p-s100-quant",
+      "query": "s100 上把模型 ptq 量化完再部署",
+      "expectUrlIncludes": ["oe_s_doc", "rdk_s_doc"]
+    },
+    {
+      "id": "p-x5-docker-iptables",
+      "query": "x5 上 docker 起不来，报 iptables: No chain/target/match by that name",
+      "expectNoGoodMatch": true,
+      "note": "iptables is not in the X-series manuals. An S-series OE docker page must not win."
+    },
+    {
+      "id": "p-poe",
+      "query": "x5 能不能直接用网线供电",
+      "expectUrlIncludes": ["/POE", "poe"]
+    },
+    {
+      "id": "p-thermal",
+      "query": "板子烫得不行，风扇好像没转",
+      "manual": "x5",
+      "expectUrlIncludes": ["frequency_management"]
+    },
+    {
+      "id": "p-ssh",
+      "query": "怎么从电脑登到板子上，默认口令是什么",
+      "manual": "x5",
+      "expectUrlIncludes": ["remote_login"]
+    },
+    {
+      "id": "p-static-ip",
+      "query": "x5 插上网线后默认地址是多少",
+      "expectUrlIncludes": ["hardware_introduction/rdk_x5", "network"]
+    },
+    {
+      "id": "p-pinmap",
+      "query": "引脚图上的针号对不上，40pin 定义表在哪一页",
+      "manual": "x5",
+      "expectUrlIncludes": ["40pin_define"]
+    },
+    {
+      "id": "p-spi",
+      "query": "spi 设备接到排针上一直不通",
+      "manual": "x5",
+      "expectUrlIncludes": ["40pin_user_sample/spi"]
+    },
+    {
+      "id": "p-miniboot",
+      "query": "x5 开机卡在 miniboot，引导要不要重刷",
+      "expectUrlIncludes": ["upgrade-miniboot", "miniboot"]
+    },
+    {
+      "id": "p-hobot-typo",
+      "query": "import hobotdnn 失败，python 推理那个库怎么装",
+      "manual": "x5",
+      "expectUrlIncludes": ["hobot_dnn", "ai-python-api", "pyeasy_dnn", "basic_sample"]
+    },
+    {
+      "id": "p-hbm-tool",
+      "query": "hrt_model_exec 跑推理报错了，工具本身怎么用",
+      "expectUrlIncludes": ["hrt_model_exec"]
+    },
+    {
+      "id": "p-s100-mipi",
+      "query": "s100 的 mipi 摄像头不出图",
+      "expectUrlIncludes": ["mipi_camera"]
+    },
+    {
+      "id": "p-s600-gpio",
+      "query": "s600 控制引脚的例程在哪",
+      "expectUrlIncludes": ["s600/gpio", "40pin"]
+    },
+    {
+      "id": "p-x3-x5-diff",
+      "query": "x3 跟 x5 硬件差很多吗",
+      "expectUrlIncludes": ["hardware_introduction"]
+    },
+    {
+      "id": "p-can",
+      "query": "x5 的 can 总线线束怎么接",
+      "expectUrlIncludes": ["/can", "can"]
+    },
+    {
+      "id": "p-version",
+      "query": "命令行里怎么看现在的系统版本",
+      "manual": "x5",
+      "expectUrlIncludes": ["rdkos_info", "cmd_rdkos"]
+    },
+    {
+      "id": "p-nmcli",
+      "query": "nmcli 提示 device not found，无线网卡不见了",
+      "manual": "x5",
+      "expectUrlIncludes": ["remote_login", "network", "wifi"]
+    },
+    {
+      "id": "ood-excel",
+      "query": "excel 数据透视表怎么做",
+      "expectNoGoodMatch": true
+    },
+    {
+      "id": "ood-iphone",
+      "query": "iPhone 卡在恢复模式退不出来",
+      "expectNoGoodMatch": true
+    },
+    {
+      "id": "ood-k8s",
+      "query": "kubernetes helm install 一直 pending",
+      "expectNoGoodMatch": true
+    },
+    {
+      "id": "ood-brake",
+      "query": "特斯拉 model 3 刹车片怎么换",
+      "expectNoGoodMatch": true
+    },
+    {
+      "id": "ood-nginx",
+      "query": "nginx 反代出现 502 bad gateway 怎么查",
+      "expectNoGoodMatch": true
+    }
+  ],
+  "pages": []
+}

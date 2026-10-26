@@ -116,7 +116,7 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
         { url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE" },
         http,
       );
-      const topic = await getPage({ url: "https://forum.d-robotics.cc/t/topic/33210", maxChars: 4000 }, http);
+      const topic = await getPage({ url: "https://forum.d-robotics.cc/t/topic/33210", maxChars: 4000, full: true }, http);
       if (!inspectPage(doc.markdown).valid || !/poe/i.test(doc.markdown)) {
         return { pass: false, reason: "official PoE page missing PoE" };
       }
@@ -130,7 +130,7 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
   results.push(
     await check("forum-category-page", async () => {
       const page = await getPage(
-        { url: "https://forum.d-robotics.cc/c/39-category/yykf/7", maxChars: 8000 },
+        { url: "https://forum.d-robotics.cc/c/39-category/yykf/7", maxChars: 8000, full: true },
         http,
       );
       if (!page.markdown.includes("forum.d-robotics.cc/t/")) {
@@ -261,7 +261,7 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
   results.push(
     await check("x3-hardware-shell-recovery-or-diagnostic", async () => {
       const page = await getPage(
-        { url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3", maxChars: 4000 },
+        { url: "https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3", maxChars: 4000, full: true },
         http,
       );
       const content = inspectPage(page.markdown);

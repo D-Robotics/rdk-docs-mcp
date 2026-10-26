@@ -1,0 +1,184 @@
+[
+  {
+    "id": "x3-debug-uart",
+    "query": "RDK X3 调试串口线怎么接到 USB 转串口模块",
+    "manuals": ["rdk-x"],
+    "hope": "hardware_and_system",
+    "note": "X3 serial debug is a FAQ answer, not a hardware-intro spec page."
+  },
+  {
+    "id": "x3-mipi-i2c",
+    "query": "X3 上 F37 MIPI 摄像头接好后用 i2cdetect 怎么确认",
+    "manuals": ["rdk-x"],
+    "hope": "hardware_and_system",
+    "note": "Camera bring-up check lives in the FAQ answer body."
+  },
+  {
+    "id": "x3-usb-preview",
+    "query": "旭日 X3 USB 摄像头怎么预览画面",
+    "manuals": ["rdk-x"],
+    "hope": "RDK_X3/usb_camera",
+    "note": "X3 USB camera usage page, not the X5 twin."
+  },
+  {
+    "id": "x3-module-camera",
+    "query": "X3 Module 摄像头排线怎么插",
+    "manuals": ["rdk-x"],
+    "hope": "rdk_x3_module/camera",
+    "note": "Module camera page is separate from the kit page."
+  },
+  {
+    "id": "x3-version",
+    "query": "X3 板子系统版本号用什么命令看",
+    "manuals": ["rdk-x"],
+    "hope": "q2-如何查看",
+    "note": "rdkos_info / /etc/version is the FAQ answer, not a release-note version stamp."
+  },
+  {
+    "id": "x3-bpu-python",
+    "query": "X3 BPU Python 推理接口怎么调用",
+    "manuals": ["rdk-x"],
+    "hope": "RDK_X3",
+    "note": "X3 BPU API, not the X5 page with the same title."
+  },
+  {
+    "id": "s600-camera-board",
+    "query": "S600 相机扩展板怎么接线",
+    "manuals": ["rdk-s"],
+    "hope": "rdk_s600_camera",
+    "note": "S600 camera expansion board, not the S100 board."
+  },
+  {
+    "id": "s600-burn-prep",
+    "query": "S600 烧录系统之前要准备哪些线材和镜像",
+    "manuals": ["rdk-s"],
+    "hope": "rdk_s600",
+    "note": "S600 flash preparation, not the S100 studio flow."
+  },
+  {
+    "id": "s600-gpio",
+    "query": "S600 上怎么用 GPIO 控制一个引脚电平",
+    "manuals": ["rdk-s"],
+    "hope": "s600/gpio",
+    "note": "S600 GPIO application page."
+  },
+  {
+    "id": "s600-kit-ports",
+    "query": "S600 开发者套件板载有哪些接口",
+    "manuals": ["rdk-s"],
+    "hope": "02_rdk_s600",
+    "note": "S600 kit introduction."
+  },
+  {
+    "id": "cam-no-picture",
+    "query": "MIPI 摄像头示例跑起来了但是 HDMI 没有画面",
+    "manuals": ["rdk-x"],
+    "hope": "mipi_camera",
+    "note": "Bring-up: sample runs, display stays blank."
+  },
+  {
+    "id": "usb-cam-no-image",
+    "query": "USB 摄像头插上了但是不出图",
+    "manuals": ["rdk-x"],
+    "hope": "usb_camera",
+    "note": "USB camera no frames."
+  },
+  {
+    "id": "mipi-lt8618",
+    "query": "跑 MIPI 摄像头示例报 ValueError: invalid literal for int() with base 10: open device /dev/lt8618_ioctl failed",
+    "manuals": ["rdk-x"],
+    "hope": "FAQ",
+    "note": "Error string from a camera sample, quoted as the user would paste it."
+  },
+  {
+    "id": "pyparsing-error",
+    "query": "colcon build 报 AttributeError: module 'pyparsing' has no attribute 'operatorPrecedence'",
+    "manuals": ["rdk-x"],
+    "hope": "FAQ",
+    "note": "Pasted Python exception from a ROS build."
+  },
+  {
+    "id": "ko-signature",
+    "query": "自己编译的 ko 加载时报 Required key not available",
+    "manuals": ["rdk-x"],
+    "hope": "FAQ",
+    "note": "Kernel module signature error."
+  },
+  {
+    "id": "yolo-corner-boxes",
+    "query": "YOLOv5 部署后检测框都挤在图像左上角",
+    "manuals": ["rdk-x"],
+    "hope": "FAQ",
+    "note": "Symptom troubleshooting, not the model sample page."
+  },
+  {
+    "id": "x3-hb-mapper",
+    "query": "X3 上 hb_mapper 怎么把 onnx 转成定点模型",
+    "manuals": ["oe-x3", "rdk-x"],
+    "hope": "hb_mapper",
+    "note": "X3 OE mapper tool, not the X5 manual."
+  },
+  {
+    "id": "x3-ptq-steps",
+    "query": "X3 PTQ 量化校准数据要怎么准备",
+    "manuals": ["oe-x3"],
+    "hope": "calibration",
+    "note": "PTQ calibration section of the X3 toolchain manual."
+  },
+  {
+    "id": "hb-model-modifier",
+    "query": "hb_model_modifier 修改输入输出节点",
+    "manuals": ["oe-x3", "oe-x5"],
+    "hope": "hb_model_modifier",
+    "note": "Full command name; the sphinx index stems the last token."
+  },
+  {
+    "id": "mapper-checker",
+    "query": "hb_mapper checker 检查浮点模型",
+    "manuals": ["oe-x5", "oe-x3"],
+    "hope": "hb_mapper",
+    "note": "Subcommand of hb_mapper."
+  },
+  {
+    "id": "oos-jetson",
+    "query": "Jetson Orin Nano 的 CSI 摄像头怎么 bring up",
+    "manuals": ["rdk-x", "rdk-s", "oe-x3", "oe-x5"],
+    "expectAbstain": true,
+    "note": "Other vendor board. Camera words also appear in RDK manuals."
+  },
+  {
+    "id": "oos-raspberry",
+    "query": "Raspberry Pi 5 用 libcamera 预览",
+    "manuals": ["rdk-x", "rdk-s"],
+    "expectAbstain": true,
+    "note": "Other vendor. camera is an in-corpus synonym."
+  },
+  {
+    "id": "oos-excel",
+    "query": "excel 数据透视表怎么做",
+    "manuals": ["rdk-x"],
+    "expectAbstain": true,
+    "note": "Unrelated desktop task."
+  },
+  {
+    "id": "oos-k8s",
+    "query": "kubernetes helm install 一直 pending",
+    "manuals": ["rdk-x", "oe-x5"],
+    "expectAbstain": true,
+    "note": "Cluster tooling, not the board manuals."
+  },
+  {
+    "id": "oos-recipe",
+    "query": "红烧肉要炖多久",
+    "manuals": ["rdk-x", "rdk-s"],
+    "expectAbstain": true,
+    "note": "Not a documentation question."
+  },
+  {
+    "id": "inscope-burn-extra-tool",
+    "query": "用 balenaEtcher 给 X3 烧录系统镜像",
+    "manuals": ["rdk-x"],
+    "hope": "system-burn",
+    "note": "In-scope flash task plus a host tool name that is not in the manuals."
+  }
+]

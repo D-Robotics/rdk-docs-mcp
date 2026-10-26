@@ -1,6 +1,6 @@
-# RDK Assistant MCP
+# RDK Docs
 
-为 AI Agent 提供 RDK 官方文档检索、Skill 发现、来源核验和安装引导。对外名称为 **RDK Assistant MCP**；npm 包名、命令和配置 id 保持兼容：`rdk-docs-mcp` / `rdk-docs`。
+给各类 AI Agent 用的 [D-Robotics RDK 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 检索插件。
 
 模型自己记不住板端手册里的烧录步骤、接口名和版本号。这个仓库把官方文档变成 **MCP 工具 + Skill**：Agent 先搜手册，再打开原文回答，并带上可点击链接。
 
@@ -16,7 +16,7 @@
 
 Agent 会拉到安装剧本，执行 `npx -y rdk-docs-mcp@latest --install`，写入 MCP + Skill。不要把 JSON 或仓库地址发给用户。源码仓库可以 private；安装物是 npm 包。
 
-装完后重载 MCP / 重启会话，并调用 `get_status` 核对实际运行版本。默认安装使用 `@latest`；自定义固定路径或固定版本的配置需要更新其实际安装。已安装 Skill 在下次服务启动时由当前包刷新，每个文件以原子替换方式更新。
+装完后重载 MCP / 重启会话。之后发新版本：MCP 是 `@latest`，已安装的 Skill 会在 **下次 MCP 启动时** 被当前包装盖。用户不用再跑安装，也不用改那一行字。
 
 jsDelivr 不可用时，同一文件在：
 
@@ -33,13 +33,13 @@ jsDelivr 不可用时，同一文件在：
 
 | Tool | 做什么 |
 |------|--------|
-| `get_status` | 查询当前运行版本、支持字段及可选的目录分类健康状态，不安装 Skill |
+| `get_status` | 查看本次连接的版本、支持能力和可选的 Skill 目录分类健康状态 |
 | `list_manuals` | 列出资料中心已上架手册（X/S 系列、TROS、Model Zoo、Studio、XBurn、OE、X5 SDK 等） |
-| `search_docs` | 中英文关键词检索。指定手册只搜那一本；不指定时手册为主、论坛至多作补充。`forum` 只搜社区。 |
-| `get_page` | 读取官方文档或论坛主题，标注正文来源，支持带内容哈希校验的分段续读 |
+| `search_docs` | BM25 检索（标题/路径权重大于正文，中文按二字切分）。指定手册只搜那一本；不指定时只搜手册。问句或 `board` 点名 X3/X5 时不会返回 S 系列 OE。未传板卡时 `ambiguousBoard=true`，`groups` 按板卡分组。每条命中带参考用的 `confidence`（0–1）。`noGoodMatch=true` 只在问句里的包名、命令、API 或错误码既不在所搜手册里、也不在顶部命中里时出现。没有这个标记不代表命中一定相关。 |
+| `get_page` | 把一页官方文档或一篇论坛主题收成 Markdown。可选 `query` / `section`，或 URL 带 `#anchor`，用来跳过页首、直接打开相关小节。 |
 | `list_toc` | 列出某一本手册的页面目录；`forum` 列出「开发与问题」和「通用」最近帖 |
 | `search_skills` | 在 [D-Robotics/rdk-skills](https://github.com/D-Robotics/rdk-skills) 目录快照里按任务找 Skill（只读，带 `catalog_revision` 溯源） |
-| `get_skill` | 按目录精确名称返回 Skill 详情与安装引导：flat 给 `npx skills add ...`，workspace 给整包交接（Pack repo/ref/verify_paths + `rdk-pack-installer` 获取入口） |
+| `get_skill` | 按目录精确名称返回 Skill 详情，`include_content=true` 可读取绑定目录版本的正文；安装引导：flat 给 `npx skills add ...`，workspace 给整包交接（Pack repo/ref/verify_paths + `rdk-pack-installer` 获取入口） |
 
 **三个 bundled Skill**
 
@@ -62,14 +62,11 @@ jsDelivr 不可用时，同一文件在：
 - **目录里有 ≠ 本机已安装。** 两个工具只读：不安装、不执行上游脚本、不读写用户 Skill 目录。
 - flat 型 Skill 的安装入口是 `npx skills add d-robotics/rdk-skills --skill <name>`（装整个 Skill 目录）。
 - workspace 型（OE 工具链类）必须整包安装：交接 `rdk-pack-installer`、需要项目根目录、按 `verify_paths` 校验，不能只复制单个 SKILL.md。
-- 调用方先检查 `tools/list`，可用时调用一次 `get_status`，按实际支持的字段调用。旧版本缺少结构化能力时说明升级需求，不能向它发送新参数并假定已生效。
 - 调用方模型负责理解目标、排除、条件和复合任务，再传 `task`、`platform`、`exclude_platforms`、`workflow`；query 仅排序。纯事实仍查官方文档。复合任务分开检索，多板卡分别调用。
 - `task`: camera/gpio/uart/ready_model/model_conversion/model_compile/model_deploy/model_maintenance/environment/network/diagnostics/bsp。`workflow`: ptq/qat/undecided，仅适用于 model_conversion；不确定时只返回入口并澄清。
-- 优先读取同一目录 revision 内的 `discovery` 元数据；缺失时使用带来源和完整指纹的本地审核分类。无效声明不会退回旧分类，内容变化后旧分类失效。`metadata_health` 分别报告未分类、过期、无效和未知板卡范围；不把这些情况说成“没有对应 Skill”。生产者格式见 [分类合同](docs/skill-discovery-metadata.md)。
+- 优先读取同一目录版本的可选 discovery v1 元数据；缺失时使用带来源、指纹校验的本地分类表。`metadata_health` 区分 missing/stale/invalid/unknown_platform，`category_only` 表示只匹配大类，不能直接当作需求已满足。生产者格式见 [分类合同](docs/skill-discovery-metadata.md)。
 - 平台明确时使用分类表已审核的系列范围，缺失则 platform_scope=unknown；范围匹配不是电气/型号兼容保证。平台支持 x3/x5/s100/s100p/s600/ultra，比较请求拆分。目标与显式排除冲突才报 platform_conflict，正文不会覆盖结构化条件。
 - 旧 query-only 接口保留原有候选检索行为，并返回 legacy_query 警告；不再承诺理解复杂自然语言。新流程不能回退到旧接口绕过明确约束。
-- 已有产物只编译用 `model_compile`，不强制选择 PTQ/QAT；联网用 `network`，工具链准备用 `environment`。`role` 可筛入口、完整流程或单步辅助。`category_only` 表示只符合大类，需重新核实相关性。
-- `get_skill(include_content=true)` 返回绑定目录 SHA 的正文；正文不可用会明确标记，不能把摘要当成已读正文。flat 安装仍由安装器选择版本，实际执行前后要核对来源与内容。
 - 展示层用 `display_name`（清理生成器的 `__SKILL_<family>-__<slug>` 内部格式），`get_skill` 与安装命令仍用 `name` 精确名；同 display_name 的不同记录靠 `name` 区分。
 - 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单；pack 板卡家族映射取自该仓库 README 的 Supported Boards / Installation layers 表（快照 revision 溯源）。上游 canonical name 归一化（去掉 `__SKILL_` 前缀）需在 rdk-skills 侧规范，本 MCP 仅做展示层清理。
 
@@ -98,16 +95,17 @@ ln -sfn "$(pwd)" ~/.cursor/plugins/local/rdk-docs
 
 用户问 RDK / TROS / 烧录 / 量化等问题时：
 
-1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`；只要社区就 `source=forum`，兼容写法 `manual=forum`）
-2. 对 1–2 个命中 URL 调用 `get_page`（手册或 `forum.d-robotics.cc` 主题）
-3. 用原文回答，并附上官方文档或论坛链接
+1. `search_docs`（能确定产品就带 `manual`，如 `x5`、`tros`、`xburn`；已知板卡而问句没写型号就带 `board`；只要社区就 `source=forum`，兼容写法 `manual=forum`）
+2. 读顶部摘要，自己判断是否答得上。`noGoodMatch=false` 不是相关性证明。`noGoodMatch=true` 只表示某个包名、命令、API 或错误码不在所搜手册和顶部命中里，不要编造这个标识符。摘要答不上就换问法，或补 `board`，或 `source=forum`。问句里的型号会硬过滤另一产品族（问 X3/X5 不会拿到 S 系列 OE）。`matchedVia=alias` 的摘要会说明字面量（如 `hbm_shell`）不在索引里。
+3. 对判断相关的 1–2 个命中 URL 调用 `get_page`（手册或 `forum.d-robotics.cc` 主题）。长页传 `query` 或 `section`。
+4. 用原文回答，并附上官方文档或论坛链接。`imageOnly=true` 时展示 `contentNotes` 里的官方图片，不要编针脚号。
 
 不要凭记忆编 `apt` 包名、镜像版本或管脚复用。
 
 ### 证据与限制（必读）
 
-- **含图的信息不算已读。** 部分页面（如 [管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)）把完整管脚表放在图片里，`get_page` 即使返回 `truncated=false` 的完整 Markdown，正文也没有逐针参数。涉及引脚 / 电平 / 电源时，要打开或展示页面里的官方图片，不要拿其他型号的针脚表推断。
-- **长页先看 `truncated` 字段。** `truncated=true` 表示正文被截断（末尾有截断提示）；需要后文就加大 `maxChars`（上限 40000）重读，仍不完整就明确说明只读到部分内容。
+- **含图的信息不算已读。** 部分页面（如 [管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)）把完整管脚表放在图片里。对「40PIN 管脚定义」传 `section` 时，`imageOnly=true`，`contentNotes` 列出图片 URL。涉及引脚 / 电平 / 电源时，要打开或展示这些官方图片，不要拿其他型号的针脚表推断，也不要编造针号。
+- **长页用 `query`、`section` 或 URL hash。** 只读开头会错过 FAQ 后部（例如 apt 软件源）。`truncated=true` 表示当前片段仍被截断；需要后文就加大 `maxChars`（上限 40000）重读，仍不完整就明确说明只读到部分内容。
 - **官方页面之间的数值冲突不在 MCP 里裁决。** 已知一例：RDK X5 的 40PIN 电源负载，[硬件简介](https://developer.d-robotics.cc/rdk_x_doc/Quick_start/hardware_introduction/rdk_x5)写 1A @3.3V / 1A @5V，[管脚定义与应用](https://developer.d-robotics.cc/rdk_x_doc/Basic_Application/01_40pin_user_sample/40pin_define)写 800mA @3.3V / 500mA @5V。MCP 忠实返回两处原文；Agent 应引用差异并建议以文档维护者的确认为准，不要自行下兼容性结论。此项已转交官方文档维护者核实。
 
 ---
@@ -121,11 +119,14 @@ npm test
 npm run eval:live
 npm run eval:skills
 npm run build
+npm run eval
 ```
 
-`eval:live` 用真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。`eval:skills` 起真实 stdio MCP 连接打 rdk-skills 在线目录，验证六个工具与 flat/workspace 安装引导（需要网络；用隔离 HOME/缓存目录，不碰用户配置）。
+`npm run eval` 跑 `mcp/eval/retrieval-cases.json`（约 60 条中英检索 + 3 条小节读取），报告 hit@1、hit@3、MRR 和冷/热/论坛延迟。基线在 `mcp/eval/baseline.json`。`eval:live` 用另一组真实开发问题打资料中心（搜 + 拉页）。对标 ESP / Jetson MCP 的结论见 `docs/eval-vs-esp-jetson.md`。`eval:skills` 起真实 stdio MCP 连接打 rdk-skills 在线目录，验证六个工具与 flat/workspace 安装引导（需要网络；用隔离 HOME/缓存目录，不碰用户配置）。
 
-索引缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），默认 TTL 24 小时。官方改文档后，缓存过期会重新拉最新索引；要立刻跟上就删掉缓存目录，或设 `RDK_DOCS_CACHE_TTL_MS=0`。
+冷启动检索读包内 `mcp/prebuilt/*.json.gz`（文档快照）和同名 `.bm25.gz`（倒排表，避免每次现场切词）。这不是整站镜像。`get_page` 仍向资料中心拉正文。快照超过 14 天（`RDK_DOCS_PREBUILT_MAX_AGE_DAYS`）会改拉线上索引并在 `warnings` 里说明；线上失败才退回旧快照并警告结果可能过期。设 `RDK_DOCS_PREBUILT=0` 可强制每次拉线上索引。刷新：`npm run build:index`（同时重写倒排表），然后提交 `mcp/prebuilt/`。`npm publish` 不再在 `prepublishOnly` 里重建索引，打包的是仓库里已提交、已验证的快照。发布时再拉线上索引会让包内容和验证过的 tarball 不一致。`npm run eval:offline` 只用包内快照，不访问网络（跳过论坛用例和 `get_page`）。`npm run eval:paraphrase` 跑另一组 40 条口语/错字/报错开发集（`eval/paraphrase-cases.json`），结果写 `eval/paraphrase-after.json`，改 BM25 之前同一组的结果留在 `eval/paraphrase-before.json` 作对照。排序是 BM25，没有额外的向量模型：常见多语小模型有几十到几百 MB，放不进这个包，也做不到冷启动 300ms 以内。
+
+磁盘缓存：`~/.cache/rdk-docs-mcp`（可用 `RDK_DOCS_CACHE_DIR` 覆盖），默认 TTL 24 小时。官方改文档后，缓存过期会重新拉最新索引；要立刻跟上就删掉缓存目录，或设 `RDK_DOCS_CACHE_TTL_MS=0`。
 
 Skill 目录缓存是同一目录下的独立快照文件 `skill-catalog-snapshot.json`：一次刷新先取 rdk-skills 默认分支 commit SHA，再按同一 SHA 拉索引与 Pack 注册表两份 JSON，校验通过后原子替换；损坏视为 miss 重取，过期后刷新失败会明确报「目录不可用」，不回退旧数据。它和文档索引缓存互不影响，也和「MCP 启动时刷新已安装 bundled Skill」是两回事（后者只覆盖本包自带的 rdk-docs/forum-post/article-writer 三个 Skill 的既有安装，见 `mcp/src/install.ts`）。
 
@@ -135,12 +136,14 @@ S 系列 OE / OE LLM 是 Rspress 站点：不写死 `search_index.*.json` 的哈
 
 ## 许可与来源
 
-MIT。文档与帖子版权归 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/) 原站。本仓库只提供检索与阅读适配，不镜像整站。
+MIT。文档与帖子版权归 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/) 原站。本仓库提供检索与阅读适配，并附带搜索索引快照以加快冷启动；不镜像整站 HTML。`get_page` 仍读取原站页面。
 
+## 诊断与验证
 
-## 维护与验收
+`rdk-docs-mcp --doctor` 只输出当前进程的版本和能力，不刷新本机 Skill；连接内可调用 `get_status`，目录检查用 `check_catalog=true`。
 
-- `npm run verify`：离线单元/协议回归及构建。
-- `npm run verify:package`：打包、安装到临时目录，验证实际产物的工具 schema、版本和配套 Skill；诊断不会刷新用户 Skill。
-- `npm run verify:live`：官方站点与 Skill 目录联网检查；外部限流单独报告。
-- PR 的 CI 在 Linux/Node 20 与 Windows/Node 22 运行离线检查和包验证。联网检索成功不等于最终回答或实物操作已验证。
+`get_skill(include_content=true)` 返回绑定目录版本的正文、哈希和续读位置。正文不可用会明确返回 unavailable，摘要不能代替已读正文。已有产物只编译用 `task=model_compile`，板卡联网用 `task=network`，可用 `role=entry/workflow/step` 区分入口、流程和单步辅助。
+
+`get_page` 默认保持按章节读取。需要完整长页时显式传 `offset=0`，再用返回的 `next_offset` 和 `content_hash` 继续；内容变化会拒绝拼接。默认章节响应的 `next_offset=null`，不会把非连续的章节误当成全文前缀。
+
+`npm run verify` 执行单元／协议测试与构建，`npm run eval:offline` 检查现有离线检索基准，`npm run verify:package` 验证实际 tarball 的安装和 MCP 协议。文档和 Skill 目录联网检查单独运行 `npm run verify:live`。

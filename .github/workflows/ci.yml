@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main, feat/retrieval-quality]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Offline retrieval eval
+        run: npm run eval:offline
+        env:
+          RDK_DOCS_OFFLINE: "1"
+
+  rebuild-index:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Rebuild packaged indexes
+        run: npm run build:index

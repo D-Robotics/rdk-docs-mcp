@@ -3,26 +3,36 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { formatInstallReport, installRdkDocs, refreshInstalledSkillsOnStart } from "./install.js";
 import { createServer } from "./server.js";
 import { getStatus } from "./status.js";
+import { warmSearchIndex } from "./service.js";
 
 async function main() {
   if (process.argv.includes("--doctor")) {
-    const status = await getStatus({check_catalog: process.argv.includes("--check-catalog")});
-    process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
-    process.exitCode = status.catalog.status === "unavailable" ? 1 : 0;
+    process.stdout.write(`${JSON.stringify(await getStatus(), null, 2)}\n`);
     return;
   }
-
   if (process.argv.includes("--install")) {
     const result = installRdkDocs();
     process.stdout.write(`${formatInstallReport(result)}\n`);
     process.exit(result.warnings.length > 0 && result.mcp.length === 0 ? 1 : 0);
   }
 
-  refreshInstalledSkillsOnStart();
-
   const server = createServer();
   const transport = new StdioServerTransport();
+  const started = Date.now();
+  // Accept the MCP handshake immediately. Warm-up runs in the background;
+  // the first searchDocs call awaits this same promise.
+  void warmSearchIndex().then(
+    () => {
+      console.error(`rdk-docs index warm ${Date.now() - started}ms`);
+    },
+    (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`rdk-docs index warm failed: ${message}`);
+    },
+  );
   await server.connect(transport);
+  // Skill refresh walks client config dirs. Do not block the MCP initialize handshake on it.
+  setImmediate(() => refreshInstalledSkillsOnStart());
 }
 
 main().catch((error: unknown) => {

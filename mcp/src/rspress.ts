@@ -136,7 +136,21 @@ export async function loadRspressDocs(manual: Manual, http: HttpGet): Promise<In
       return compactRspressIndex(raw, manual.id);
     }),
   );
-  return loaded.flat();
+  return dedupeLanguageCopies(loaded.flat());
+}
+
+/**
+ * Drop an `/en/` page when the same path exists without `/en/`.
+ * English-only pages stay. Headings follow their page.
+ */
+export function dedupeLanguageCopies(docs: IndexedDoc[]): IndexedDoc[] {
+  const keyOf = (url: string) => normalizeDocPath((url.split("#")[0] ?? url).replace(/\/en(?=\/|$)/gi, ""));
+  const defaults = new Set<string>();
+  for (const doc of docs) {
+    if (doc.kind !== "page" || /\/en\//i.test(doc.url)) continue;
+    defaults.add(keyOf(doc.url));
+  }
+  return docs.filter((doc) => !/\/en\//i.test(doc.url) || !defaults.has(keyOf(doc.url)));
 }
 
 function resolveSiteUrl(path: string, siteOrigin: string): string {

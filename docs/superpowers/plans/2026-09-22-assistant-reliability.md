@@ -102,3 +102,19 @@ expect(result.guidance_kind).toBe('category_only');
 Plan approved for immediate execution by the user's request. Tasks 1–3 are independent by file ownership and run in parallel; Tasks 4–5 integrate their outputs; Task 6 gates delivery. The controller reviews each workstream and a fresh reviewer checks the integrated branch. Progress and concrete verification evidence will be recorded in the acceptance report.
 
 Delivered for review as PR #9: https://github.com/D-Robotics/rdk-docs-mcp/pull/9. Implementation and local acceptance complete; remote platform status is recorded by the PR checks. No merge or npm publication performed.
+
+
+## 2026-10-26 refresh against main d1202ff
+
+The user authorized updating the existing PR after comparing its remaining value with 0.3.0. This section supersedes the old naming/version and parallel-ownership directions for the refresh.
+
+- [x] Merge current main into the existing branch without rewriting its published history; resolve the 14 conflicting files around the current implementations.
+- [x] Keep URL-isolated atomic caching, nonfatal cache persistence, atomic permission-preserving installation, revision-bound Skill bodies, metadata health and compile/network/role filters.
+- [x] Preserve 0.3.0 BM25 ranking, alternate queries, short/section responses, prebuilt indexes, catalog workspace-name compatibility, config backups and custom-client entries. Retire legacy official-route pinning and same-family hard-filter expectations; retain alias conflict checks.
+- [x] Make document windows opt-in with offset=0. Default section output is unchanged and has no linear next_offset; continuation hashes refer to the full Markdown body.
+- [x] Keep the existing RDK Docs name and 0.3.0 manifest. Move the old 0.2.0 bump/rename out of this PR; retain version/capability diagnostics.
+- [x] Verify 472 tests in 35 files, TypeScript build, actual installed tarball/doctor/protocol and the updated bundled Skill.
+- [x] Compare all 60 offline retrieval cases against current-main retrieval code: every case result matches; hit@1 0.683, hit@3 0.850, MRR 0.771. Remaining benchmark misses are baseline misses, not new regressions. Offline evaluation does not exercise live pages.
+Delivery targets the existing branch and PR #9; its updated description records the refreshed implementation and current evidence. No main-branch merge or npm publication is part of this refresh.
+
+The refresh ran inline, following the user's preference against additional agent-review loops. The 354-test/live-acceptance records above remain historical; no new live Skill-directory or hardware-success claim is made by this refresh.

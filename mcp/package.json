@@ -1,16 +1,18 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "RDK Assistant MCP: official documentation, verified Skill discovery, and installation guidance.",
+  "description": "Search D-Robotics RDK official manuals and the community forum, and discover RDK skills, via MCP.",
   "bin": {
     "rdk-docs-mcp": "dist/index.js"
   },
   "files": [
     "dist",
+    "prebuilt",
     "README.md",
     "LICENSE",
     "install.md",
+    "CHANGELOG.md",
     "SKILL.md",
     "skills"
   ],
@@ -19,6 +21,10 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "eval": "npm run build && node dist/eval-retrieval.js",
+    "eval:offline": "npm run build && node dist/eval-retrieval.js --offline",
+    "eval:paraphrase": "npm run build && node dist/eval-retrieval.js --offline --cases eval/paraphrase-cases.json --out eval/paraphrase-after.json",
+    "build:index": "npm run build && node dist/build-prebuilt.js",
     "eval:live": "npm run build && node dist/eval-live.js",
     "eval:skills": "npm run build && node dist/eval-skills-live.js",
     "verify": "npm test && npm run build",

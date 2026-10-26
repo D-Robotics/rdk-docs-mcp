@@ -1,19 +1,9 @@
 import { randomUUID } from "node:crypto";
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { isDeepStrictEqual } from "node:util";
+import { chmodSync, statSync, unlinkSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isDeepStrictEqual } from "node:util";
 import { parse as parseToml } from "smol-toml";
 
 export const MCP_SERVER = {
@@ -69,53 +59,70 @@ function readJson(path: string): JsonObject {
   return parsed as JsonObject;
 }
 
+/**
+ * Back up an existing config before the installer changes it. The first run
+ * writes `<file>.bak`; an existing `.bak` (the user's own, or the pre-install
+ * state from an earlier run) is never overwritten. A later run that changes
+ * the file again writes `<file>.bak.<timestamp>` instead, so no earlier
+ * state is lost. Returns the backup path, or undefined when nothing changes.
+ */
+export function backupBeforeWrite(path: string, next: string): string | undefined {
+  if (!existsSync(path)) return undefined;
+  const current = readFileSync(path, "utf8");
+  if (current === next) return undefined;
+  const primary = `${path}.bak`;
+  if (!existsSync(primary)) {
+    copyFileSync(path, primary);
+    return primary;
+  }
+  if (readFileSync(primary, "utf8") === current) return primary;
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "");
+  let target = `${primary}.${stamp}`;
+  for (let n = 1; existsSync(target); n++) target = `${primary}.${stamp}-${n}`;
+  copyFileSync(path, target);
+  return target;
+}
+
 function writeJson(path: string, value: JsonObject): void {
-  writeTextAtomic(path, `${JSON.stringify(value, null, 2)}\n`);
+  mkdirSync(dirname(path), { recursive: true });
+  const body = `${JSON.stringify(value, null, 2)}\n`;
+  backupBeforeWrite(path, body);
+  writeTextAtomic(path, body);
+}
+
+/**
+ * Merge the rdk-docs entry into a JSON `servers` map. A usable existing entry
+ * (any command or url, e.g. Windows `cmd /c npx ...` or a `--registry` mirror)
+ * is kept as is and the file is not rewritten, so its formatting survives too.
+ * Only a missing or unlaunchable entry is (re)written. Returns true if the
+ * file was written.
+ */
+function ensureJsonServer(
+  path: string,
+  config: JsonObject,
+  servers: JsonObject,
+  entry: JsonObject,
+  attach: () => void,
+  warnings: string[],
+): boolean {
+  const existing = objectProperty(servers, "rdk-docs", path, 'servers["rdk-docs"]');
+  if (existing) validateJsonServerEntry(existing, path, 'servers["rdk-docs"]');
+  if (existing && isUsableServerEntry(existing)) {
+    if (!isDeepStrictEqual(existing, entry)) warnings.push(`Preserved existing custom rdk-docs MCP server configuration in ${path}.`);
+    return false;
+  }
+  const completed = { ...existing, ...entry };
+  validateJsonServerEntry(completed, path, 'servers["rdk-docs"]', true);
+  servers["rdk-docs"] = completed;
+  attach();
+  writeJson(path, config);
+  return true;
 }
 
 function writeText(path: string, body: string): void {
   writeTextAtomic(path, body);
 }
 
-function objectProperty(parent: JsonObject, key: string, path: string, label: string): JsonObject | undefined {
-  const value = parent[key];
-  if (value === undefined) return undefined;
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`Invalid JSON configuration at ${path}: ${label} must be an object`);
-  }
-  return value as JsonObject;
-}
-
-function preservedCustomWarning(path: string): string {
-  return `Preserved existing custom rdk-docs MCP server configuration in ${path}; update it deliberately if a different launch is required.`;
-}
-
-function completeJsonServerEntry(entry: JsonObject | undefined, defaults: JsonObject): JsonObject {
-  if (!entry) return { ...defaults };
-  return { ...defaults, ...entry };
-}
-
-function validateJsonServerEntry(
-  entry: JsonObject,
-  path: string,
-  label: string,
-  requireUsable: boolean = false,
-): void {
-  for (const key of ["command", "url"] as const) {
-    if (key in entry && (typeof entry[key] !== "string" || entry[key].trim() === "")) {
-      throw new Error(`Invalid JSON configuration at ${path}: ${label}.${key} must be a non-empty string`);
-    }
-  }
-  if (
-    "args" in entry &&
-    (!Array.isArray(entry.args) || !entry.args.every((argument) => typeof argument === "string"))
-  ) {
-    throw new Error(`Invalid JSON configuration at ${path}: ${label}.args must be an array of strings`);
-  }
-  if (requireUsable && !isUsableServerEntry(entry)) {
-    throw new Error(`Invalid JSON configuration at ${path}: ${label} must have a usable command or url`);
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Bundled skills: the package ships a `skills/` dir with one subdir per skill
@@ -173,8 +180,26 @@ function clientSkillBases(home: string): string[] {
     join(home, ".agents", "skills"),
     join(home, ".codex", "skills"),
     join(home, ".dsh", "skills"),
+    ...SKILL_ONLY_CLIENTS.map((client) => join(home, ...client.skills)),
   ];
 }
+
+/**
+ * Clients whose MCP registration the installer does not write, but whose
+ * user-level skills directory is documented. Skills land only when the
+ * client's own config root already exists (same rule as the MCP clients).
+ */
+export const SKILL_ONLY_CLIENTS: { name: string; root: string[]; skills: string[] }[] = [
+  { name: "Gemini CLI", root: [".gemini"], skills: [".gemini", "skills"] },
+  { name: "Google Antigravity", root: [".gemini", "config"], skills: [".gemini", "config", "skills"] },
+  { name: "Google Antigravity (legacy)", root: [".gemini", "antigravity"], skills: [".gemini", "antigravity", "skills"] },
+  { name: "Antigravity CLI", root: [".gemini", "antigravity-cli"], skills: [".gemini", "antigravity-cli", "skills"] },
+  { name: "Windsurf", root: [".codeium", "windsurf"], skills: [".codeium", "windsurf", "skills"] },
+  { name: "Devin Desktop", root: [".config", "devin"], skills: [".config", "devin", "skills"] },
+  { name: "OpenClaw", root: [".openclaw"], skills: [".openclaw", "skills"] },
+  { name: "QoderWork", root: [".qoderwork"], skills: [".qoderwork", "skills"] },
+  { name: "workbuddy", root: [".workbuddy"], skills: [".workbuddy", "skills"] },
+];
 
 export function skillInstallPaths(home: string, skillName: string = DEFAULT_SKILL): string[] {
   return clientSkillBases(home).map((base) => join(base, skillName, "SKILL.md"));
@@ -184,7 +209,9 @@ export function ensureDshMcpPatch(path: string): boolean {
   const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
   if (/id:\s*mcp-rdk-docs\b/.test(existing)) return false;
   const prefix = existing.length === 0 ? "" : existing.endsWith("\n") ? existing : `${existing}\n`;
-  writeText(path, `${prefix}${prefix ? "\n" : ""}${DSH_MCP_PATCH}`);
+  const body = `${prefix}${prefix ? "\n" : ""}${DSH_MCP_PATCH}`;
+  backupBeforeWrite(path, body);
+  writeText(path, body);
   return true;
 }
 
@@ -341,6 +368,7 @@ export function ensureCodexMcpServer(path: string): CodexMcpEnsureResult {
   }
 
   try {
+    backupBeforeWrite(path, candidate);
     writeTextAtomic(path, candidate);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -421,17 +449,9 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
     const mcpPath = join(cursor, "mcp.json");
     const mcp = readJson(mcpPath);
     const servers = objectProperty(mcp, "mcpServers", mcpPath, "mcpServers") ?? {};
-    const existing = objectProperty(servers, "rdk-docs", mcpPath, 'mcpServers["rdk-docs"]');
-    if (existing) validateJsonServerEntry(existing, mcpPath, 'mcpServers["rdk-docs"]');
-    if (existing && isUsableServerEntry(existing)) {
-      if (!isDeepStrictEqual(existing, MCP_SERVER)) result.warnings.push(preservedCustomWarning(mcpPath));
-    } else {
-      const completed = completeJsonServerEntry(existing, { ...MCP_SERVER });
-      validateJsonServerEntry(completed, mcpPath, 'mcpServers["rdk-docs"]', true);
-      servers["rdk-docs"] = completed;
+    ensureJsonServer(mcpPath, mcp, servers, { ...MCP_SERVER }, () => {
       mcp.mcpServers = servers;
-      writeJson(mcpPath, mcp);
-    }
+    }, result.warnings);
     result.mcp.push(mcpPath);
     writeSkills(join(cursor, "skills"));
   }
@@ -446,20 +466,11 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
     const configPath = join(zcode, "cli", "config.json");
     const config = readJson(configPath);
     const mcp = objectProperty(config, "mcp", configPath, "mcp") ?? {};
-    const servers = objectProperty(mcp, "servers", configPath, "mcp.servers") ?? {};
-    const existing = objectProperty(servers, "rdk-docs", configPath, 'mcp.servers["rdk-docs"]');
-    const defaults = { type: "stdio", ...MCP_SERVER };
-    if (existing) validateJsonServerEntry(existing, configPath, 'mcp.servers["rdk-docs"]');
-    if (existing && isUsableServerEntry(existing)) {
-      if (!isDeepStrictEqual(existing, defaults)) result.warnings.push(preservedCustomWarning(configPath));
-    } else {
-      const completed = completeJsonServerEntry(existing, defaults);
-      validateJsonServerEntry(completed, configPath, 'mcp.servers["rdk-docs"]', true);
-      servers["rdk-docs"] = completed;
+    const servers = objectProperty(mcp, "servers", configPath, "servers") ?? {};
+    ensureJsonServer(configPath, config, servers, { type: "stdio", ...MCP_SERVER }, () => {
       mcp.servers = servers;
       config.mcp = mcp;
-      writeJson(configPath, config);
-    }
+    }, result.warnings);
     result.mcp.push(configPath);
     writeSkills(join(zcode, "skills"));
     // ZCode also reads the shared agents dir.
@@ -494,6 +505,10 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
         result.skills.push(p);
       }
     }
+  }
+
+  for (const client of SKILL_ONLY_CLIENTS) {
+    if (existsSync(join(home, ...client.root))) writeSkills(join(home, ...client.skills));
   }
 
   if (result.mcp.length === 0 && result.skills.length === 0) {
@@ -532,6 +547,37 @@ export function formatInstallReport(result: InstallResult): string {
   if (result.mcp.length === 0)
     lines.push("No MCP client configuration was written; Skills alone do not provide MCP tools.");
   lines.push("Reload the Agent / MCP servers, then ask: `RDK X5 怎么烧录？`");
-  lines.push("Open the `official-start` hit first. Do not clone the source repository.");
+  lines.push("Read search snippets and decide relevance yourself. noGoodMatch is only set when a command, package, API, or error code is absent from the manuals and the top hit. Do not clone the source repository.");
   return lines.join("\n");
+}
+
+function objectProperty(parent: JsonObject, key: string, path: string, label: string): JsonObject | undefined {
+  const value = parent[key];
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${label} must be an object`);
+  }
+  return value as JsonObject;
+}
+
+function validateJsonServerEntry(
+  entry: JsonObject,
+  path: string,
+  label: string,
+  requireUsable: boolean = false,
+): void {
+  for (const key of ["command", "url"] as const) {
+    if (key in entry && (typeof entry[key] !== "string" || entry[key].trim() === "")) {
+      throw new Error(`Invalid JSON configuration at ${path}: ${label}.${key} must be a non-empty string`);
+    }
+  }
+  if (
+    "args" in entry &&
+    (!Array.isArray(entry.args) || !entry.args.every((argument) => typeof argument === "string"))
+  ) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${label}.args must be an array of strings`);
+  }
+  if (requireUsable && !isUsableServerEntry(entry)) {
+    throw new Error(`Invalid JSON configuration at ${path}: ${label} must have a usable command or url`);
+  }
 }

@@ -66,9 +66,11 @@ describe("matchOfficialPath", () => {
     expect(matchOfficialPath("RDK S600 供电电压范围", "rdk-s")?.url)
       .toContain("01_rdk_s600_kit");
     expect(matchOfficialPath("RDK X3 几路 USB 3.0", "rdk-x")?.url)
-      .toMatch(/\/rdk_x_doc\/RDK$/);
+      .toContain("/hardware_introduction/rdk_x3");
     expect(matchOfficialPath("RDK S100 有哪些 USB 接口", "rdk-s")?.url)
-      .toMatch(/\/rdk_s_doc\/RDK$/);
+      .toContain("01_rdk_s100_kit");
+    expect(matchOfficialPath("S100 硬件简介", "rdk-s")?.url)
+      .toContain("01_rdk_s100_kit");
   });
 
   it("does not steal how-tos that already have a better pin", () => {

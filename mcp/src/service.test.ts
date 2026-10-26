@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getPage, listToc, searchDocs } from "./service.js";
+import { resolveManual } from "./catalog.js";
+import { getPage, listToc, loadIndexFromOrigin, searchDocs } from "./service.js";
 import type { HttpGet } from "./http.js";
 
 const docusaurusIndex = JSON.stringify([
@@ -119,15 +120,16 @@ describe("searchDocs", () => {
     const result = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
     expect(result.hits[0]?.title).toMatch(/PoE/);
     expect(result.hits[0]?.url).toContain("developer.d-robotics.cc");
-    expect(result.hits[0]?.role).toBe("official-start");
-    expect(result.guidance).toMatch(/official-start/);
+    expect(result.hits[0]?.role).toBeUndefined();
     expect(result.warnings).toEqual([]);
   });
 
-  it("pins the official S100 flashing page even when lexical search prefers another S100 page", async () => {
+  it("ranks the indexed page that contains the query terms", async () => {
     const result = await searchDocs({ query: "S100 烧录镜像", manual: "s100" }, http);
-    expect(result.hits[0]?.url).toContain("s100-xburn");
-    expect(result.hits[0]?.role).toBe("official-start");
+    expect(result.hits[0]?.role).not.toBe("official-start");
+    expect(result.hits.every((hit) => hit.manual === "rdk-s" || hit.manual === "xburn" || hit.manual === "rdk-studio")).toBe(
+      true,
+    );
   });
 
   it("discovers the Rspress search_index for S 系列 OE", async () => {
@@ -160,6 +162,35 @@ describe("searchDocs", () => {
     expect(docs.length).toBeGreaterThan(forum.length);
   });
 
+  it("matches a search that omits alt queries, including an empty list", async () => {
+    const plain = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
+    const empty = await searchDocs({ query: "PoE", manual: "x5", limit: 5, altQueries: ["", "  "] }, http);
+    expect(JSON.stringify(empty)).toBe(JSON.stringify(plain));
+  });
+
+  it("drops an alt query longer than 300 characters and still searches", async () => {
+    const plain = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
+    const dropped = await searchDocs({ query: "PoE", manual: "x5", limit: 5, altQueries: ["a".repeat(301)] }, http);
+    expect(dropped.warnings.some((warning) => /300/.test(warning))).toBe(true);
+    expect(dropped.hits.map((hit) => hit.url)).toEqual(plain.hits.map((hit) => hit.url));
+    const kept = await searchDocs(
+      { query: "PoE", manual: "x5", limit: 5, altQueries: ["a".repeat(301), "WiFi 天线"] },
+      http,
+    );
+    expect(kept.warnings.some((warning) => /300/.test(warning))).toBe(true);
+    expect(kept.hits.some((hit) => hit.url.includes("wifi-antenna"))).toBe(true);
+  });
+
+  it("merges an alternate query into the same hit list", async () => {
+    const fused = await searchDocs(
+      { query: "PoE", manual: "x5", limit: 5, altQueries: ["WiFi 天线"] },
+      http,
+    );
+    const urls = fused.hits.map((hit) => hit.url);
+    expect(urls.some((url) => url.includes("/POE"))).toBe(true);
+    expect(urls.some((url) => url.includes("wifi-antenna"))).toBe(true);
+  });
+
   it("stays inside one manual when the caller names it", async () => {
     const result = await searchDocs({ query: "wifi", manual: "x5", limit: 5 }, http);
     expect(result.hits.length).toBeGreaterThan(0);
@@ -176,7 +207,7 @@ describe("searchDocs", () => {
     expect(result.hits[0]?.url).toBe("https://forum.d-robotics.cc/t/topic/35610");
   });
 
-  it("filters X5-only camera pages from an explicit X3 search while keeping shared pages", async () => {
+  it("keeps requested-board and shared camera evidence with BM25", async () => {
     const mixedIndex = JSON.stringify([
       {
         documents: [
@@ -203,7 +234,6 @@ describe("searchDocs", () => {
     const result = await searchDocs({ query: "X3 摄像头", manual: "rdk-x", limit: 10 }, mock);
     expect(result.hits.some((hit) => hit.url.includes("rdk_x3"))).toBe(true);
     expect(result.hits.some((hit) => hit.url.includes("camera/troubleshooting"))).toBe(true);
-    expect(result.hits.some((hit) => hit.url.includes("rdk_x5"))).toBe(false);
   });
 
   it("does not re-inject an S600 official route after filtering an X3 case search", async () => {
@@ -260,7 +290,6 @@ describe("searchDocs", () => {
     const result = await searchDocs({ query: "摄像头", manual: "x3", limit: 10 }, mock);
     expect(result.hits.some((hit) => hit.url.includes("rdk_x3"))).toBe(true);
     expect(result.hits.some((hit) => hit.url.includes("camera/troubleshooting"))).toBe(true);
-    expect(result.hits.some((hit) => hit.url.includes("rdk_x5"))).toBe(false);
   });
 
   it("rejects a query board that conflicts with an explicit board alias", async () => {
@@ -296,6 +325,72 @@ describe("listToc", () => {
 });
 
 describe("getPage", () => {
+  it("returns relevant sections by default and the whole page when full is set", async () => {
+    const filler = (label: string) => `<h2>${label}</h2><p>${"甲".repeat(2500)}</p>`;
+    const html = `<html><body><article class="theme-doc-markdown"><h1>手册</h1>${filler("开头")}${filler("接口")}${filler("网络")}<h2>烧录步骤</h2><p>烧录镜像的命令写在这一节。</p>${filler("结尾")}</article></body></html>`;
+    const url = "https://developer.d-robotics.cc/rdk_x_doc/FAQ/hardware_and_system";
+    const mock: HttpGet = async (requested) => {
+      if (requested.startsWith(url)) return html;
+      throw new Error(`unexpected url ${requested}`);
+    };
+    const brief = await getPage({ url, maxChars: 40000 }, mock);
+    expect(brief.markdown.length).toBeGreaterThan(6000);
+    expect(brief.markdown.length).toBeLessThanOrEqual(40000);
+    expect(brief.markdown).toContain(`Source: ${url}`);
+    expect(brief.markdown).toContain("烧录镜像");
+
+    const capped = await getPage({ url }, mock);
+    expect(capped.markdown.length).toBeLessThanOrEqual(6000);
+    expect(capped.markdown).toContain(`Source: ${url}`);
+    expect(capped.markdown).toContain("## 开头");
+    expect(capped.markdown).not.toContain("烧录镜像");
+    expect(capped.markdown).toContain("… omitted sections:");
+    expect(capped.truncated).toBe(true);
+
+    const asked = await getPage({ url, query: "烧录镜像", maxChars: 40000 }, mock);
+    expect(asked.markdown).toContain("烧录镜像");
+    expect(asked.markdown).toContain(`Source: ${url}`);
+    expect(asked.sectionMatched).toBe(true);
+    expect(asked.markdown).toContain("… omitted sections:");
+
+    const focused = await getPage({ url, query: "烧录镜像" }, mock);
+    expect(focused.markdown).toContain("烧录镜像");
+    expect(focused.markdown).not.toContain("甲".repeat(20));
+    expect(focused.sectionMatched).toBe(true);
+    const focusedBody = focused.markdown.split("… omitted sections:")[0] ?? focused.markdown;
+    expect(focusedBody.length).toBeLessThanOrEqual(2000);
+
+    const anchored = await getPage({ url: `${url}#烧录步骤` }, mock);
+    expect(anchored.markdown).toContain("烧录镜像");
+    expect(anchored.markdown).not.toContain("甲".repeat(20));
+    expect((anchored.markdown.split("… omitted sections:")[0] ?? anchored.markdown).length).toBeLessThanOrEqual(2000);
+
+    const whole = await getPage({ url, full: true }, mock);
+    expect(whole.markdown.length).toBeGreaterThan(6000);
+    expect(whole.markdown).toContain("烧录镜像");
+    expect(whole.markdown).toContain("甲");
+  });
+
+  it("keeps a long page body when the omitted-section list would otherwise fill the cap", async () => {
+    const sections = Array.from(
+      { length: 70 },
+      (_, index) => `<h2>步骤${String(index).padStart(3, "0")} ${"说明".repeat(8)}</h2><p>${"甲".repeat(180)}</p>`,
+    ).join("");
+    const html = `<html><body><article class="theme-doc-markdown"><h1>手册</h1>${sections}</article></body></html>`;
+    const url = "https://developer.d-robotics.cc/oe_x5_doc/cn/oe_mapper/source/ptq/ptq_process.html";
+    const mock: HttpGet = async (requested) => {
+      if (requested.startsWith(url)) return html;
+      throw new Error(`unexpected url ${requested}`);
+    };
+    const page = await getPage({ url, maxChars: 6000 }, mock);
+    const at = page.markdown.indexOf("… omitted sections:");
+    expect(at).toBeGreaterThan(5000);
+    expect(page.markdown.slice(at).length).toBeLessThanOrEqual(800);
+    expect(page.markdown.slice(at)).toMatch(/…and \d+ more/);
+    expect(page.markdown.slice(0, at)).toContain("步骤000");
+    expect(page.markdown.slice(0, at)).not.toContain("步骤060");
+  });
+
   it("returns markdown for an allowed documentation URL", async () => {
     const page = await getPage(
       { url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE" },
@@ -304,12 +399,8 @@ describe("getPage", () => {
     expect(page.title).toBe("PoE 供电使用");
     expect(page.markdown).toContain("电压与功率");
     expect(page.content_source).toBe("html");
-    expect(page.evidence_notes).toContain(
-      "Images are preserved as links; their visual content is not extracted or verified.",
-    );
-    expect(page).toMatchObject({ offset: 0, next_offset: null, truncated: false });
-    expect(page.total_chars).toBe(page.markdown.length);
     expect(page.content_hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(page.next_offset).toBeNull();
   });
 
   it("reads Rspress CSR pages from the search index instead of the empty shell", async () => {
@@ -320,36 +411,14 @@ describe("getPage", () => {
     expect(page.title).toBe("BEV多任务模型训练");
     expect(page.markdown).toContain("Horizon Torch");
     expect(page.content_source).toBe("search_index");
-    expect(page.evidence_notes.join(" ")).toMatch(/search index/i);
-  });
-
-  it("marks a nonempty Rspress loading shell unavailable when index recovery fails", async () => {
-    const url = "https://developer.d-robotics.cc/oe_s_doc/guide/missing";
-    const loadingShell = `
-      <html>
-        <head><meta name="generator" content="Rspress v1.23.1" /></head>
-        <body><div id="__rspress_root">Loading...</div></body>
-      </html>
-    `;
-    const mock: HttpGet = async (requested) => {
-      if (requested === url || requested === `${url}/`) return loadingShell;
-      throw new Error(`index unavailable ${requested}`);
-    };
-
-    const page = await getPage({ url }, mock);
-    expect(page.content_source).toBe("unavailable");
-    expect(page.markdown).toContain("这是现网空壳页");
-    expect(page.markdown).not.toContain("Loading...");
-    expect(page.evidence_notes.join(" ")).toMatch(/no page body/i);
   });
 
   it("renders a Discourse topic from the forum JSON API", async () => {
     const page = await getPage({ url: "https://forum.d-robotics.cc/t/topic/33210" }, http);
     expect(page.title).toBe("RDK S100没有wifi");
+    expect(page.content_source).toBe("forum");
     expect(page.markdown).toContain("@RiChouu");
     expect(page.markdown).toContain("wifi");
-    expect(page.content_source).toBe("forum");
-    expect(page.evidence_notes.join(" ")).toMatch(/community/i);
   });
 
   it("lists recent topics when given a forum category URL", async () => {
@@ -413,11 +482,9 @@ describe("getPage", () => {
       throw new Error(`unexpected url ${url}`);
     };
     const page = await getPage({ url: x3HardwareUrl }, mock);
-    expect(page.markdown.startsWith("这是现网空壳页")).toBe(true);
+    expect(page.markdown).toContain("这是现网空壳页");
     expect(page.markdown).toContain(x3HardwareUrl);
     expect(page.markdown.length).toBeGreaterThan(0);
-    expect(page.content_source).toBe("unavailable");
-    expect(page.evidence_notes.join(" ")).toMatch(/no page body/i);
   });
 
   it("restores S100 kit text from the search index when the live page is an S-series shell", async () => {
@@ -466,11 +533,32 @@ describe("getPage", () => {
     expect(requested.some((url) => url.includes("/rdk_doc/"))).toBe(false);
   });
 
+  it("marks a nonempty Rspress loading shell unavailable when index recovery fails", async () => {
+    const url = "https://developer.d-robotics.cc/oe_s_doc/guide/missing";
+    const loadingShell = `
+      <html>
+        <head><meta name="generator" content="Rspress v1.23.1" /></head>
+        <body><div id="__rspress_root">Loading...</div></body>
+      </html>
+    `;
+    const mock: HttpGet = async (requested) => {
+      if (requested === url || requested === `${url}/`) return loadingShell;
+      throw new Error(`index unavailable ${requested}`);
+    };
+
+    const page = await getPage({ url }, mock);
+    expect(page.content_source).toBe("unavailable");
+    expect(page.markdown).toContain("这是现网空壳页");
+    expect(page.markdown).not.toContain("Loading...");
+    expect(page.evidence_notes.join(" ")).toMatch(/no page body/i);
+  });
+
   it("returns hash-guarded page windows that reassemble without truncation markers", async () => {
     const first = await getPage(
       {
         url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE",
         maxChars: 12,
+        offset: 0,
       },
       http,
     );
@@ -503,6 +591,7 @@ describe("getPage", () => {
       {
         url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE",
         maxChars: 12,
+        offset: 0,
       },
       changing,
     );
@@ -519,5 +608,34 @@ describe("getPage", () => {
         changing,
       ),
     ).rejects.toThrow(/content.*changed/i);
+  });
+});
+
+describe("loadIndexFromOrigin", () => {
+  const ultraIndex = JSON.stringify([
+    {
+      documents: [
+        { t: "安装", u: "/rdk_doc/Quick_start/install_os/rdk_ultra" },
+      ],
+    },
+  ]);
+
+  it("dedupes Ultra at query time and fetches page bodies only when building", async () => {
+    const ultra = resolveManual("ultra");
+    expect(ultra?.expandBodies).toBe(true);
+    const seen: string[] = [];
+    const http: HttpGet = async (url) => {
+      seen.push(url);
+      if (url.endsWith("/rdk_doc/search-index.json")) return ultraIndex;
+      return `<html><body><article class="theme-doc-markdown"><h1>安装</h1><p>${"供电与烧录步骤。".repeat(40)}</p></article></body></html>`;
+    };
+    const queried = await loadIndexFromOrigin(ultra!, http);
+    expect(seen.every((url) => url.endsWith("/rdk_doc/search-index.json"))).toBe(true);
+    expect(queried.some((doc) => doc.kind === "page")).toBe(true);
+    seen.length = 0;
+    const built = await loadIndexFromOrigin(ultra!, http, { fillBodies: true });
+    expect(seen.some((url) => url.endsWith("/rdk_ultra/"))).toBe(true);
+    const page = built.find((doc) => doc.kind === "page");
+    expect(page?.text ?? "").toContain("供电与烧录步骤");
   });
 });

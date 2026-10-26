@@ -38,7 +38,7 @@ try {
   await client.connect(transport);
   tools = (await client.listTools()).tools;
   assert.equal(tools.length,7);
-  assert.equal(client.getServerVersion().title,"RDK Assistant MCP");
+  assert.equal(client.getServerVersion().title,"RDK Docs");
   for (const [tool,field] of [["search_skills","role"],["get_skill","include_content"],["get_page","expected_content_hash"]]) {
     assert(field in tools.find(t=>t.name===tool).inputSchema.properties);
   }

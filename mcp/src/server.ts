@@ -5,6 +5,7 @@ import { listManuals } from "./catalog.js";
 import { fetchText } from "./http.js";
 import { SkillError } from "./skill-catalog.js";
 import { getSkillDetail, searchSkills, type SkillServiceDeps } from "./skill-service.js";
+import { COMPACT_HIT_LIMIT, COMPACT_RESULT_CHARS, compactSearchResult } from "./present.js";
 import { getPage, listToc, searchDocs } from "./service.js";
 
 import { DISPLAY_NAME, PACKAGE_VERSION, SERVER_ID } from "./version.js";
@@ -43,14 +44,10 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     version: PACKAGE_VERSION,
   });
 
-  server.registerTool(
-    "get_status",
-    {
-      description: "Read RDK Assistant MCP version and supported capabilities. Optionally check Skill catalog revision and metadata coverage. Does not install or refresh local Skills; a catalog check may update its read cache.",
-      inputSchema: z.object({ check_catalog: z.boolean().optional().describe("Fetch/check catalog health, default false (offline capabilities only)") }).strict(),
-    },
-    async (input) => ok(await getStatus(input, options.skillDeps)),
-  );
+  server.registerTool("get_status", {
+    description: "Read the current MCP version and supported capabilities; optionally inspect Skill catalog coverage. Does not install or execute Skills.",
+    inputSchema: z.object({check_catalog: z.boolean().optional()}).strict(),
+  }, async input => ok(await getStatus(input, options.skillDeps)));
 
   server.registerTool(
     "list_manuals",
@@ -82,9 +79,9 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "search_docs",
     {
       description:
-        "Search RDK sources through MCP. Default source is docs (official manuals only). Use source=forum or manual=forum for community experience; use source=all only when the user explicitly asks for community/forum input. manual=forum is a compatibility alias for source=forum. If evidence is insufficient, report that without inferring support or lack of support. Keep different product models separate, preserve version labels, and ask for missing parameters before searching.",
+        "Search RDK manuals with BM25 over heading chunks, including FAQ question/answer sections. The default result is compact: up to 5 hits, each with title, url, section anchor, and a snippet of about 200 characters, together about 2000 characters. Open at most 1–2 of those pages with get_page, passing the hit url and its anchor. Pass limit for more hits, or verbose=true for scores, groups, coverage, and full snippets. Pass a short focused query: the error text, a command or API, or a few content words — not the user's whole paragraph. Pass board (x3|x5|s100|s600) whenever you know the board, even if the user left it out. When the user spoke colloquially, or the query is a pasted log or traceback, also pass alt_queries: up to 3 short reformulations in the wording of the manuals. Drop timestamps, host paths, and hex dumps; name the task the way a chapter title would, without adding facts the user did not state. Leave alt_queries empty when query is already a short manual phrase, a command, or an API name. The server searches each string and merges pages; it does not rewrite the query itself. confidence is advisory. noGoodMatch=false is not proof of relevance. noGoodMatch=true only when the query contains a package, command, API, or error code that appears in none of the searched manuals and not in the top hit: do not invent that identifier. If the snippets do not answer, reformulate and search again. Try 2 reformulations before concluding nothing is documented. ambiguousBoard=true means the query named no board: do not treat hits[0] as the user's board. A named board hard-filters the other family. source=forum or manual=forum for community posts; source=all only when the user asked for forum input. Do not invent commands or pinouts.",
       inputSchema: {
-        query: z.string().describe("Chinese or English search keywords"),
+        query: z.string().describe("Short keywords, error string, or identifier. Not a full paragraph. Keep identifiers whole, e.g. hobot_dnn, hrt_model_exec, AttributeError"),
         manual: z
           .string()
           .optional()
@@ -93,12 +90,39 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
           .enum(["docs", "forum", "all"])
           .optional()
           .describe("docs = manuals only; forum = community only; all = docs first, forum as supplement"),
-        limit: z.number().int().min(1).max(20).optional().describe("Max hits, default 8"),
+        board: z
+          .enum(["x3", "x5", "s100", "s600"])
+          .optional()
+          .describe("Pass when the board is known (x3|x5|s100|s600), even if the query omitted it. Omit when comparing boards or the board is unknown"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(20)
+          .optional()
+          .describe("Max hits. Default 5 in the compact result. Raise it to see more."),
+        verbose: z
+          .boolean()
+          .optional()
+          .describe("Return full hit records (score, coverage, confidence, board, groups, longer snippets). Default is the compact list."),
+        alt_queries: z
+          .array(z.string())
+          .max(3)
+          .optional()
+          .describe(
+            "Up to 3 short reformulations in documentation wording, each at most 300 characters. A longer one is dropped and listed in warnings; the search still runs. Pass when the user was colloquial or pasted a log. Omit when query is already a manual phrase.",
+          ),
       },
     },
-    async ({ query, manual, source, limit }) => {
+    async ({ query, manual, source, board, limit, verbose, alt_queries }) => {
         try {
-          return ok(await searchDocs({ query, manual, source, limit }, fetchText));
+          const resolvedLimit = limit ?? (verbose ? 8 : COMPACT_HIT_LIMIT);
+          const result = await searchDocs(
+            { query, manual, source, board, limit: resolvedLimit, altQueries: alt_queries },
+            fetchText,
+          );
+          if (verbose) return ok(result);
+          return ok(compactSearchResult(result, limit == null ? { capChars: COMPACT_RESULT_CHARS } : {}));
       } catch (error) {
         return fail(error);
       }
@@ -109,21 +133,30 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "get_page",
     {
       description:
-        "Fetch one official RDK documentation page or public community forum topic as Markdown. Prefer URLs returned by search_docs; forum content is read-only community experience, not official documentation.",
+        "Read one official page or public forum topic as Markdown. Open at most 1–2 pages per question, and pass the section anchor from search_docs (the hit url plus its anchor, or section). When query or a section/anchor is given, returns only the best-matching section(s), about 2000 characters, plus a capped list of omitted headings. If the query matches no section, the page's own sections are ranked with BM25; if that still matches nothing, the response is a section index of headings. Omit query to get the leading sections, about 6000 characters. An explicit maxChars is honored up to 40000 even when full is not set. Pass full=true for the whole page (maxChars then defaults to 16000, at most 40000). When headings are left out, the markdown ends with '… omitted sections: <headings>' (at most 800 characters, then '…and N more'). That list is not taken out of the body budget. imageOnly=true means the pin map is only in the images listed in contentNotes — do not invent pin numbers. truncated=true means the page has more text: pass full=true or a larger maxChars. To read exact full-page text windows, set offset=0 explicitly, then continue with next_offset and expected_content_hash; section/query defaults are unchanged when offset is omitted.",
       inputSchema: {
         url: z
           .string()
           .describe(
             "URL returned by search_docs: official documentation on developer.d-robotics.cc or a public read-only forum topic on forum.d-robotics.cc",
           ),
-        maxChars: z.number().int().min(1000).max(40000).optional(),
-        offset: z.number().int().min(0).optional().describe("Continuation offset from next_offset; requires expected_content_hash when nonzero"),
+        maxChars: z
+          .number()
+          .int()
+          .min(1000)
+          .max(40000)
+          .optional()
+          .describe("Maximum characters to return, honored up to 40000. When omitted, a query or section/anchor stays near 2000, leading sections stay near 6000, and full=true uses 16000."),
+        section: z.string().optional().describe("Heading to extract, e.g. 40PIN 管脚定义"),
+        query: z.string().optional().describe("Prefer sections that answer this. If none match, sections of this page are ranked with BM25; if that is also empty, a heading index is returned. Omit to return the leading sections."),
+        offset: z.number().int().min(0).optional().describe("Set 0 to start a full-page text window; continue with next_offset and expected_content_hash. Omit to keep section/query behavior."),
         expected_content_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+        full: z.boolean().optional().describe("Return the whole page instead of the relevant sections."),
       },
     },
-    async ({ url, maxChars, offset, expected_content_hash }) => {
+    async ({ url, maxChars, section, query, full, offset, expected_content_hash }) => {
       try {
-        return ok(await getPage({ url, maxChars, offset, expected_content_hash }, fetchText));
+        return ok(await getPage({ url, maxChars, section, query, full, offset, expected_content_hash }, fetchText));
       } catch (error) {
         return fail(error);
       }
@@ -153,15 +186,15 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "search_skills",
     {
       description:
-        "Find verified catalog candidates, not installed skills. The calling model MUST interpret user intent, exclusions, conditionals and split compound tasks first. Prefer task plus explicit platform/exclude_platforms/workflow. Query is short ranking text, NOT an instruction parser. ready_model means finding existing artifacts, model_conversion means creating them, model_maintenance means maintaining the catalog/samples. For model_conversion ask PTQ/QAT when undecided. Use model_compile for existing artifact compilation without inventing a quantization workflow; network for board networking. Inspect metadata_health and category_only guidance. For comparisons search each board separately. Query-only calls are legacy candidate retrieval; inspect get_skill before recommending 1-2. Hardware facts must use search_docs/get_page. Unknown metadata is not compatibility.",
+        "Find verified catalog candidates, not installed skills. The calling model MUST interpret user intent, exclusions, conditionals and split compound tasks first. Prefer task plus explicit platform/exclude_platforms/workflow. Query is short ranking text, NOT an instruction parser. ready_model means finding existing artifacts, model_conversion means creating them, model_maintenance means maintaining the catalog/samples. For model_conversion ask PTQ/QAT when undecided. Use model_compile for existing artifacts, network for connectivity and role for workflow scope. Check metadata_health and category_only before recommending. For comparisons search each board separately. Query-only calls are legacy candidate retrieval; inspect get_skill before recommending 1-2. Hardware facts must use search_docs/get_page. Unknown metadata is not compatibility.",
       inputSchema: z.object({
         query: z
           .string()
           .describe(
             "Short ranking keywords or canonical name. With task, prose never sets board/workflow constraints. Non-empty, max 500 chars",
           ),
-        role: z.enum(ROLES).optional().describe("Workflow entry, full workflow, or individual step; requires task"),
         task: z.enum(TASKS).optional().describe("Caller-selected task. Split camera+GPIO etc into separate calls."),
+        role: z.enum(ROLES).optional().describe("entry, workflow or step; requires task"),
         exclude_platforms: z.array(z.enum(PLATFORMS)).max(6).optional().describe("Explicit exclusions; requires task. Do not include boards merely mentioned for comparison."),
         workflow: z.enum(["ptq", "qat", "undecided"]).nullable().optional().describe("Only for model_conversion. Infer from explicit user intent, not the word training alone."),
         pack: z.string().optional().describe("Exact catalog pack filter"),
@@ -191,9 +224,9 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     "get_skill",
     {
       description:
-        "Get one skill's catalog detail and structured install guidance by its exact catalog name (from search_skills; display_name is for humans only — always fetch and install by the exact name field). flat returns an npx skills add command; workspace returns the full pack handoff (pack repo/ref/verify_paths plus the rdk-pack-installer acquisition command). Use include_content=true to inspect the revision-bound SKILL.md before evaluating prerequisites. Catalog summary alone is not content verification. Read-only: nothing is installed and no script runs; only proceed with installation when the user explicitly asks.",
+        "Get one skill's catalog detail and structured install guidance by its exact catalog name (from search_skills; display_name is for humans only — always fetch and install by the exact name field). flat returns an npx skills add command; workspace returns the full pack handoff (pack repo/ref/verify_paths plus the rdk-pack-installer acquisition command). Use include_content=true to read the catalog revision’s SKILL.md before evaluating prerequisites; unavailable content is not verified. Read-only: nothing is installed and no script runs; only proceed with installation when the user explicitly asks.",
       inputSchema: z.object({
-        include_content: z.boolean().optional().describe("Retrieve bounded SKILL.md source pinned to catalog_revision; default false"),
+        include_content: z.boolean().optional().describe("Read revision-bound SKILL.md; default false"),
         max_chars: z.number().int().min(1000).max(40000).optional(),
         offset: z.number().int().min(0).optional(),
         expected_content_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),

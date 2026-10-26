@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -15,7 +16,7 @@ describe("compatible capability contract", () => {
   it("advertises new fields and a human title with stable identity", async () => {
     const client = await connect();
     try {
-      expect(client.getServerVersion()).toMatchObject({name:"rdk-docs",title:"RDK Assistant MCP",version:"0.2.0"});
+      expect(client.getServerVersion()).toMatchObject({name:"rdk-docs",title:"RDK Docs",version:JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version});
       const {tools} = await client.listTools();
       const properties = (name:string) => tools.find(t=>t.name===name)?.inputSchema.properties;
       expect(properties("search_skills")).toHaveProperty("role");

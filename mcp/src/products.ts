@@ -1,27 +1,5 @@
 export type BoardId = "x3" | "x5" | "s100" | "s600";
 
-type BoardScopedDocument = {
-  manualId: string;
-  title: string;
-  url: string;
-  breadcrumbs?: string[];
-};
-
-const BOARD_IDS: BoardId[] = ["x3", "x5", "s100", "s600"];
-
-const MANUAL_BOARD_SCOPES: Record<string, BoardId[]> = {
-  "rdk-x": ["x3", "x5"],
-  "rdk-s": ["s100", "s600"],
-  "oe-x3": ["x3"],
-  "oe-x5": ["x5"],
-  "x5-sdk": ["x5"],
-  magicbox: ["x5"],
-  "oe-s": ["s100", "s600"],
-  "oe-llm-s100": ["s100"],
-  "oe-llm-s600": ["s600"],
-  "case-s600": ["s600"],
-};
-
 const RULES: Array<{ id: BoardId; re: RegExp }> = [
   { id: "x5", re: /rdk[\s_-]*x[\s_-]*5|\bx5\b/i },
   { id: "x3", re: /rdk\s*x\s*3|\bx3\b|旭日\s*x3/i },
@@ -29,10 +7,55 @@ const RULES: Array<{ id: BoardId; re: RegExp }> = [
   { id: "s100", re: /\bs100p?\b|\bs100\s*p\b/i },
 ];
 
+/**
+ * Board tokens already recognized above, longest first.
+ * Glued names are split with this list instead of a separate regex per board.
+ */
+const BOARD_TOKENS = ["s100p", "s100", "s600", "x5", "x3"];
+
+function rollback(part: string): boolean {
+  return (process.env.RDK_ABLATE ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .includes(part);
+}
+
+/** Treat `_`, `-`, and path punctuation as spaces so `driver_development_x5` names x5. */
+function loose(value: string): string {
+  return value.replace(/[_./#+-]+/g, " ");
+}
+
+/** List punctuation separates names: `x5、s100` is two boards. */
+function separateLists(value: string): string {
+  return value.replace(/[\u3001\uFF0C,;；]+/g, " ");
+}
+
+/**
+ * Insert the boundaries the existing rules already understand.
+ * `RDKS100` / `RDKX5` / `x3m` become spaced forms. No extra per-board pattern.
+ * `RDK_ABLATE=board_glued` restores recognition of spaced names only.
+ */
+function unglue(value: string): string {
+  let text = value.replace(/旭日\s*x?\s*(?=\d)/gi, "旭日 x");
+  for (const token of BOARD_TOKENS) {
+    const id = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    text = text.replace(new RegExp(`rdk(?=${id}(?![0-9a-z]))`, "gi"), "rdk ");
+    text = text.replace(new RegExp(`\\b${id}(?=[a-z]{1,2}\\b)`, "gi"), `${token} `);
+  }
+  return text;
+}
+
+function boardText(value: string): string {
+  const separated = separateLists(value);
+  return rollback("board_glued") ? loose(separated) : unglue(loose(separated));
+}
+
 export function mentionedBoards(query: string): BoardId[] {
   const found = new Set<BoardId>();
+  const hay = boardText(query);
+  const raw = rollback("board_glued") ? separateLists(query) : unglue(separateLists(query));
   for (const rule of RULES) {
-    if (rule.re.test(query)) found.add(rule.id);
+    if (rule.re.test(raw) || rule.re.test(hay)) found.add(rule.id);
   }
   return [...found];
 }
@@ -43,7 +66,7 @@ export function soleBoard(query: string): BoardId | undefined {
 }
 
 export function urlLooksLikeBoard(url: string, board: BoardId): boolean {
-  const u = url.toLowerCase();
+  const u = `${url}\n${loose(url)}`.toLowerCase();
   if (board === "x3") {
     return /rdk_x3|rdk\s*x3|\bx3\b|\/x3(?:_|\/|$)|hardware_introduction\/rdk_x3/.test(u);
   }
@@ -52,28 +75,4 @@ export function urlLooksLikeBoard(url: string, board: BoardId): boolean {
   }
   if (board === "s100") return /s100|rdk\s*s100/.test(u) && !/s600/.test(u);
   return /s600|rdk\s*s600/.test(u);
-}
-
-/**
- * Returns only board scope made explicit by page metadata or by a board-family
- * manual. An empty result means the page is shared or its scope is unknown.
- */
-export function documentBoardScope(doc: BoardScopedDocument): BoardId[] {
-  const pageIdentity = [doc.url, doc.title, ...(doc.breadcrumbs ?? [])].join(" ");
-  const explicit = new Set(mentionedBoards(pageIdentity));
-  for (const board of BOARD_IDS) {
-    if (urlLooksLikeBoard(pageIdentity, board)) explicit.add(board);
-  }
-  if (explicit.size > 0) return [...explicit];
-  return MANUAL_BOARD_SCOPES[doc.manualId] ?? [];
-}
-
-export function isClearlyIncompatibleBoardDoc(
-  doc: BoardScopedDocument,
-  query: string,
-): boolean {
-  const target = soleBoard(query);
-  if (!target) return false;
-  const scope = documentBoardScope(doc);
-  return scope.length > 0 && !scope.includes(target);
 }

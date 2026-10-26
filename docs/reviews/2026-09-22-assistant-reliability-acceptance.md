@@ -1,3 +1,17 @@
+# 2026-10-26 更新验收
+
+已将当前主分支 d1202ff（0.3.0）整合进原 PR 分支。保留缓存、安装可靠性、Skill 正文与元数据、诊断和来源标注；沿用当前 BM25、alt_queries、章节读取、预置索引、目录校验和安装备份。名称仍为 RDK Docs，未执行版本发布。
+
+- `npm run verify`：35 文件、472 项测试通过，构建通过。
+- `npm run verify:package`：实际 tarball 隔离安装通过；七个工具、新字段、未知约束拒绝、只读 doctor 和配套 Skill 一致性通过。
+- `npm run eval:offline`：60 个检索用例与主分支逐项结果完全一致，hit@1=0.683、hit@3=0.850、MRR=0.771；已有未命中项仍存在。离线评测未运行线上页面读取。
+- `rdk-docs` bundled Skill 格式校验通过。
+- 全文续读改为显式 `offset=0`；未传 offset 时保持章节模式，`next_offset=null`。本轮没有重新运行下方历史联网验收。
+
+以下是 2026-09-22 旧基线的历史记录，其中的显示名称、版本、354 项测试及线上目录覆盖数字不代表本次运行状态。
+
+---
+
 # RDK Assistant MCP 修复交付记录
 
 日期：2026-09-22。基线：`origin/main` 的 `70dfdc8`。按 `docs/superpowers/plans/2026-09-22-assistant-reliability.md` 执行，准备版本 0.2.0。

@@ -1,4 +1,4 @@
-# RDK Assistant MCP
+# rdk-docs-mcp
 
 检索 [D-Robotics 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 与 [社区论坛](https://forum.d-robotics.cc/)，并在 [D-Robotics/rdk-skills](https://github.com/D-Robotics/rdk-skills) 目录里发现 Skill（只读）的 MCP Server。共七个工具：`get_status`、`list_manuals`、`search_docs`、`get_page`、`list_toc`、`search_skills`、`get_skill`。
 
@@ -16,14 +16,6 @@ npx -y rdk-docs-mcp@latest --install
 
 需要 Node.js 20+。无需登录、无需 API Key。
 
+`search_docs` 用 BM25（标题和路径权重大于正文，中文按二字切分）。可选 `alt_queries`（最多 3 条，每条不超过 300 字，更长的会丢掉并写进 `warnings`，搜索仍继续）：调用方在用户口语化或贴了报错日志时，改写成文档用词；服务端按页面做 RRF 合并，不传则与单次查询相同。可多传 `board`（`x3` | `x5` | `s100` | `s600`）。问句或 `board` 点名 X3/X5 时会丢掉 S 系列手册，点名 S100/S600 时会丢掉 X 系列手册；同一本手册里对不上型号的页也会丢掉。问句和 `board` 都没指定板卡时，`ambiguousBoard=true`，命中按相关度排序，`groups` 仍按板卡分开；不要把 `hits[0]` 当成用户的板卡。在板子上的 Agent（包括 Moss）应传入检测到的板卡。每条命中带参考用的 `confidence`（0–1）。`noGoodMatch=true` 只在问句里的包名、命令、API 或错误码既不在所搜手册里、也不在顶部命中里时出现。没有这个标记不代表命中一定相关；摘要答不上就换问法、补 `board`，或 `source=forum`。`search_docs` 默认只返回 5 条紧凑命中（标题、URL、节锚点、约 200 字摘要，合计约 2000 字）。需要更多条用 `limit`，需要分数和完整摘要用 `verbose=true`。Agent 最多打开 1–2 个页面，并把命中里的锚点传给 `get_page`。`get_page` 在传入 `query`、`section` 或 URL `#anchor` 时只返回最匹配的节，约 2000 字，并附上被省略的标题列表（最多 800 字，其余记成 `…and N more`，不占正文预算）。问句对不上任何一节时，改用 BM25 在该页各节上重排；仍然没有命中则只返回节标题索引。不传问句时返回开头几节，约 6000 字。传入 `full=true` 才返回整页。显式 `maxChars` 按该值返回，最大 40000，不必设 `full`。`imageOnly=true` 表示该节只有图片。冷启动读包内 `prebuilt/` 文档快照和 `.bm25.gz` 倒排表。快照超过 14 天会改拉线上索引并警告；设 `RDK_DOCS_PREBUILT=0` 则总是在线拉索引。刷新快照用 `npm run build:index`，把 `prebuilt/` 提交后再发布。`npm publish` 只打包已提交的快照，`prepublishOnly` 不再重新拉线上索引，这样发出去的包和验证过的 tarball 一致。
 
-显示名称为 RDK Assistant MCP，npm 包及命令仍为 `rdk-docs-mcp`，配置 id 仍为 `rdk-docs`。
-
-```bash
-npx -y rdk-docs-mcp@latest --doctor
-npx -y rdk-docs-mcp@latest --doctor --check-catalog
-```
-
-`--doctor` 输出该进程的版本和能力，不刷新已安装 Skill；`--check-catalog` 额外检查目录并可能更新只读目录缓存。它不能代表另一条固定路径配置启动的版本，已连接客户端应调用 `get_status` 核对。
-
-Skill 搜索支持任务、角色、板卡和流程约束，返回分类覆盖及相关性状态；`get_skill(include_content=true)` 可读取目录版本对应的正文。`get_page` 和 Skill 正文续读使用返回的 `next_offset`、`content_hash`，下一次传入 `offset`、`expected_content_hash`。正文变化需从头读取。
+`get_status` 查看本次连接的版本与能力；`get_skill(include_content=true)` 读取目录版本绑定的正文。`metadata_health` 报告分类覆盖，支持 model_compile、network 与 role 筛选。`get_page` 保持既有章节模式；显式传 `offset=0` 才开启全文窗口，后续用 `next_offset` 和 `expected_content_hash` 续读。

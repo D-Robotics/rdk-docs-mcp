@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { getStatus } from "./status.js";
 import { SkillError, type CatalogResult } from "./skill-catalog.js";
@@ -7,10 +8,10 @@ describe("read-only capability diagnostics", () => {
     const loadCatalog = vi.fn();
     const status = await getStatus({}, { loadCatalog });
     expect(loadCatalog).not.toHaveBeenCalled();
-    expect(status.display_name).toBe("RDK Assistant MCP");
+    expect(status.display_name).toBe("RDK Docs");
     expect(status.package_name).toBe("rdk-docs-mcp");
     expect(status.server_id).toBe("rdk-docs");
-    expect(status.version).toBe("0.2.0");
+    expect(status.version).toBe(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
     expect(status.capabilities.structured_skill_search).toBe(true);
     expect(status.capabilities.skill_content).toBe(true);
     expect(status.capabilities.document_continuation).toBe(true);

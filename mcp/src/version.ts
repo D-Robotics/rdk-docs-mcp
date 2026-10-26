@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-export const DISPLAY_NAME = "RDK Assistant MCP";
+export const DISPLAY_NAME = "RDK Docs";
 export const PACKAGE_NAME = "rdk-docs-mcp";
 export const SERVER_ID = "rdk-docs";
 export const CAPABILITY_SCHEMA_VERSION = 1;
