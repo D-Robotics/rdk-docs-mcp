@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — 2026-10-26
+
+- The Studio manual refreshes from its published compatibility index, with an end-to-end cache age of at most 15 minutes (or a stricter configured limit). Other manuals retain their packaged-first behavior.
+- Invalid or failed refreshes retain usable prior data or the packaged snapshot and keep a stale/fallback warning on every affected result. Offline mode does not access the network.
+- Custom HTML heading IDs are preserved so a search result anchor can select its actual section, including after a long page preamble.
+- Release tags validate and package the committed source, then publish a tarball, SHA-256 checksum, and source-revision provenance without overwriting assets.
+
 ## 0.3.0 — 2026-10-10
 
 ### Fixed

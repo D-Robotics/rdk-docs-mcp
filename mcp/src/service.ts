@@ -1,11 +1,11 @@
 import { docInManual, listManuals, origin, resolveManual, type Manual } from "./catalog.js";
 import { mentionedBoards, urlLooksLikeBoard, type BoardId } from "./products.js";
-import { compactDocusaurusIndex } from "./docusaurus.js";
+import { assertDocusaurusIndex, compactDocusaurusIndex } from "./docusaurus.js";
 import { dedupeMirrorPages, fillPageBodies } from "./mirror-pages.js";
 import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
-import { fetchText, type HttpGet } from "./http.js";
+import { fetchText, fetchTextResponse, readCachedText, type HttpGet } from "./http.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
 import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } from "./bm25.js";
 import { searchGuidance } from "./routes.js";
@@ -173,9 +173,15 @@ function manualsForSearch(manual?: string, query = ""): { targets: Manual[]; war
   return { targets: [target, ...extras], warnings: [] };
 }
 
-async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
-  const cached = recallIndex(http, manual.id);
-  if (cached) return cached;
+async function loadIndex(manual: Manual, http: HttpGet, warnings: string[] = []): Promise<IndexedDoc[]> {
+  const cached = recallIndex(http, manual.id, false, warnings);
+  if (cached) {
+    if (manual.id === "rdk-studio" && process.env.RDK_DOCS_OFFLINE === "1") {
+      warnings.push("Offline Studio index fallback; results may be stale.");
+    }
+    return cached;
+  }
+  if (manual.id === "rdk-studio") return loadStudioIndex(manual, http, warnings);
   if (prebuiltEnabled(http)) {
     const snapshot = readPrebuiltSnapshot(manual.id);
     if (snapshot && !prebuiltIsStale(snapshot.builtAt)) {
@@ -214,19 +220,53 @@ async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
   return docs;
 }
 
+async function loadStudioIndex(manual: Manual, http: HttpGet, warnings: string[]): Promise<IndexedDoc[]> {
+  const prior = recallIndex(http, manual.id, true);
+  try {
+    let fetchedAt = Date.now();
+    const docs = await loadIndexFromOrigin(manual, http, { onFetched: (time) => { fetchedAt = time; } });
+    rememberIndex(http, manual.id, docs, { fetchedAt });
+    return docs;
+  } catch (error) {
+    let fallback = prior;
+    let source = "retained index";
+    if (!fallback && http === fetchText) {
+      const disk = await readCachedText(`${origin()}${manual.indexPath}`, true);
+      if (disk) fallback = compactDocusaurusIndex(JSON.parse(disk.text), manual.id);
+      source = "previously fetched index";
+    }
+    if (!fallback && prebuiltEnabled(http)) {
+      fallback = readPrebuiltSnapshot(manual.id)?.docs;
+      source = "packaged snapshot";
+      if (fallback) markPackagedIndex(fallback);
+    }
+    if (!fallback?.length) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    const warning = `Studio live index unavailable (${message}); fallback to ${source}. Results may be stale.`;
+    rememberIndex(http, manual.id, fallback, { warnings: [warning] });
+    warnings.push(warning);
+    return fallback;
+  }
+}
+
 export async function loadIndexFromOrigin(
   manual: Manual,
   http: HttpGet,
-  opts?: { fillBodies?: boolean },
+  opts?: { fillBodies?: boolean; onFetched?: (fetchedAt: number) => void },
 ): Promise<IndexedDoc[]> {
   if (manual.indexKind === "rspress") {
     return loadRspressDocs(manual, http);
   }
   if (!manual.indexPath) return [];
   const url = `${origin()}${manual.indexPath}`;
-  const body = await http(url);
+  const fetched = manual.id === "rdk-studio" && http === fetchText
+    ? await fetchTextResponse(url) : { text: await http(url), fetchedAt: Date.now() };
+  const body = fetched.text;
   if (manual.indexKind === "docusaurus") {
-    const docs = compactDocusaurusIndex(JSON.parse(body), manual.id).filter((doc) => docInManual(manual, doc.url));
+    const raw: unknown = JSON.parse(body);
+    if (manual.id === "rdk-studio") assertDocusaurusIndex(raw);
+    const docs = compactDocusaurusIndex(raw, manual.id).filter((doc) => docInManual(manual, doc.url));
+    opts?.onFetched?.(fetched.fetchedAt);
     if (!manual.expandBodies) return docs;
     const deduped = dedupeMirrorPages(docs);
     if (!opts?.fillBodies) return deduped;
@@ -303,7 +343,7 @@ export async function searchDocs(
     const loaded = await Promise.all(
       filtered.map(async (manual) => {
         try {
-          return { docs: await loadIndex(manual, http), warning: undefined };
+          return { docs: await loadIndex(manual, http, warnings), warning: undefined };
         } catch (error) {
           return {
             docs: [] as IndexedDoc[],
@@ -376,7 +416,7 @@ export async function searchDocs(
 export async function listToc(
   input: TocInput,
   http: HttpGet,
-): Promise<{ manual: string; pages: Array<{ title: string; url: string; breadcrumbs?: string[] }> }> {
+): Promise<{ manual: string; pages: Array<{ title: string; url: string; breadcrumbs?: string[] }>; warnings?: string[] }> {
   if (isForumRef(input.manual)) {
     return {
       manual: FORUM_ID,
@@ -391,7 +431,8 @@ export async function listToc(
     };
   }
 
-  const docs = await loadIndex(manual, http);
+  const warnings: string[] = [];
+  const docs = await loadIndex(manual, http, warnings);
   const source = docs.filter((doc) => doc.kind === "page");
   const filtered = input.query
     ? source.filter((doc) => doc.title.toLowerCase().includes(input.query!.toLowerCase()))
@@ -399,6 +440,7 @@ export async function listToc(
 
   return {
     manual: manual.id,
+    ...(warnings.length ? { warnings } : {}),
     pages: filtered.map((doc) => ({
       title: doc.title,
       url: doc.url.split("#")[0] ?? doc.url,

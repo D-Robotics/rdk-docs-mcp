@@ -107,11 +107,19 @@ function renderNode(node: Node, url: string): string {
     const label = el.getAttribute("label") ?? el.getAttribute("value");
     return `\n${label ? `**${label}**\n\n` : ""}${inner}\n\n`;
   }
+  if (/^h[1-6]$/.test(tag)) {
+    const id = el.getAttribute("id");
+    // Section selection already understands empty heading self-links. Preserve the real HTML ID.
+    const text = id ? inner.replace(/\[\]\([^)]+#[^)]*\)\s*$/, "").trim() : inner;
+    let anchor = "";
+    if (id) {
+      const target = new URL(url);
+      target.hash = encodeURIComponent(id).replace(/\(/g, "%28").replace(/\)/g, "%29");
+      anchor = `[](${target.href})`;
+    }
+    return `\n${"#".repeat(Number(tag[1]))} ${text}${anchor}\n\n`;
+  }
   switch (tag) {
-    case "h1": return `\n# ${inner}\n\n`;
-    case "h2": return `\n## ${inner}\n\n`;
-    case "h3": return `\n### ${inner}\n\n`;
-    case "h4": return `\n#### ${inner}\n\n`;
     case "p": return `${inner}\n\n`;
     case "code": return `\`${codeText(el)}\``;
     case "li": return `- ${inner}\n`;

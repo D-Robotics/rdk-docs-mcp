@@ -1,0 +1,128 @@
+name: Release MCP package
+
+on:
+  push:
+    tags: ['mcp-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - name: Match the package version to its release tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const {version} = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          assert.equal(process.env.RELEASE_TAG, `mcp-v${version}`);
+          NODE
+      - run: npm ci
+      - run: npm test
+      - name: Build and evaluate without network access
+        run: npm run eval:offline
+        env:
+          RDK_DOCS_OFFLINE: '1'
+      - name: Pack the verified source
+        run: |
+          mkdir -p ../release
+          npm pack --pack-destination ../release
+      - name: Bind the artifact to its source revision
+        env:
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {createHash} from 'node:crypto';
+          import {execFileSync} from 'node:child_process';
+          const {version} = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const archive = `rdk-docs-mcp-${version}.tgz`;
+          const out = path.resolve('../release');
+          const sha256 = createHash('sha256').update(fs.readFileSync(path.join(out, archive))).digest('hex');
+          const sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
+          fs.writeFileSync(path.join(out, `${archive}.sha256`), `${sha256}  ${archive}\n`);
+          fs.writeFileSync(path.join(out, `rdk-docs-mcp-${version}.provenance.json`), JSON.stringify({
+            sourceRepository: process.env.SOURCE_REPOSITORY, sourceRevision, version, archive, sha256,
+          }, null, 2) + '\n');
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-mcp-release
+          path: release/
+          if-no-files-found: error
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-mcp-release
+          path: release
+      - name: Verify artifact digest and source before publication
+        env:
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          SOURCE_REVISION: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {createHash} from 'node:crypto';
+          const names = fs.readdirSync('release');
+          const manifests = names.filter(name => name.endsWith('.provenance.json'));
+          assert.equal(manifests.length, 1);
+          const data = JSON.parse(fs.readFileSync(path.join('release', manifests[0]), 'utf8'));
+          assert.equal(data.sourceRepository, process.env.SOURCE_REPOSITORY);
+          assert.equal(data.sourceRevision, process.env.SOURCE_REVISION);
+          assert.match(data.sourceRevision, /^[0-9a-f]{40}$/);
+          assert.equal(process.env.RELEASE_TAG, `mcp-v${data.version}`);
+          assert.equal(data.archive, `rdk-docs-mcp-${data.version}.tgz`);
+          assert.deepEqual(names.sort(), [data.archive, `${data.archive}.sha256`, manifests[0]].sort());
+          const sha256 = createHash('sha256').update(fs.readFileSync(path.join('release', data.archive))).digest('hex');
+          assert.equal(sha256, data.sha256);
+          assert.equal(fs.readFileSync(path.join('release', `${data.archive}.sha256`), 'utf8'), `${sha256}  ${data.archive}\n`);
+          NODE
+      - name: Publish verified assets without overwriting existing content
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json targetCommitish,assets > release-state.json 2>/dev/null; then
+            test "$(jq -r .targetCommitish release-state.json)" = "$SOURCE_REVISION"
+            mkdir existing
+            if test "$(jq '.assets | length' release-state.json)" -gt 0; then
+              gh release download "$RELEASE_TAG" --dir existing
+            fi
+            for asset in release/*; do
+              name=$(basename "$asset")
+              if test -f "existing/$name"; then
+                cmp "$asset" "existing/$name"
+              else
+                gh release upload "$RELEASE_TAG" "$asset"
+              fi
+            done
+          else
+            gh release create "$RELEASE_TAG" release/* --verify-tag \
+              --target "$SOURCE_REVISION" --title "rdk-docs-mcp ${RELEASE_TAG#mcp-v}" \
+              --notes 'Verified MCP package; see the checksum and provenance assets for its source revision.'
+          fi
