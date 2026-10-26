@@ -8,12 +8,14 @@
 
 | 组成 | 作用 | 装好的标志 |
 |---|---|---|
-| MCP 服务 `rdk-docs` | 6 个工具：`list_manuals`、`search_docs`、`get_page`、`list_toc`、`search_skills`、`get_skill` | 第五节自检输出 `OK 6 tools`，重启后客户端能调用这些工具 |
+| MCP 服务 `rdk-docs` | 12 个工具：6 个检索工具及本人账号、发布预览、案例／Skill／论坛发布和状态查询 | 第五节自检输出 `OK 12 tools`，重启后客户端能调用这些工具 |
 | 3 个 Skill | `rdk-docs`（文档检索用法）、`forum-post`（论坛发帖）、`article-writer`（成文与配图） | 客户端的 skills 目录里各有一份 `<skill>/SKILL.md` |
 
 工具在不同客户端里可能带前缀，例如 `mcp__rdk-docs__search_docs`，是同一个工具。
 
 各工具要访问的网络：`list_manuals`、`list_toc`、`search_docs`（只查手册时）用包内索引，离线也能用；`get_page` 要能访问 `developer.d-robotics.cc`，`source=forum` 要能访问 `forum.d-robotics.cc`；`search_skills` / `get_skill` 要能访问 GitHub（`api.github.com`、`raw.githubusercontent.com`）。另外 `npx ...@latest` 每次启动都要连 npm 源。
+
+社区发布需由使用者自行登录并确认内容。交互登录依赖 agent-browser，安装与检索自检不要求登录；发布流程见随包 community.md。
 
 ## 执行规则
 
@@ -230,7 +232,7 @@ foreach ($s in "rdk-docs","forum-post","article-writer") {
 node -e "const p=require('child_process').spawn('npx',['-y','rdk-docs-mcp@latest'],{shell:process.platform==='win32',stdio:['pipe','pipe','inherit']});let o='',sent=0;const T=setTimeout(()=>{console.error('FAIL: timeout after 180s');process.exit(2)},180000);const s=m=>p.stdin.write(JSON.stringify(m)+'\n');p.on('exit',c=>{console.error('FAIL: server exited, code '+c);process.exit(1)});p.stdout.on('data',d=>{o+=d;for(const l of o.split('\n')){let m;try{m=JSON.parse(l)}catch{continue}if(m.id===1&&!sent){sent=1;s({jsonrpc:'2.0',method:'notifications/initialized'});s({jsonrpc:'2.0',id:2,method:'tools/list'})}if(m.id===2&&m.result){const n=m.result.tools.map(t=>t.name);console.log('OK '+n.length+' tools: '+n.join(', '));clearTimeout(T);p.removeAllListeners('exit');p.kill();process.exit(n.includes('search_docs')?0:1)}}});s({jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'selfcheck',version:'1'}}})"
 ```
 
-   通过时输出 `OK 6 tools: list_manuals, search_docs, get_page, list_toc, search_skills, get_skill`，退出码 0。启动失败输出 `FAIL: ...`，退出码非 0。首次运行要下载包，可能要几十秒。
+   通过时输出 `OK 12 tools: list_manuals, search_docs, get_page, list_toc, search_skills, get_skill, community_account, prepare_community_publish, publish_case, publish_skill, publish_forum_post, get_publication_status`，退出码 0。启动失败输出 `FAIL: ...`，退出码非 0。首次运行要下载包，可能要几十秒。
 
 2. **重载**：让用户重载窗口或重启 Agent。刚写入的 MCP 通常要重启后才挂上；如果你在当前会话里看不到 `rdk-docs` 工具，这是正常的，告诉用户重启后再试。
 3. **调一次工具**（能调用时）：执行 `list_manuals`，返回里应有 `rdk-x`、`rdk-s`、`tros` 等手册。再试一次 `search_docs`，例如 `query="RDK X5 烧录系统镜像", board="x5"`，应返回烧录相关页面。
@@ -243,7 +245,7 @@ node -e "const p=require('child_process').spawn('npx',['-y','rdk-docs-mcp@latest
 已安装 rdk-docs：
 - MCP：写入 <配置文件或使用的命令>
 - Skills：写入 <目录>（rdk-docs / forum-post / article-writer）
-- 自检：<OK 6 tools / list_manuals 结果，或“需重启后验证”>
+- 自检：<OK 12 tools / list_manuals 结果，或“需重启后验证”>
 - 备份：<.bak 文件列表>
 下一步：请重载窗口 / 重启 Agent，然后可以问：
 - RDK X5 怎么把系统镜像烧到 SD 卡？

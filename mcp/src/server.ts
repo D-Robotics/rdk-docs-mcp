@@ -10,6 +10,8 @@ import { SkillError } from "./skill-catalog.js";
 import { getSkillDetail, searchSkills, type SkillServiceDeps } from "./skill-service.js";
 import { COMPACT_HIT_LIMIT, COMPACT_RESULT_CHARS, compactSearchResult } from "./present.js";
 import { getPage, listToc, searchDocs } from "./service.js";
+import { registerCommunityTools } from "./community-tools.js";
+import type { PublishingBackend } from "./community-publishing.js";
 
 /** Single source of truth for the advertised version: the package itself. */
 export const PACKAGE_VERSION = (() => {
@@ -47,7 +49,7 @@ function failSkill(error: unknown) {
   return fail(error);
 }
 
-export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): McpServer {
+export function createServer(options: { skillDeps?: SkillServiceDeps; publishingBackend?: PublishingBackend } = {}): McpServer {
   const server = new McpServer({
     name: "rdk-docs",
     version: PACKAGE_VERSION,
@@ -239,5 +241,6 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     },
   );
 
+  registerCommunityTools(server, { backend: options.publishingBackend });
   return server;
 }

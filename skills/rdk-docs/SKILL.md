@@ -1,9 +1,15 @@
 ---
 name: rdk-docs
-description: Retrieves official D-Robotics RDK documentation from developer.d-robotics.cc. Forum posts are optional supplement only. Use when the user asks about RDK X3/X5/S100/S600, TogetheROS/TROS, Model Zoo, OE toolchain, XBurn, RDK Studio, Magicbox, 双目摄像头, BMI088, 烧录, 量化, or any d-robotics developer docs. Also discovers RDK Skills in the D-Robotics/rdk-skills catalog via search_skills/get_skill when the user looks for a tool or workflow (找 Skill, 推荐 Skill, X5 量化部署怎么做).
+description: Retrieves official D-Robotics RDK documentation from developer.d-robotics.cc. Forum posts are optional supplement only. Use when the user asks about RDK X3/X5/S100/S600, TogetheROS/TROS, Model Zoo, OE toolchain, XBurn, RDK Studio, Magicbox, 双目摄像头, BMI088, 烧录, 量化, or any d-robotics developer docs. Also publishes user-confirmed RDK cases and Skills to the D-Robotics community through MCP. Also discovers RDK Skills in the D-Robotics/rdk-skills catalog via search_skills/get_skill when the user looks for a tool or workflow (找 Skill, 推荐 Skill, X5 量化部署怎么做).
 ---
 
 # RDK 资料中心 + 社区论坛 + Skill 目录
+
+## 社区发布
+
+用户要求向地瓜社区发布案例或 Skill 时，使用 `community_account` 核对本人身份，需要时让使用者在独立浏览器自行登录。用 `prepare_community_publish` 准备预览，展示实际作者、发布位置、正文／仓库 README、附件和开源分发声明。使用者确认内容及声明后，才调用 `publish_case` 或 `publish_skill`，传预览返回的 confirmation_id 和确认值。修改内容、附件或更换账号后重新预览。
+
+案例正文来自公开 GitHub 仓库 README，封面为本地图片，可选 B 站嵌入代码；Skill 提交包含 SKILL.md 的 ZIP 包到社区技能中心审核。论坛发帖走 `forum-post` 中的 MCP 入口。只有 published 才称已发布；其余按真实状态说明，可用 `get_publication_status` 查询。不要把社区 Skill 提交当作 GitHub 官方目录收录，也不要自动重试结果不明确的写入。
 
 所有检索都走 MCP。默认 `search_docs` 只查官方手册；用户明确要求社区/论坛经验时才使用 `source=forum` 或 `source=all`。`manual=forum` 保持兼容并等同于 `source=forum`。论坛结果是非正式证据，不能替代官方手册。
 

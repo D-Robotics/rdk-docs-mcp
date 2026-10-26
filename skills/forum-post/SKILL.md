@@ -7,6 +7,16 @@ description: 把图文/视频内容发布到 Discourse 论坛（默认 forum.d-r
 
 默认目标 `https://forum.d-robotics.cc/`（地瓜机器人论坛，Discourse + D-Robotics SSO）。
 
+## MCP 发布入口（可用时优先）
+
+若 tools/list 包含 `prepare_community_publish` 和 `publish_forum_post`，使用 MCP 完成本人登录、预览和发帖：
+
+1. `community_account(action="status")` 核对实际论坛作者。需要登录时用 `action="login"` 打开独立浏览器，让用户自行登录，再 `action="complete_login"`；不在聊天中索取账号密码、Token 或 Cookie。
+2. `prepare_community_publish` 传 `kind="forum_post"`、标题、Markdown、分类及附件路径。展示完整内容、作者、去向和附件后，请使用者确认。
+3. 使用者确认后，才调用 `publish_forum_post(confirmation_id=..., confirmed=true)`。没有确认就不提交。状态为 pending_review 时说明审核中；发布结果不明确时先查状态，不重复发帖。
+
+旧版 MCP 缺少这些工具或用户明确要求编辑已有帖子时，再使用下述浏览器/API 路线。
+
 ## 前置依赖（动手前先检查）
 
 - **agent-browser CLI**（浏览器路线必需）：`npm i -g agent-browser && agent-browser install`。`which agent-browser` 有输出才算就绪；没装就先装，别硬走 API 路线徒手搬 cookie。
