@@ -3,10 +3,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import type { HttpGet } from "./http.js";
-import { fetchText } from "./http.js";
+import { fetchText, studioCacheTtlMs } from "./http.js";
 import type { IndexedDoc } from "./types.js";
 
-const memory = new WeakMap<HttpGet, Map<string, IndexedDoc[]>>();
+type IndexEntry = { docs: IndexedDoc[]; expiresAt: number; warnings: string[] };
+const memory = new WeakMap<HttpGet, Map<string, IndexEntry>>();
 const notes: string[] = [];
 
 /** Packaged snapshots older than this are refreshed from the live index when the network is available. */
@@ -67,17 +68,31 @@ export function drainIndexNotes(): string[] {
   return notes.splice(0, notes.length);
 }
 
-export function recallIndex(http: HttpGet, manualId: string): IndexedDoc[] | undefined {
-  return memory.get(http)?.get(manualId);
+export function recallIndex(
+  http: HttpGet, manualId: string, allowStale = false, warnings?: string[],
+): IndexedDoc[] | undefined {
+  const entry = memory.get(http)?.get(manualId);
+  if (!entry || !allowStale && Date.now() >= entry.expiresAt) return undefined;
+  if (!allowStale) warnings?.push(...entry.warnings);
+  return entry.docs;
 }
 
-export function rememberIndex(http: HttpGet, manualId: string, docs: IndexedDoc[]): void {
+export function rememberIndex(
+  http: HttpGet, manualId: string, docs: IndexedDoc[],
+  options: { fetchedAt?: number; warnings?: string[] } = {},
+): void {
   let bucket = memory.get(http);
   if (!bucket) {
     bucket = new Map();
     memory.set(http, bucket);
   }
-  bucket.set(manualId, docs);
+  bucket.set(manualId, {
+    docs,
+    // A disk-cache hit must not start another full memory-cache window.
+    expiresAt: manualId === "rdk-studio"
+      ? (options.fetchedAt ?? Date.now()) + studioCacheTtlMs() : Infinity,
+    warnings: options.warnings ?? [],
+  });
 }
 
 export function readPrebuiltSnapshot(manualId: string): PrebuiltSnapshot | undefined {

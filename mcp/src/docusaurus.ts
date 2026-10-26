@@ -14,6 +14,29 @@ type Shard = {
   documents?: RawDoc[];
 };
 
+/** Reject broken Studio indexes before they replace a usable on-disk copy. */
+export function assertDocusaurusIndex(raw: unknown): void {
+  const valid = Array.isArray(raw) && raw.length > 0 && raw.every((shard: unknown) => {
+    if (!shard || typeof shard !== "object" || !Array.isArray((shard as Shard).documents)) return false;
+    return (shard as Shard).documents!.every((doc) => doc && typeof doc === "object" &&
+      typeof doc.u === "string" && isStudioUrl(doc.u) && typeof doc.t === "string" &&
+      [doc.h, doc.s].every((value) => value === undefined || typeof value === "string") &&
+      (doc.b === undefined || Array.isArray(doc.b) && doc.b.every((value) => typeof value === "string")));
+  });
+  if (!valid || !(raw as Shard[]).some((shard) => shard.documents!.length > 0)) {
+    throw new Error("Invalid or empty Studio documentation index");
+  }
+}
+
+function isStudioUrl(path: string): boolean {
+  try {
+    const url = new URL(path, origin());
+    return url.origin === origin() && (url.pathname === "/rdk_studio_doc" || url.pathname.startsWith("/rdk_studio_doc/"));
+  } catch {
+    return false;
+  }
+}
+
 function toAbsoluteUrl(path: string, hash?: string): string {
   const base = path.startsWith("http") ? path : `${origin()}${path}`;
   if (!hash) return base;
