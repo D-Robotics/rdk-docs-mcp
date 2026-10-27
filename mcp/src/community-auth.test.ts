@@ -11,8 +11,11 @@ describe("personal community sessions", () => {
     const dir = await mkdtemp(join(tmpdir(), "rdk-auth-")); dirs.push(dir);
     const file = join(dir, "config", "session.json"); const store = new SessionStore(file, {});
     await store.save({ community_token: "Bearer test-secret", forum_cookie: "_t=private" });
-    expect((await stat(file)).mode & 0o777).toBe(0o600);
-    expect((await stat(join(dir, "config"))).mode & 0o777).toBe(0o700);
+    // Windows stat does not report Unix permission bits. The loader enforces 0600 only off Windows.
+    if (process.platform !== "win32") {
+      expect((await stat(file)).mode & 0o777).toBe(0o600);
+      expect((await stat(join(dir, "config"))).mode & 0o777).toBe(0o700);
+    }
     expect(await store.load()).toMatchObject({ community_token: "Bearer test-secret" });
     await store.clear(); await expect(store.load()).rejects.toMatchObject({ code: "login_required" });
   });
