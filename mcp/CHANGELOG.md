@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 — Unreleased
+## 0.4.0 — 2026-10-27
 
 - Add personal-account case, Skill and forum-post publication with local previews and explicit human confirmation.
 - Reuse the community's repository-backed case, signed upload-policy and Skill-review APIs. Report published, pending, rejected and unknown states separately.
