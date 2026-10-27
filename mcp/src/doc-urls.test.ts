@@ -12,4 +12,9 @@ describe("canonicalizeDocUrl", () => {
     const live = "https://developer.d-robotics.cc/rdk_s_doc/RDK";
     expect(canonicalizeDocUrl(live)).toBe(live);
   });
+
+  it("rewrites retired S600 LLM URLs while preserving queries and anchors", () => {
+    expect(canonicalizeDocUrl("https://developer.d-robotics.cc/oe_llm_s600_doc/guide/api?lang=zh#types"))
+      .toBe("https://developer.d-robotics.cc/oe_llm_doc/guide/api?lang=zh#types");
+  });
 });

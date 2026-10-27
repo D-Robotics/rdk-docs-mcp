@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { origin } from "./catalog.js";
+import { origin, resolveManual } from "./catalog.js";
 import {
   compactRspressIndex,
+  loadRspressDocs,
   dedupeLanguageCopies,
   normalizeDocPath,
   parseRspressIndexGroups,
@@ -50,6 +51,29 @@ describe("Rspress index discovery", () => {
       `${origin()}/oe_s_doc/static/js/4778.7688d284.js`,
       `${origin()}/oe_s_doc/static/js/index.d20a6e45.js`,
     ]);
+  });
+
+  it("uses the site's first-dot replacement for multi-part versions", () => {
+    expect(searchIndexFilename({ version: "v1.0.5", lang: "zh", hash: "2ea47cf2" })).toBe(
+      "search_index.v1_0.5.zh.2ea47cf2.json",
+    );
+  });
+
+  it("loads indexes beside the discovered bundle after the documentation site moves", async () => {
+    const manual = { ...resolveManual("oe-llm-s600")!, homeUrl: `${origin()}/oe_llm_s600_doc/index.html`, basePath: "/oe_llm_s600_doc" };
+    const requests: string[] = [];
+    const http = async (url: string) => {
+      requests.push(url);
+      if (url === manual.homeUrl) return '<script src="/oe_llm_doc/static/js/app.12345678.js"></script>';
+      if (url === `${origin()}/oe_llm_doc/static/js/app.12345678.js`) return 'map={"v1.0.5###zh":"2ea47cf2"}';
+      if (url === `${origin()}/oe_llm_doc/static/search_index.v1_0.5.zh.2ea47cf2.json`) {
+        return JSON.stringify([{ title: "LLM 接口", routePath: "/oe_llm_doc/guide/api", content: "S600 LLM 接口说明" }]);
+      }
+      throw new Error(`Unexpected index request: ${url}`);
+    };
+    const docs = await loadRspressDocs(manual, http);
+    expect(docs[0]?.text).toBe("S600 LLM 接口说明");
+    expect(requests.at(-1)).toBe(`${origin()}/oe_llm_doc/static/search_index.v1_0.5.zh.2ea47cf2.json`);
   });
 });
 

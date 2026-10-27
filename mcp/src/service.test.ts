@@ -639,3 +639,22 @@ describe("loadIndexFromOrigin", () => {
     expect(page?.text ?? "").toContain("供电与烧录步骤");
   });
 });
+
+describe("migrated OE LLM pages", () => {
+  it("recovers a legacy S600 URL from the current site's index", async () => {
+    const base = "https://developer.d-robotics.cc/oe_llm_doc";
+    const shell = '<meta name="generator" content="Rspress v1.23.1"><div id="__rspress_root"></div>';
+    const mock: HttpGet = async url => {
+      if (url === `${base}/guide/api`) return shell;
+      if (url === `${base}/index.html`) return shell + '<script src="/oe_llm_doc/static/js/app.12345678.js"></script>';
+      if (url === `${base}/static/js/app.12345678.js`) return 'map={"###zh":"abcdef12"}';
+      if (url === `${base}/static/search_index.zh.abcdef12.json`) {
+        return JSON.stringify([{ title: "LLM 接口", routePath: "/oe_llm_doc/guide/api", content: "S600 LLM 接口说明" }]);
+      }
+      throw new Error(`Unexpected page request: ${url}`);
+    };
+    const page = await getPage({url:"https://developer.d-robotics.cc/oe_llm_s600_doc/guide/api"}, mock);
+    expect(page.url).toBe(`${base}/guide/api`);
+    expect(page.markdown).toContain("S600 LLM 接口说明");
+  });
+});
