@@ -105,7 +105,9 @@ export async function probePageStatus(url: string): Promise<number> {
 export async function findDeadPageUrls(
   urls: string[],
   probe: PageProbe = probePageStatus,
-  concurrency = 24,
+  // Large bursts can trigger the documentation site's access protection,
+  // blocking both these probes and subsequent search-index downloads.
+  concurrency = 4,
 ): Promise<{ dead: string[]; unchecked: string[] }> {
   const pending = [...new Set(urls.map(pageUrl))];
   const dead: string[] = [];
