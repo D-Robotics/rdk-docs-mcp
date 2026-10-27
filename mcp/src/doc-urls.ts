@@ -1,14 +1,18 @@
 const DOCS_HOST = "developer.d-robotics.cc";
-const RETIRED_PREFIX = "/rdk_doc";
-const CURRENT_PREFIX = "/rdk_x_doc";
+const PREFIX_REDIRECTS = [
+  ["/rdk_doc", "/rdk_x_doc"],
+  ["/oe_llm_s600_doc", "/oe_llm_doc"],
+] as const;
 
 export function canonicalizeDocUrl(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.hostname !== DOCS_HOST) return url;
-    if (parsed.pathname === RETIRED_PREFIX || parsed.pathname.startsWith(`${RETIRED_PREFIX}/`)) {
-      parsed.pathname = `${CURRENT_PREFIX}${parsed.pathname.slice(RETIRED_PREFIX.length)}`;
-      return parsed.toString();
+    for (const [retired, current] of PREFIX_REDIRECTS) {
+      if (parsed.pathname === retired || parsed.pathname.startsWith(`${retired}/`)) {
+        parsed.pathname = `${current}${parsed.pathname.slice(retired.length)}`;
+        return parsed.toString();
+      }
     }
     return url;
   } catch {

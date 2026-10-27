@@ -36,7 +36,8 @@ export function parseRspressIndexGroups(js: string): RspressIndexGroup[] {
 }
 
 export function searchIndexFilename(group: RspressIndexGroup): string {
-  const version = group.version ? `.${group.version.replaceAll(".", "_")}` : "";
+  // Rspress v1 replaces the first dot only (v1.0.5 -> v1_0.5).
+  const version = group.version ? `.${group.version.replace(".", "_")}` : "";
   const lang = group.lang ? `.${group.lang}` : "";
   return `search_index${version}${lang}.${group.hash}.json`;
 }
@@ -115,23 +116,24 @@ export async function loadRspressDocs(manual: Manual, http: HttpGet): Promise<In
   }
 
   const seen = new Set<string>();
-  const groups: RspressIndexGroup[] = [];
+  const indexUrls: string[] = [];
   for (const bundleUrl of bundles) {
     const js = await http(bundleUrl);
     for (const group of parseRspressIndexGroups(js)) {
-      const name = searchIndexFilename(group);
-      if (seen.has(name)) continue;
-      seen.add(name);
-      groups.push(group);
+      // A retired manual URL can redirect to a new site prefix. Use the
+      // discovered app bundle's location, rather than the catalog's old path.
+      const indexUrl = new URL(`../${searchIndexFilename(group)}`, bundleUrl).href;
+      if (seen.has(indexUrl)) continue;
+      seen.add(indexUrl);
+      indexUrls.push(indexUrl);
     }
   }
-  if (groups.length === 0) {
+  if (indexUrls.length === 0) {
     throw new Error(`No search_index hashes in Rspress bundles for ${manual.id}`);
   }
 
   const loaded = await Promise.all(
-    groups.map(async (group) => {
-      const url = `${origin()}${manual.basePath}/static/${searchIndexFilename(group)}`;
+    indexUrls.map(async (url) => {
       const raw: unknown = JSON.parse(await http(url));
       return compactRspressIndex(raw, manual.id);
     }),
