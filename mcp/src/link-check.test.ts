@@ -10,6 +10,23 @@ const doc = (url: string, kind: IndexedDoc["kind"]): IndexedDoc => ({
 });
 
 describe("page link check", () => {
+  it("limits default probe concurrency while checking every page", async () => {
+    const urls = Array.from({ length: 33 }, (_, i) => `https://example.test/page-${i}`);
+    const visited: string[] = [];
+    let active = 0;
+    let peak = 0;
+    const result = await findDeadPageUrls(urls, async (url) => {
+      visited.push(url);
+      peak = Math.max(peak, ++active);
+      await Promise.resolve();
+      active -= 1;
+      return 200;
+    });
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(visited.sort()).toEqual([...urls].sort());
+    expect(result).toEqual({ dead: [], unchecked: [] });
+  });
+
   it("keeps the trailing slash and strips the hash and query", () => {
     expect(pageUrl("https://example.test/oe_x5_doc/cn/?x=1#top")).toBe("https://example.test/oe_x5_doc/cn/");
   });
