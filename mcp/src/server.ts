@@ -7,6 +7,8 @@ import { SkillError } from "./skill-catalog.js";
 import { getSkillDetail, searchSkills, type SkillServiceDeps } from "./skill-service.js";
 import { COMPACT_HIT_LIMIT, COMPACT_RESULT_CHARS, compactSearchResult } from "./present.js";
 import { getPage, listToc, searchDocs } from "./service.js";
+import { registerCommunityTools } from "./community-tools.js";
+import type { PublishingBackend } from "./community-publishing.js";
 
 import { DISPLAY_NAME, PACKAGE_VERSION, SERVER_ID } from "./version.js";
 import { getStatus } from "./status.js";
@@ -37,7 +39,7 @@ function failSkill(error: unknown) {
   return fail(error);
 }
 
-export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): McpServer {
+export function createServer(options: { skillDeps?: SkillServiceDeps; publishingBackend?: PublishingBackend } = {}): McpServer {
   const server = new McpServer({
     name: SERVER_ID,
     title: DISPLAY_NAME,
@@ -242,5 +244,6 @@ export function createServer(options: { skillDeps?: SkillServiceDeps } = {}): Mc
     },
   );
 
+  registerCommunityTools(server, { backend: options.publishingBackend });
   return server;
 }

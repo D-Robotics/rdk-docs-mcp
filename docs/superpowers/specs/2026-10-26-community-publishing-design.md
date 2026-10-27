@@ -1,0 +1,13 @@
+# Community publishing
+
+The user approved implementing only case, Skill and forum-post publication. Each publication uses the MCP user's own community account and requires that user to confirm the exact content and destination. Keep the six existing read tools and package/configuration names compatible.
+
+Use the community's existing web APIs rather than a new backend. Alternatives considered: browser-only form automation is coupled to changing UI selectors; a new community backend would expand this task. A small API adapter reuses the existing services, with interactive browser login solely for acquiring the user's own session.
+
+Add account login/status, publication preview, three publication tools, and status lookup. Preview reads local attachments and identifies their hashes, author, destination and required community agreements. A confirmation id binds this exact preview to the account and bytes. Submission requires explicit confirmation and the case/Skill open-source agreement; it cannot accept an arbitrary author or changed content. Repeated submissions of a successful confirmation return its recorded result. An ambiguous write is not automatically retried.
+
+Case: cover image upload policy, create a repository-backed draft, request publication, then read its actual status. Skill: ZIP package and optional icon upload policies, submit metadata and version, then read review status. Forum: authenticated Discourse user session, optional attachments and Markdown, then topic creation. Pending review is distinct from published. Credentials stay in a private local file, outside tool arguments and responses.
+
+Contracts verified on 2026-10-26 from authenticated web forms and their shipped JavaScript: `/api/auth/me`; `/api/assets/upload-policy` with CASE_COVER_IMAGE, SKILL_PACKAGE and SKILL_ICON; `/api/users/me/cases/create`, `/publish`, and owned detail; `/api/skills` and owned detail; Discourse `/session/current.json`, `/session/csrf.json`, `/uploads.json`, `/posts.json`. Case text is derived from the GitHub repository's README; video uses the community's Bilibili embed field. Skill ZIP limit is 50 MiB. Authenticated upload policy reports cover limit 10 MiB; icon form limit is 2 MiB.
+
+Verify confirmation/account/file-change boundaries and all three workflows with a local HTTP server, then real MCP protocol tests. Live identity/preview/status checks are read-only; draft-only writes require user authorization, and publishing test content requires approval of that content. No npm publication, production rollout, hardware execution, GitHub Skill submission or unrelated rename is included.

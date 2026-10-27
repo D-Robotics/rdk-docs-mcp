@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — Unreleased
 
+- Add personal-account case, Skill and forum-post publication with local previews and explicit human confirmation.
+- Reuse the community's repository-backed case, signed upload-policy and Skill-review APIs. Report published, pending, rejected and unknown states separately.
+- Capture the user's own login in a dedicated browser session; store publishing credentials in a private local file and never accept passwords/tokens through MCP arguments.
+- Bind confirmations to the author and attachment hashes; recheck the case repository commit before publication, accepting metadata-only draft creation responses. Keep the seven read tools, including `get_status`.
 - Preserve the current naming, BM25 retrieval, alternate queries, section output, packaged indexes and installer backups.
 - Fix URL cache collisions and cache-write failures; atomically replace installer-managed files while preserving permissions and validating JSON launch entries.
 - Add revision-bound Skill content, discovery metadata health and compile/network/role filters.

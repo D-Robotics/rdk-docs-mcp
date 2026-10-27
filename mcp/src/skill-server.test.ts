@@ -131,16 +131,22 @@ function parseError(result: CallToolResult): { code: string; message: string } {
 }
 
 describe("MCP server: skill tools over the protocol", () => {
-  it("advertises compatible discovery tools plus read-only diagnostics", async () => {
+  it("advertises retrieval, diagnostics and community publishing tools", async () => {
     const client = await withClient({ skillDeps: { loadCatalog: async () => ({ snapshot: SNAPSHOT, warnings: [], from_cache: false }) } });
     const tools = await client.listTools();
     const names = tools.tools.map((tool) => tool.name).sort();
     expect(names).toEqual([
+      "community_account",
       "get_page",
+      "get_publication_status",
       "get_skill",
       "get_status",
       "list_manuals",
       "list_toc",
+      "prepare_community_publish",
+      "publish_case",
+      "publish_forum_post",
+      "publish_skill",
       "search_docs",
       "search_skills",
     ]);

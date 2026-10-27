@@ -31,13 +31,14 @@ assert.equal(doctor.version,JSON.parse(readFileSync(join(root,"package.json"),"u
 assert.equal(doctor.catalog.status,"not_checked");
 const guide = readFileSync(join(packageRoot,"skills","rdk-docs","SKILL.md"),"utf8");
 assert(guide.includes("get_status") && guide.includes("category_only") && guide.includes("model_compile"));
+assert(guide.includes("prepare_community_publish") && guide.includes("publish_case"));
 const client = new Client({name:"packed-artifact-verification",version:"1"});
 const transport = new StdioClientTransport({command:process.execPath,args:[entry],env,stderr:"pipe"});
 let tools;
 try {
   await client.connect(transport);
   tools = (await client.listTools()).tools;
-  assert.equal(tools.length,7);
+  assert.equal(tools.length,13);
   assert.equal(client.getServerVersion().title,"RDK Docs");
   for (const [tool,field] of [["search_skills","role"],["get_skill","include_content"],["get_page","expected_content_hash"]]) {
     assert(field in tools.find(t=>t.name===tool).inputSchema.properties);

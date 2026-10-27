@@ -1,8 +1,8 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
-  "description": "Search D-Robotics RDK official manuals and the community forum, and discover RDK skills, via MCP.",
+  "description": "Search RDK documentation and Skills, and publish cases, Skills and forum posts as the signed-in user.",
   "bin": {
     "rdk-docs-mcp": "dist/index.js"
   },
@@ -14,7 +14,8 @@
     "install.md",
     "CHANGELOG.md",
     "SKILL.md",
-    "skills"
+    "skills",
+    "community.md"
   ],
   "scripts": {
     "build": "tsc",

@@ -1,6 +1,6 @@
 # RDK Docs
 
-给各类 AI Agent 用的 [D-Robotics RDK 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 检索插件。
+给各类 AI Agent 用的 [D-Robotics RDK 资料中心](https://developer.d-robotics.cc/rdk_doc_center/) 检索与社区发布插件。
 
 模型自己记不住板端手册里的烧录步骤、接口名和版本号。这个仓库把官方文档变成 **MCP 工具 + Skill**：Agent 先搜手册，再打开原文回答，并带上可点击链接。
 
@@ -29,7 +29,7 @@ jsDelivr 不可用时，同一文件在：
 - 问「X5 怎么烧录 / TROS 某节点怎么启 / XBurn 支持哪些板」时，不再靠过期训练数据。
 - 同一套能力可以装进不同 Agent，不用为每个 IDE 重写爬虫。
 
-**七个工具**
+**七个检索工具**
 
 | Tool | 做什么 |
 |------|--------|
@@ -41,10 +41,23 @@ jsDelivr 不可用时，同一文件在：
 | `search_skills` | 在 [D-Robotics/rdk-skills](https://github.com/D-Robotics/rdk-skills) 目录快照里按任务找 Skill（只读，带 `catalog_revision` 溯源） |
 | `get_skill` | 按目录精确名称返回 Skill 详情，`include_content=true` 可读取绑定目录版本的正文；安装引导：flat 给 `npx skills add ...`，workspace 给整包交接（Pack repo/ref/verify_paths + `rdk-pack-installer` 获取入口） |
 
+**六个社区发布及配套工具**
+
+| Tool | 做什么 |
+|------|--------|
+| `community_account` | 本人浏览器登录、捕获私有会话、查询身份、清除本机发布凭据 |
+| `prepare_community_publish` | 预览案例／Skill／帖子，展示作者、去向、内容、附件及协议；不上传、不发布 |
+| `publish_case` | 用户确认后上传封面、创建案例并申请发布 |
+| `publish_skill` | 用户确认后上传 ZIP 和图标，提交社区技能中心审核 |
+| `publish_forum_post` | 用户确认后以本人论坛会话上传附件并发帖 |
+| `get_publication_status` | 查询真实发布／审核状态 |
+
+使用流程与字段示例见 [社区发布说明](mcp/community.md)。检索无需登录；社区写入使用操作者自己的账号，发布前必须确认内容和去向。案例沿用社区的 GitHub README 来源与 B 站嵌入视频规则，Skill 沿用 ZIP 上传和审核流程。
+
 **三个 bundled Skill**
 
 - `rdk-docs`：规定 Agent **先搜再打开页面**；手册是规范、答案主体，论坛只作补充参考，必须附可点击链接。
-- `forum-post`：把图文/视频发到[社区论坛](https://forum.d-robotics.cc/)（SSO 登录、composer 发帖、上传与编辑）。浏览器路线需要本机已装 [agent-browser](https://github.com/vercel-labs/agent-browser) CLI；发帖要用户自己的论坛账号。MCP 本身永远只读，写入只发生在 skill 驱动的浏览器/API 流程里。
+- `forum-post`：优先使用 MCP 的本人登录、预览和发帖工具；保留旧版浏览器/API 的发帖与编辑流程。交互登录需要本机已装 [agent-browser](https://github.com/vercel-labs/agent-browser) CLI。
 - `article-writer`：把一段工作写成可发布的中文技术文章并渲染成带配图的 HTML。
 
 `--install` 会把三个 skill 一并写入本机各客户端的 skills 目录；已安装的 skill 在 **MCP 启动时** 随新版本自动刷新。
@@ -53,7 +66,7 @@ jsDelivr 不可用时，同一文件在：
 
 - 旧版资料 `https://developer.d-robotics.cc/information` 不在索引里。
 - 论坛内容默认走 MCP：`search_docs` 带 `source=forum`（只要社区）或 `source=all`（手册为主、论坛补充）；`get_page` 可直接读公开论坛帖。MCP 论坛检索失败或 0 命中时，才直接 GET Discourse 公开 JSON 兜底。论坛帖子不当官方规范，不要爬论坛 HTML。
-- 不需要登录，也不写入文档站或论坛。
+- 文档和目录检索无需登录；发布案例、Skill 或论坛帖需要本人授权及内容确认。
 
 **Skill 发现（只读）**
 
