@@ -189,7 +189,7 @@
     "question": "X5 芯片 SDK 怎么搭开发环境？",
     "query": "开发环境",
     "manual": "sdk",
-    "urlMustInclude": ["/x5_sdk_doc/"],
+    "urlMustInclude": ["/sdk_doc/versions/latest/"],
     "firstHitMustInclude": ["bsp_develop"],
     "pageMustInclude": ["环境", "SDK", "X5"]
   },

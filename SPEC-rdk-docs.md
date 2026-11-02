@@ -37,9 +37,11 @@
 | tros | TogetheROS.Bot | `/tros_doc/tros` | 同上 |
 | model-zoo | Model Zoo | `/model_zoo_doc/model_zoo_intro` | 同上 |
 | case-s600 | RDK S600 应用案例 | `/case_doc/case` | 同上 |
+| x5-cases | RDK X5 应用案例 | `/x5_cases_doc/case` | 同上 |
 | magicbox | RDK Magicbox | `/magicbox_doc/magicbox` | 同上 |
 | stereo-camera | 双目摄像头 | `/accessories_stereo_camera_doc/overview` | 同上 |
 | bmi088 | BMI088 IMU | `/accessories_bmi088_doc/introduction` | 同上 |
+| audio-kit | 音频套件 | `/accessories_audio_kit_doc/overview` | 同上 |
 | rdk-studio | RDK Studio | `/rdk_studio_doc/category/1-product-intro` | 同上 |
 | xburn | XBurn | `/xburn_doc/overview` | 同上 |
 | oe-s | S 系列 OE | `/oe_s_doc/index.html` | Rspress `static/search_index.{lang}.{hash}.json`（哈希从首页 JS 发现） |
@@ -47,7 +49,7 @@
 | oe-llm-s600 | S600 OE LLM | `/oe_llm_s600_doc/index.html` | 同上 |
 | oe-x5 | X5 OE | `/oe_x5_doc/cn/index.html` | Sphinx `cn/searchindex.js` |
 | oe-x3 | X3 OE | `/oe_x3_doc/cn/index.html` | Sphinx `cn/searchindex.js` |
-| x5-sdk | X5 芯片 SDK | `/x5_sdk_doc/` | Sphinx `searchindex.js` |
+| x5-sdk | X5 芯片 SDK | `/sdk_doc/versions/latest/` | Sphinx `searchindex.js`（多版本，MCP 只索引 latest） |
 
 Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续段标题/摘要/正文片段。用这些字段做关键词检索即可，不必解析 lunr `index`。
 
