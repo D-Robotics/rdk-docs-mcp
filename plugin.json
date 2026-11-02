@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "rdk-docs",
   "description": "Search RDK documentation and Skills, and publish cases, Skills and forum posts as the signed-in user.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": {
     "name": "D-Robotics"
   },

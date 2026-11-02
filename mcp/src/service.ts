@@ -19,11 +19,10 @@ import {
   drainIndexNotes,
   noteIndex,
   prebuiltEnabled,
-  prebuiltIsStale,
   readPrebuiltSnapshot,
   recallIndex,
   rememberIndex,
-  staleIndexWarning,
+  snapshotBuiltAtText,
 } from "./index-store.js";
 import { sliceContent } from "./content-window.js";
 import type { PageResult, PageContentSource, BoardGroup, IndexedDoc, SearchHit } from "./types.js";
@@ -180,42 +179,33 @@ function manualsForSearch(manual?: string, query = ""): { targets: Manual[]; war
 async function loadIndex(manual: Manual, http: HttpGet): Promise<IndexedDoc[]> {
   const cached = recallIndex(http, manual.id);
   if (cached) return cached;
-  if (prebuiltEnabled(http)) {
+
+  // 线上索引是唯一真源：包内快照只在线上取不到时兜底，否则站点更新要等下一次发包才看得到。
+  // 例外是 expandBodies 的手册——正文是构建期逐页抓的，实时索引里没有，只能继续用快照。
+  if (prebuiltEnabled(http) && manual.expandBodies) {
     const snapshot = readPrebuiltSnapshot(manual.id);
-    if (snapshot && !prebuiltIsStale(snapshot.builtAt)) {
+    if (snapshot) {
       markPackagedIndex(snapshot.docs);
       rememberIndex(http, manual.id, snapshot.docs);
       return snapshot.docs;
     }
-    if (snapshot && prebuiltIsStale(snapshot.builtAt)) {
-      if (manual.expandBodies) {
-        // Page text was filled at build time. Fetching it again walks every
-        // page and adds seconds to the first query.
-        markPackagedIndex(snapshot.docs);
-        rememberIndex(http, manual.id, snapshot.docs);
-        noteIndex(
-          `Prebuilt index for ${manual.id} is stale. Keeping the packaged page text; live page bodies are fetched only while building the snapshot.`,
-        );
-        return snapshot.docs;
-      }
-      try {
-        const live = await loadIndexFromOrigin(manual, http);
-        rememberIndex(http, manual.id, live);
-        noteIndex(staleIndexWarning(manual.id, snapshot.builtAt, "live"));
-        return live;
-      } catch (error) {
-        markPackagedIndex(snapshot.docs);
-        rememberIndex(http, manual.id, snapshot.docs);
-        noteIndex(staleIndexWarning(manual.id, snapshot.builtAt, "snapshot"));
-        const message = error instanceof Error ? error.message : String(error);
-        noteIndex(`Live index for ${manual.id} failed: ${message}`);
-        return snapshot.docs;
-      }
-    }
   }
-  const docs = await loadIndexFromOrigin(manual, http);
-  rememberIndex(http, manual.id, docs);
-  return docs;
+
+  try {
+    const live = await loadIndexFromOrigin(manual, http);
+    rememberIndex(http, manual.id, live);
+    return live;
+  } catch (error) {
+    const snapshot = prebuiltEnabled(http) ? readPrebuiltSnapshot(manual.id) : undefined;
+    if (!snapshot) throw error;
+    markPackagedIndex(snapshot.docs);
+    rememberIndex(http, manual.id, snapshot.docs);
+    const message = error instanceof Error ? error.message : String(error);
+    noteIndex(
+      `Live index for ${manual.id} failed; used the packaged snapshot (${snapshotBuiltAtText(snapshot.builtAt)}): ${message}`,
+    );
+    return snapshot.docs;
+  }
 }
 
 export async function loadIndexFromOrigin(
