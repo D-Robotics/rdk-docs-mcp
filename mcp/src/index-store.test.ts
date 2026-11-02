@@ -3,12 +3,14 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
+  memoryTtlMs,
   prebuiltAgeDays,
   prebuiltDir,
-  prebuiltIsStale,
   readPrebuilt,
   readPrebuiltSnapshot,
-  staleIndexWarning,
+  recallIndex,
+  rememberIndex,
+  snapshotBuiltAtText,
 } from "./index-store.js";
 
 const day = 24 * 60 * 60 * 1000;
@@ -53,23 +55,31 @@ describe("readPrebuilt", () => {
   });
 });
 
-describe("prebuilt freshness", () => {
+describe("prebuilt age", () => {
   const now = Date.parse("2026-10-09T00:00:00.000Z");
 
-  it("treats a missing timestamp as stale", () => {
-    expect(prebuiltIsStale(undefined, now)).toBe(true);
+  it("treats a missing timestamp as unknown age", () => {
     expect(prebuiltAgeDays(undefined, now)).toBeUndefined();
+    expect(snapshotBuiltAtText(undefined)).toContain("unknown");
   });
 
-  it("accepts a snapshot inside the max age and rejects an older one", () => {
-    expect(prebuiltIsStale(new Date(now - 2 * day).toISOString(), now)).toBe(false);
-    expect(prebuiltIsStale(new Date(now - 20 * day).toISOString(), now)).toBe(true);
+  it("reports the snapshot age in days", () => {
+    expect(prebuiltAgeDays(new Date(now - 2 * day).toISOString(), now)).toBeCloseTo(2, 5);
+    expect(snapshotBuiltAtText(new Date(now - 20 * day).toISOString())).toContain("days ago");
+  });
+});
+
+describe("in-process index cache", () => {
+  const http = (async () => "") as unknown as (url: string) => Promise<string>;
+
+  it("expires entries on the same clock as the disk cache", () => {
+    const docs = [{ manualId: "rdk-x", title: "GPIO", url: "https://example.test/gpio", kind: "page" as const }];
+    rememberIndex(http, "rdk-x", docs);
+    expect(recallIndex(http, "rdk-x")).toBe(docs);
+    expect(memoryTtlMs()).toBeGreaterThan(0);
   });
 
-  it("names the refresh command in the warning", () => {
-    const text = staleIndexWarning("rdk-x", new Date(now - 20 * day).toISOString(), "live");
-    expect(text).toContain("rdk-x");
-    expect(text).toContain("npm run build:index");
-    expect(text).toContain("live index");
+  it("returns undefined for a manual that was never loaded", () => {
+    expect(recallIndex(http, "zz-never-loaded")).toBeUndefined();
   });
 });

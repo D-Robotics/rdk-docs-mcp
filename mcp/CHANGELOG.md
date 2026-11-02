@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 — 2026-11-02
+
+- **The live documentation index is now the single source of truth.** A cold start fetches the published index and keeps it on disk; the packaged `prebuilt/` snapshot is only a fallback when the live fetch fails. Previously a packaged snapshot younger than 14 days was served even though the site had moved on, so new and renamed pages were invisible until the next release.
+- Search-index cache TTL is 15 minutes (down from 24 hours). Expiry revalidates with `If-None-Match`/`If-Modified-Since` and a 304 keeps the cached body, so a warm start still costs one conditional request rather than a full download. The in-process cache shares the same TTL instead of pinning the index for the whole session.
+- A failed live fetch serves the cached copy and logs it, so a network blip degrades freshness instead of returning no results. The packaged-snapshot fallback names its build time in `warnings`.
+- The manual with build-time page bodies (RDK Ultra) still reads its snapshot first, because the live index carries no page text for it.
+
 ## 0.4.0 — 2026-10-27
 
 - Add personal-account case, Skill and forum-post publication with local previews and explicit human confirmation.

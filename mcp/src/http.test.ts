@@ -16,6 +16,14 @@ function response(body: string): Response {
   return new Response(body, { status: 200 });
 }
 
+/** 把唯一那条缓存记录的时间戳往前拨，模拟 TTL 过期。 */
+function ageCache(ms: number): void {
+  const path = cacheRecordPath(process.env.RDK_DOCS_CACHE_DIR!);
+  const record = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  record.fetchedAt = Date.now() - ms;
+  writeFileSync(path, JSON.stringify(record), "utf8");
+}
+
 function cacheRecordPath(cacheDir: string): string {
   const path = readdirSync(cacheDir)
     .map((name) => join(cacheDir, name))
@@ -106,6 +114,71 @@ describe("fetchText cache", () => {
 
     expect(await fetchText(url)).toBe("fresh");
     expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it("revalidates index URLs on the short index TTL even when the general TTL is longer", async () => {
+    vi.stubEnv("RDK_DOCS_CACHE_TTL_MS", String(24 * 60 * 60 * 1000));
+    const get = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response("first"))
+      .mockResolvedValueOnce(response("second"));
+    vi.stubGlobal("fetch", get);
+    const url = "https://example.test/site/search-index.json";
+
+    expect(await fetchText(url)).toBe("first");
+    ageCache(20 * 60 * 1000);
+    expect(await fetchText(url)).toBe("second");
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps plugin page content on the general TTL", async () => {
+    vi.stubEnv("RDK_DOCS_CACHE_TTL_MS", String(24 * 60 * 60 * 1000));
+    const get = vi.fn<typeof fetch>().mockResolvedValue(response("page"));
+    vi.stubGlobal("fetch", get);
+    const url = "https://example.test/site/overview";
+
+    expect(await fetchText(url)).toBe("page");
+    ageCache(20 * 60 * 1000);
+    expect(await fetchText(url)).toBe("page");
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends the stored validators and accepts a 304 without downloading again", async () => {
+    const get = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("index", { status: 200, headers: { etag: "\"v1\"" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }));
+    vi.stubGlobal("fetch", get);
+    const url = "https://example.test/site/search-index.json";
+
+    expect(await fetchText(url)).toBe("index");
+    ageCache(20 * 60 * 1000);
+
+    expect(await fetchText(url)).toBe("index");
+    expect(get).toHaveBeenCalledTimes(2);
+    const headers = (get.mock.calls[1]![1] as RequestInit).headers as Record<string, string>;
+    expect(headers["If-None-Match"]).toBe("\"v1\"");
+  });
+
+  it("serves the cached body when the network fails after expiry", async () => {
+    const get = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response("cached body"))
+      .mockRejectedValueOnce(new Error("connect ECONNREFUSED"));
+    vi.stubGlobal("fetch", get);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const url = "https://example.test/site/searchindex.js";
+
+    expect(await fetchText(url)).toBe("cached body");
+    ageCache(20 * 60 * 1000);
+    await expect(fetchText(url)).resolves.toBe("cached body");
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it("still throws when the network fails and nothing was cached", async () => {
+    const get = vi.fn<typeof fetch>().mockRejectedValue(new Error("connect ECONNREFUSED"));
+    vi.stubGlobal("fetch", get);
+    await expect(fetchText("https://example.test/site/search-index.json")).rejects.toThrow("ECONNREFUSED");
   });
 
   it("returns a successful response when cache persistence is unavailable", async () => {

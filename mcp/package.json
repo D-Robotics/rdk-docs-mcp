@@ -1,6 +1,6 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "description": "Search RDK documentation and Skills, and publish cases, Skills and forum posts as the signed-in user.",
   "bin": {

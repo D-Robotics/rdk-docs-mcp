@@ -3,14 +3,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import type { HttpGet } from "./http.js";
-import { fetchText } from "./http.js";
+import { INDEX_TTL_MS, cacheTtlMs, fetchText } from "./http.js";
 import type { IndexedDoc } from "./types.js";
 
-const memory = new WeakMap<HttpGet, Map<string, IndexedDoc[]>>();
+type MemoryEntry = { docs: IndexedDoc[]; fetchedAt: number };
+const memory = new WeakMap<HttpGet, Map<string, MemoryEntry>>();
 const notes: string[] = [];
 
-/** Packaged snapshots older than this are refreshed from the live index when the network is available. */
-export const PREBUILT_MAX_AGE_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type PrebuiltSnapshot = {
@@ -28,14 +27,6 @@ export function prebuiltEnabled(http: HttpGet): boolean {
   return process.env.RDK_DOCS_PREBUILT !== "0";
 }
 
-export function prebuiltMaxAgeDays(): number {
-  const raw = process.env.RDK_DOCS_PREBUILT_MAX_AGE_DAYS;
-  if (raw === undefined || raw === "") return PREBUILT_MAX_AGE_DAYS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return PREBUILT_MAX_AGE_DAYS;
-  return parsed;
-}
-
 export function prebuiltAgeDays(builtAt: string | undefined, now = Date.now()): number | undefined {
   if (!builtAt) return undefined;
   const parsed = Date.parse(builtAt);
@@ -43,20 +34,10 @@ export function prebuiltAgeDays(builtAt: string | undefined, now = Date.now()): 
   return (now - parsed) / DAY_MS;
 }
 
-/** Missing or unparseable timestamps are stale so an undated snapshot cannot hide drift. */
-export function prebuiltIsStale(builtAt: string | undefined, now = Date.now()): boolean {
-  const age = prebuiltAgeDays(builtAt, now);
-  if (age === undefined) return true;
-  return age > prebuiltMaxAgeDays();
-}
-
-export function staleIndexWarning(manualId: string, builtAt: string | undefined, used: "live" | "snapshot"): string {
+export function snapshotBuiltAtText(builtAt: string | undefined): string {
   const age = prebuiltAgeDays(builtAt);
-  const ageText = age === undefined ? "an unknown age" : `${Math.floor(age)} days old`;
-  if (used === "live") {
-    return `Prebuilt index for ${manualId} is ${ageText} (older than ${prebuiltMaxAgeDays()} days). Used the live index. Refresh with npm run build:index.`;
-  }
-  return `Prebuilt index for ${manualId} is ${ageText} (older than ${prebuiltMaxAgeDays()} days) and the live index could not be loaded. Results may be stale. Refresh with npm run build:index.`;
+  if (age === undefined) return "build time unknown";
+  return `built ${Math.floor(age)} days ago`;
 }
 
 export function noteIndex(message: string): void {
@@ -67,8 +48,22 @@ export function drainIndexNotes(): string[] {
   return notes.splice(0, notes.length);
 }
 
+/** 进程内缓存和磁盘缓存共用同一套时效，否则内存层会把 TTL 架空。 */
+export function memoryTtlMs(): number {
+  const configured = cacheTtlMs();
+  if (configured === 0) return 0;
+  return Math.min(configured, INDEX_TTL_MS);
+}
+
 export function recallIndex(http: HttpGet, manualId: string): IndexedDoc[] | undefined {
-  return memory.get(http)?.get(manualId);
+  const entry = memory.get(http)?.get(manualId);
+  if (!entry) return undefined;
+  const ttl = memoryTtlMs();
+  if (ttl === 0 || Date.now() - entry.fetchedAt > ttl) {
+    memory.get(http)?.delete(manualId);
+    return undefined;
+  }
+  return entry.docs;
 }
 
 export function rememberIndex(http: HttpGet, manualId: string, docs: IndexedDoc[]): void {
@@ -77,7 +72,7 @@ export function rememberIndex(http: HttpGet, manualId: string, docs: IndexedDoc[
     bucket = new Map();
     memory.set(http, bucket);
   }
-  bucket.set(manualId, docs);
+  bucket.set(manualId, { docs, fetchedAt: Date.now() });
 }
 
 export function readPrebuiltSnapshot(manualId: string): PrebuiltSnapshot | undefined {
