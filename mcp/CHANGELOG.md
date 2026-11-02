@@ -6,6 +6,7 @@
 - Search-index cache TTL is 15 minutes (down from 24 hours). Expiry revalidates with `If-None-Match`/`If-Modified-Since` and a 304 keeps the cached body, so a warm start still costs one conditional request rather than a full download. The in-process cache shares the same TTL instead of pinning the index for the whole session.
 - A failed live fetch serves the cached copy and logs it, so a network blip degrades freshness instead of returning no results. The packaged-snapshot fallback names its build time in `warnings`.
 - The manual with build-time page bodies (RDK Ultra) still reads its snapshot first, because the live index carries no page text for it.
+- Add the RDK X5 case manual (`x5-cases`) and the audio kit manual (`audio-kit`) to the catalog. The X5 chip manual now points at `/sdk_doc/versions/latest/`: `/x5_sdk_doc/*` 301s to the oldest version (1.1.2), so the old path indexed stale pages.
 
 ## 0.4.0 — 2026-10-27
 
