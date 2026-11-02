@@ -37,9 +37,11 @@
 | tros | TogetheROS.Bot | `/tros_doc/tros` | 同上 |
 | model-zoo | Model Zoo | `/model_zoo_doc/model_zoo_intro` | 同上 |
 | case-s600 | RDK S600 应用案例 | `/case_doc/case` | 同上 |
+| x5-cases | RDK X5 应用案例 | `/x5_cases_doc/case` | 同上 |
 | magicbox | RDK Magicbox | `/magicbox_doc/magicbox` | 同上 |
 | stereo-camera | 双目摄像头 | `/accessories_stereo_camera_doc/overview` | 同上 |
 | bmi088 | BMI088 IMU | `/accessories_bmi088_doc/introduction` | 同上 |
+| audio-kit | 音频套件 | `/accessories_audio_kit_doc/overview` | 同上 |
 | rdk-studio | RDK Studio | `/rdk_studio_doc/category/1-product-intro` | 同上 |
 | xburn | XBurn | `/xburn_doc/overview` | 同上 |
 | oe-s | S 系列 OE | `/oe_s_doc/index.html` | Rspress `static/search_index.{lang}.{hash}.json`（哈希从首页 JS 发现） |
