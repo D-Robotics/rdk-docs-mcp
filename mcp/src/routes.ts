@@ -357,7 +357,7 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
   {
     id: "x5-sdk-env",
     title: "4.1. 搭建开发环境及编译说明",
-    url: `${ORIGIN}/x5_sdk_doc/linux_development/bsp_develop.html`,
+    url: `${ORIGIN}/sdk_doc/versions/latest/linux_development/bsp_develop.html`,
     manual: "x5-sdk",
     why: "芯片 SDK 搭环境的官方页。",
     query: /开发环境|搭建|编译/i,

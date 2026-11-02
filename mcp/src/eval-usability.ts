@@ -161,7 +161,7 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
       const probes = [
         { query: "开机", manual: "s100", host: "/rdk_s_doc/" },
         { query: "Studio", manual: "studio", host: "/rdk_studio_doc/" },
-        { query: "开发环境", manual: "sdk", host: "/x5_sdk_doc/" },
+        { query: "开发环境", manual: "sdk", host: "/sdk_doc/versions/latest/" },
       ];
       const failed: string[] = [];
       for (const probe of probes) {

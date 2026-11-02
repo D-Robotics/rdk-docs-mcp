@@ -228,12 +228,13 @@ export const MANUALS: Manual[] = [
     title: "X5 芯片用户手册",
     category: "SDK 用户手册",
     description: "X5 芯片方案：环境搭建、评测、软件功能开发。",
-    homeUrl: `${ORIGIN}/x5_sdk_doc/`,
-    basePath: "/x5_sdk_doc",
+    // /x5_sdk_doc/* 会 301 到 /sdk_doc/versions/1.1.2/，直接指 latest 才不会索引到旧版本。
+    homeUrl: `${ORIGIN}/sdk_doc/versions/latest/`,
+    basePath: "/sdk_doc/versions/latest",
     aliases: ["sdk", "x5-chip"],
     searchable: true,
     indexKind: "sphinx",
-    indexPath: "/x5_sdk_doc/searchindex.js",
+    indexPath: "/sdk_doc/versions/latest/searchindex.js",
   },
 ];
 

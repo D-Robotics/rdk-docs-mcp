@@ -47,7 +47,7 @@
 | oe-llm-s600 | S600 OE LLM | `/oe_llm_s600_doc/index.html` | 同上 |
 | oe-x5 | X5 OE | `/oe_x5_doc/cn/index.html` | Sphinx `cn/searchindex.js` |
 | oe-x3 | X3 OE | `/oe_x3_doc/cn/index.html` | Sphinx `cn/searchindex.js` |
-| x5-sdk | X5 芯片 SDK | `/x5_sdk_doc/` | Sphinx `searchindex.js` |
+| x5-sdk | X5 芯片 SDK | `/sdk_doc/versions/latest/` | Sphinx `searchindex.js`（多版本，MCP 只索引 latest） |
 
 Docusaurus `search-index.json` 是数组：第 0 段页面（`t/u/b`），后续段标题/摘要/正文片段。用这些字段做关键词检索即可，不必解析 lunr `index`。
 
