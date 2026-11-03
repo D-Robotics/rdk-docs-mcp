@@ -480,6 +480,9 @@ export function matchOfficialPath(query: string, manual?: string): OfficialPath 
     if (!path.query.test(query)) continue;
     // A named API, package, or command needs its own search result, not the overview.
     if (path.id === "oe-x5-quant" && /\b[a-z][a-z\d]*(?:[._][a-z\d_]+)+\b/i.test(query)) continue;
+    // Generic install entries are listed first. Leave source builds and XBurn setup to their own pages.
+    if (path.id === "tros-install" && /交叉编译|源码安装|cross[-_ ]?compile/i.test(query)) continue;
+    if (path.id === "xburn-overview" && /安装|install/i.test(query)) continue;
     if (resolved) {
       if (!path.manuals.includes(resolved)) continue;
       if (path.scope === "product" && !mentionsProduct(path, query, manual)) continue;

@@ -9,6 +9,15 @@ const script = fileURLToPath(new URL("../scripts/verify-package.mjs", import.met
 const dirs: string[] = [];
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 
+// Windows treats env names as case-insensitive. A spread of process.env can
+// keep NPM_EXECPATH next to npm_execpath, and the real npm CLI then wins.
+function commandEnv(overrides: Record<string, string>) {
+  const env = { ...process.env };
+  const names = new Set(Object.keys(overrides).map(key => key.toLowerCase()));
+  for (const key of Object.keys(env)) if (names.has(key.toLowerCase())) delete env[key];
+  return { ...env, ...overrides };
+}
+
 function runWithFakeNpm(archiveExists: boolean, useSuppliedArchive = true) {
   const dir = mkdtempSync(join(tmpdir(), "rdk-package-args-test-"));
   dirs.push(dir);
@@ -19,7 +28,7 @@ function runWithFakeNpm(archiveExists: boolean, useSuppliedArchive = true) {
   if (archiveExists) writeFileSync(archive, "archive fixture");
   const result = spawnSync(process.execPath, useSuppliedArchive ? [script, "--tarball", archive] : [script], {
     encoding: "utf8",
-    env: { ...process.env, npm_execpath: npmCli, RDK_TEST_CAPTURE: capture },
+    env: commandEnv({ npm_execpath: npmCli, NPM_EXECPATH: npmCli, RDK_TEST_CAPTURE: capture }),
   });
   return { archive, capture, result };
 }

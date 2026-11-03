@@ -25,6 +25,15 @@ describe("matchOfficialPath", () => {
     expect(matchOfficialPath("烧录", "s600")?.url).not.toContain("s100-xburn");
   });
 
+  it("keeps a specific install page ahead of the general entry", () => {
+    expect(matchOfficialPath("源码安装", "tros")?.id).toBe("tros-cross");
+    expect(matchOfficialPath("TROS 源码安装")?.id).not.toBe("tros-install");
+    expect(matchOfficialPath("安装 tros.b", "tros")?.id).toBe("tros-install");
+    expect(matchOfficialPath("安装 XBurn", "xburn")?.id).toBe("xburn-install");
+    expect(matchOfficialPath("安装 XBurn")?.id).not.toBe("xburn-overview");
+    expect(matchOfficialPath("XBurn 是什么", "xburn")?.id).toBe("xburn-overview");
+  });
+
   it("does not invent a path for an unmapped how-to", () => {
     expect(matchOfficialPath("开机", "s100")).toBeUndefined();
     expect(matchOfficialPath("摄像头", "x5")).toBeUndefined();
