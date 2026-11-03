@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.2 — 2026-11-03
+
+- Validate Skill ZIP structure, member bounds, paths and checksums before preview; show the complete `SKILL.md` and member list, and check case-cover and Skill-icon signatures.
+- Report Skill review and availability separately, avoid calling suspended or unknown Skills published, and explain how to follow a queued forum submission without a topic ID.
+- Refresh the S600 OE LLM offline index after checking its pages; preserve specific quantization API queries and avoid discarding unorderable Rspress versions.
+- Refresh Skill catalog caches when the reviewed classification overlay changes, and correct standard ONNX compilation and QAT classifications.
+- Gate GitHub Releases on live checks and verify the exact release tarball before upload; document the separate npm publication step.
+- Back up existing Skill files before installation or startup refresh, and leave symbolic links unchanged.
+- Update the existing MCP SDK, Zod, smol-toml and Vitest dependencies and refresh their dependency tree to address the observed npm audit advisories.
+- Rspress manuals search only the newest numbered version. OE LLM S600 keeps v2.0.0; the retired v1.0.5 index, whose pages 404, is no longer queried. A site with one version is unchanged.
+- `search_docs` promotes a reviewed official page to `official-start` only when that page is already in the loaded index. TROS install and X5 quantization open the documented page instead of a same-titled heading on another page. A route whose URL is absent from the index is not injected.
+- The S600 Whisper route now points at the live ASR sample, `/oe_llm_doc/guide/model_deployment/model_infer_sample/asr`.
+- The reviewed skill overlay follows the current rdk-skills names (`s-plugin-*`, `s-hbdk-*`, `s-ucp-*`, `s-board-monitor`, `drobotics-router`) and the current record fingerprints, carrying the existing task labels.
+- The proxy warning test clears every variable that `proxyFetchWarning` reads.
+- When a question names exactly one board, document hits that name only a different board move behind hits that name that board or name no board. Those other-board hits stay in the list. A question that names no board, or more than one, is unchanged, and BM25 scores are unchanged.
+- `get_page` with `full: true` returns the whole page when the requested anchor is only a heading. A request without `full` still returns that heading.
+
 ## 0.4.1 — 2026-11-02
 
 - **The live documentation index is now the single source of truth.** A cold start fetches the published index and keeps it on disk; the packaged `prebuilt/` snapshot is only a fallback when the live fetch fails. Previously a packaged snapshot younger than 14 days was served even though the site had moved on, so new and renamed pages were invisible until the next release.

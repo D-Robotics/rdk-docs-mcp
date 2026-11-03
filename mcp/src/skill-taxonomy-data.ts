@@ -1,19 +1,19 @@
 // Reviewed catalog overlay. Exact content fingerprint prevents stale classifications.
 // Classification is search scope, not proof of hardware compatibility.
-// 2026-09-22 additions reviewed against skills-reviewed.json descriptions at 08d0a46:
-// x5-ptq-compile: checker/makertbin produces verified bayes-e .bin artifacts.
-// x5-qat-compile: trace/check_model/compile_model/export_hbir produces .hbm/.hbir.
-// j6-hbdk-compile: generic YAML-driven ONNX/BC model compilation.
-// j6-hbdk-export-compile: export/convert/compile of already-quantized models.
-// rdk-network-remote: SSH, WiFi, wired network and remote-access diagnostics;
-//   description names no exact board set, so platform scope remains unknown.
-// x5-board-monitor: explicit X5 resource snapshots and performance anomalies.
-// j6-board-monitor: explicit S-series BPU/DDR/memory monitoring (reviewed S pack).
-// These additions extend only the reviewed subset; they do not cover the catalog.
+// Refreshed 2026-11-03 against rdk-skills f205371baee8731988c8857ead7ffe23b67c501c.
+// Most renamed records retain their previously reviewed classifications:
+// __SKILL_j6-plugin-__* -> s-plugin-*, j6-hbdk-* -> s-hbdk-*, j6-ucp-* -> s-ucp-*,
+// j6-board-monitor -> s-board-monitor, horizon-router -> drobotics-router.
+// hmct-workflow also handles standard PTQ compilation; s-hbdk-compile handles
+// QAT qat.bc and, for explicitly requested custom workflows, calibrated PTQ ONNX.
+// Skills that were never reviewed stay unclassified.
+// s-hbdk-compile / s-hbdk-export-compile remain the reviewed S-series compile steps.
+// rdk-network-remote names no exact board set, so platform scope remains unknown.
+// x5-board-monitor and s-board-monitor stay the reviewed board monitors.
 export const TAXONOMY_DATA = [
   {
-    "name": "__SKILL_j6-plugin-__adaptation",
-    "fingerprint": "e0019e63a20dcb8f5c3b2eea6c2507e2dc8b13506c65c3aa42abdb586c3e7e9f",
+    "name": "s-plugin-adaptation",
+    "fingerprint": "113abcfb1f06b1b51188cd05ac229fe54ca2f8e2096aa0a7dc9471d56ff7c29d",
     "tasks": [
       "model_conversion"
     ],
@@ -26,11 +26,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-adaptation/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__consistency-debug",
-    "fingerprint": "4257c242928d3ea369093cb18a995bf27e370618b877661c1ff69f493b960968",
+    "name": "s-plugin-consistency-debug",
+    "fingerprint": "296b3cdd32df5ff767ff802f75e2072721e882c697a9f11fee61c8745caa09c5",
     "tasks": [
       "model_conversion"
     ],
@@ -43,11 +43,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-consistency-debug/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-consistency-debug/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__dynamic-block",
-    "fingerprint": "251e08ef0ef41c4c166dfe53d9b8bbb07930b8c2e5e7e336c6ffaeec6870c204",
+    "name": "s-plugin-dynamic-block",
+    "fingerprint": "70c310b6094af50fbe143d394849ff1bf966af1b6d03cd3b3343e7aa01c94341",
     "tasks": [
       "model_conversion"
     ],
@@ -60,11 +60,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-dynamic-block/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-adaptation/s-plugin-dynamic-block/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__export",
-    "fingerprint": "a9e4144afb766f424303907dbe180e9a92efd984369ea78598d3cbe94d7fbc41",
+    "name": "s-plugin-export",
+    "fingerprint": "bca20ed3a44de45852e228ba48c6a0ceb37f07a153f236458bccfec7ef4e8f36",
     "tasks": [
       "model_conversion"
     ],
@@ -77,11 +77,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-export/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-export/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__graph-diff",
-    "fingerprint": "eb1c4353e8bf9194ec8895f7b298510b6f06c19184ad76ec42cde69d78ada37e",
+    "name": "s-plugin-graph-diff",
+    "fingerprint": "1fe9b28723f3cbaef138c487696295d95d3876dbb34780b286138a65493bb1be",
     "tasks": [
       "model_conversion"
     ],
@@ -94,11 +94,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-graph-diff/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-graph-diff/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__hbdk-generating",
-    "fingerprint": "5d90ab778ed02e46c8fab553b6ee62015157e037f6577b42b93adead094ffd9b",
+    "name": "s-plugin-hbdk-generating",
+    "fingerprint": "999930a54e7eb6c2383b4fb25e41e8bd27c3e32d592cd3e38bec0d788842c018",
     "tasks": [
       "model_conversion"
     ],
@@ -111,11 +111,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-hbdk-generating/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__insert-quant-dequant",
-    "fingerprint": "5ecd1d462565ff17e720a5adc7fb13bc3fdb8c727a664777f67a88c3e930d57f",
+    "name": "s-plugin-insert-quant-dequant",
+    "fingerprint": "05147b39ec1a8dae3b3ad114cfc92f4b0a0b0ee67639bb8b13d6bfd5834c7e66",
     "tasks": [
       "model_conversion"
     ],
@@ -128,11 +128,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-insert-quant-dequant/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-adaptation/s-plugin-insert-quant-dequant/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__model-check-result",
-    "fingerprint": "d47558de49d699723c9d30beb0a0404fdc26105bec6f2f7f1e593a910b5c12cb",
+    "name": "s-plugin-model-check-result",
+    "fingerprint": "b23c765b3c5fb70a1072968f8527b955c7ae8257953a2a9c7f97eec9238701da",
     "tasks": [
       "model_conversion"
     ],
@@ -145,11 +145,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-model-check-result/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-model-check-result/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__precision-tuning",
-    "fingerprint": "738502e36407f9d11b7fd4e6da1e161afc9effa2041830392e3af9fd936ebeea",
+    "name": "s-plugin-precision-tuning",
+    "fingerprint": "63fa0b579344cd8e9c33c9301c0454ef4e689a5df0aa1d2d861cce46a4a85681",
     "tasks": [
       "model_conversion"
     ],
@@ -162,11 +162,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-precision-tuning/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-precision-tuning/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__prepare",
-    "fingerprint": "f9afea5c4141ed6842afaa1e57b957817e6ead0165be32a1daeb15fceee953a2",
+    "name": "s-plugin-prepare",
+    "fingerprint": "1da8a5c1b5d64379fafc0894cb902e99f06aa132e1f52e156c67c2de583b26d7",
     "tasks": [
       "model_conversion"
     ],
@@ -179,11 +179,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-prepare/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-adaptation/s-plugin-prepare/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__quantization",
-    "fingerprint": "1ead4c04d9f0c7b4d232fe412cd02250ae65b147c94c6762287039366771d0e1",
+    "name": "s-plugin-quantization",
+    "fingerprint": "b19a985ca9f66d0ef30406b2cea7a026bb5e4dfc05ed9fb1e0b55a1614679565",
     "tasks": [
       "model_conversion"
     ],
@@ -196,11 +196,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-plugin-quantization/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-hbdk-generating/s-plugin-quantization/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__set-fake-quantize",
-    "fingerprint": "a2fa6eb66a5ec54860b0abb095b9b208dc3637c9c17a3323a7643dcb99086c9e",
+    "name": "s-plugin-set-fake-quantize",
+    "fingerprint": "ba2ea7b141ec8b6bba6dcc7e2582366f91062aca8d6843c88310c7a11e4b9945",
     "tasks": [
       "model_conversion"
     ],
@@ -213,11 +213,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-fake-quantize/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-adaptation/s-plugin-set-fake-quantize/SKILL.md"
   },
   {
-    "name": "__SKILL_j6-plugin-__set-march",
-    "fingerprint": "96b2882bb487dca2081c6619a47d21c8c27d3a129e51cdc3e1912235e013dc3a",
+    "name": "s-plugin-set-march",
+    "fingerprint": "56a566784e68792ebfcecfd3acd0d9eed0537bfc8f826dd51a27e22b75a32920",
     "tasks": [
       "model_conversion"
     ],
@@ -230,7 +230,7 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-adaptation/j6-plugin-set-march/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-adaptation/s-plugin-set-march/SKILL.md"
   },
   {
     "name": "bsp-bootloader-build",
@@ -243,7 +243,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-bootloader-build/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-bootloader-build/SKILL.md"
   },
   {
     "name": "bsp-deb-build",
@@ -254,7 +254,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-deb-build/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-deb-build/SKILL.md"
   },
   {
     "name": "bsp-env-setup",
@@ -268,7 +268,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-env-setup/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-env-setup/SKILL.md"
   },
   {
     "name": "bsp-image-build",
@@ -282,7 +282,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-image-build/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-image-build/SKILL.md"
   },
   {
     "name": "bsp-kernel-build",
@@ -296,7 +296,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-kernel-build/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-kernel-build/SKILL.md"
   },
   {
     "name": "bsp-rootfs-custom",
@@ -310,7 +310,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-rootfs-custom/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-rootfs-custom/SKILL.md"
   },
   {
     "name": "bsp-s-series",
@@ -325,7 +325,7 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-s-series/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-s-series/SKILL.md"
   },
   {
     "name": "bsp-source-sync",
@@ -339,43 +339,11 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/bsp-source-sync/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/bsp-source-sync/SKILL.md"
   },
   {
     "name": "hmct-workflow",
-    "fingerprint": "b56c5ba4597057e303c200a0ad1a3a3b9510e3817b4fc45bcdf62d29c737a457",
-    "tasks": [
-      "model_conversion"
-    ],
-    "workflows": [
-      "ptq"
-    ],
-    "platforms": [
-      "s100",
-      "s100p",
-      "s600"
-    ],
-    "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hmct/SKILL.md"
-  },
-  {
-    "name": "horizon-router",
-    "fingerprint": "4673b52b6290ad8188cb4208960254b224d735bee85dffe770df7afaa9ffc609",
-    "tasks": [
-      "model_conversion"
-    ],
-    "workflows": [],
-    "platforms": [
-      "s100",
-      "s100p",
-      "s600"
-    ],
-    "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/horizon-router/SKILL.md"
-  },
-  {
-    "name": "j6-hbdk-compile",
-    "fingerprint": "df7347b9c2bd044f52e2819934f588c347a16a886dec9c2e999b5f9ff59a633b",
+    "fingerprint": "6e60e79446c54e23ea0fb263036bf00b382b1d10d9ad78f1d70dfa33dbe5d4a0",
     "tasks": [
       "model_conversion",
       "model_compile"
@@ -388,12 +356,46 @@ export const TAXONOMY_DATA = [
       "s100p",
       "s600"
     ],
-    "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/hbdk/j6-hbdk-compile/SKILL.md"
+    "role": "workflow",
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/hmct/SKILL.md"
   },
   {
-    "name": "j6-hbdk-export-compile",
-    "fingerprint": "fee308e3600d94711d07300f98c679b72101eeb2353f186790b1f24230602b2b",
+    "name": "drobotics-router",
+    "fingerprint": "19288c95177f1ae0422fa8196e150f97b63eb815250f33d4de35f652905d5b3a",
+    "tasks": [
+      "model_conversion"
+    ],
+    "workflows": [],
+    "platforms": [
+      "s100",
+      "s100p",
+      "s600"
+    ],
+    "role": "entry",
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/drobotics-router/SKILL.md"
+  },
+  {
+    "name": "s-hbdk-compile",
+    "fingerprint": "fcd2917381cc126348273798e7cf96958a3c06f8e4e41f52c7e17960092ca5ea",
+    "tasks": [
+      "model_conversion",
+      "model_compile"
+    ],
+    "workflows": [
+      "ptq",
+      "qat"
+    ],
+    "platforms": [
+      "s100",
+      "s100p",
+      "s600"
+    ],
+    "role": "step",
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/hbdk/s-hbdk-compile/SKILL.md"
+  },
+  {
+    "name": "s-hbdk-export-compile",
+    "fingerprint": "5f3c8702f44e24d774ee0629daee9e2a91918db4da70b6cbb04866616345d0c3",
     "tasks": [
       "model_conversion",
       "model_compile"
@@ -407,11 +409,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/plugin/j6-plugin-hbdk-generating/j6-hbdk-export-compile/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/plugin/s-plugin-hbdk-generating/s-hbdk-export-compile/SKILL.md"
   },
   {
-    "name": "j6-ucp-hbm-infer",
-    "fingerprint": "5f9ccb0e8afc3efd153b050ce7a6fe8718de3d78d569f81c5a8bf4019e18acc1",
+    "name": "s-ucp-hbm-infer",
+    "fingerprint": "7db707a495249781e3af305d9d39a3a7f68595584fa01a2a92f4159a3bdc449d",
     "tasks": [
       "model_deploy"
     ],
@@ -422,11 +424,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/ucp/j6-ucp-hbm-infer/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/ucp/s-ucp-hbm-infer/SKILL.md"
   },
   {
-    "name": "j6-ucp-infer-generating",
-    "fingerprint": "95e7eede18eaea34ec6cd1b6788f614cdb3a47fcc51236f0a4c1079d90b7f3ed",
+    "name": "s-ucp-infer-generating",
+    "fingerprint": "e5ffa7bcca9337e2fd394fd363047ee004d9efd4a9e6d340a0ec1b86f9c7fdd1",
     "tasks": [
       "model_deploy"
     ],
@@ -437,11 +439,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/ucp/j6-ucp-infer-generating/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/ucp/s-ucp-infer-generating/SKILL.md"
   },
   {
     "name": "oe-package-detection",
-    "fingerprint": "c383e6cceb48ac460cac8eb0004818426a8f2c8a458fbf0fa38c5eeae29c82bb",
+    "fingerprint": "6be9c6b4f16b0485b5ed9c005465278fb071f0cb20078f1ca4672b4622d62319",
     "tasks": [
       "environment"
     ],
@@ -452,11 +454,11 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/horizon-router/oe-package-detection/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/drobotics-router/oe-package-detection/SKILL.md"
   },
   {
     "name": "oe-package-install",
-    "fingerprint": "a9de576a5a73f583bb6fb988993277070954a6e5d9b32d06f892a8ff7a0f4309",
+    "fingerprint": "99a0a70d16d46db2234db39d34b2c4acbf98e0c610eb5edb4c17401e2b00cc56",
     "tasks": [
       "environment"
     ],
@@ -467,7 +469,7 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/horizon-router/oe-package-install/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/drobotics-router/oe-package-install/SKILL.md"
   },
   {
     "name": "rdk-accessories",
@@ -478,18 +480,18 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-accessories/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-accessories/SKILL.md"
   },
   {
     "name": "rdk-board-knowledge",
-    "fingerprint": "86efbfe60d6f8f6b2b1d2e8457bf3a872cb898765358dd07d2a146a349e26b46",
+    "fingerprint": "e20b18214c362481e54945fe1ae7fc26f7cdc58994c44a003502d0b4d5026471",
     "tasks": [
       "diagnostics"
     ],
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-board-knowledge/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-board-knowledge/SKILL.md"
   },
   {
     "name": "rdk-camera-setup",
@@ -500,7 +502,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-camera-setup/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-camera-setup/SKILL.md"
   },
   {
     "name": "rdk-diagnostic",
@@ -511,7 +513,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-diagnostic/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-diagnostic/SKILL.md"
   },
   {
     "name": "rdk-gpio-40pin",
@@ -523,18 +525,18 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-gpio-40pin/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-gpio-40pin/SKILL.md"
   },
   {
     "name": "rdk-hardware",
-    "fingerprint": "3f4b6220884b804ce0f8cb48b9bedab9c9ced02801cabaff1eb0e5ae6b826a10",
+    "fingerprint": "5fd81675e64a3b3ea8d87757b8981a3634d0b230915f4492065e53128adbddd5",
     "tasks": [
       "gpio"
     ],
     "workflows": [],
     "platforms": null,
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-hardware/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-hardware/SKILL.md"
   },
   {
     "name": "rdk-log-forensics",
@@ -545,7 +547,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-log-forensics/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-log-forensics/SKILL.md"
   },
   {
     "name": "rdk-model-deploy",
@@ -556,7 +558,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-deploy/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-deploy/SKILL.md"
   },
   {
     "name": "rdk-model-zoo",
@@ -567,7 +569,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-zoo/SKILL.md"
   },
   {
     "name": "rdk-model-zoo-develop",
@@ -578,7 +580,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-develop/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-zoo-develop/SKILL.md"
   },
   {
     "name": "rdk-model-zoo-integrate",
@@ -589,7 +591,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-integrate/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-zoo-integrate/SKILL.md"
   },
   {
     "name": "rdk-model-zoo-release",
@@ -600,7 +602,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-release/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-zoo-release/SKILL.md"
   },
   {
     "name": "rdk-model-zoo-repo",
@@ -611,7 +613,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-repo/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-zoo-repo/SKILL.md"
   },
   {
     "name": "rdk-model-zoo-review",
@@ -622,7 +624,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-review/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-zoo-review/SKILL.md"
   },
   {
     "name": "rdk-model-zoo-validate",
@@ -633,7 +635,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-model-zoo-validate/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-model-zoo-validate/SKILL.md"
   },
   {
     "name": "rdk-multimedia",
@@ -644,7 +646,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-multimedia/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-multimedia/SKILL.md"
   },
   {
     "name": "rdk-peripheral-cookbook",
@@ -656,7 +658,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-peripheral-cookbook/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-peripheral-cookbook/SKILL.md"
   },
   {
     "name": "rdk-vision-pipeline",
@@ -667,11 +669,11 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-vision-pipeline/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-vision-pipeline/SKILL.md"
   },
   {
     "name": "ucp",
-    "fingerprint": "1fccad3faa7e28e300832705919acf3783c1448f40c1d98f5f4259ec3c02c50d",
+    "fingerprint": "23568256413604bfa723e7be8c8ddc581bab1b68f3e733d81502eebfc4721fb5",
     "tasks": [
       "model_deploy"
     ],
@@ -682,7 +684,7 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/ucp/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/ucp/SKILL.md"
   },
   {
     "name": "x5-accuracy-diagnostics",
@@ -695,11 +697,11 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-accuracy-diagnostics/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-accuracy-diagnostics/SKILL.md"
   },
   {
     "name": "x5-bpu-python-api",
-    "fingerprint": "bd57e0113d6942e8a0a6b83c8d79b7183d8a50eca4a1d8a257c2d213b3e0f79b",
+    "fingerprint": "0a094375155bb2235d44e6f8007be5f0957232f1c481a26081945d10480c72b0",
     "tasks": [
       "model_deploy"
     ],
@@ -708,7 +710,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-bpu-python-api/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-bpu-python-api/SKILL.md"
   },
   {
     "name": "x5-calibration-data-prepare",
@@ -723,7 +725,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-calibration-data-prepare/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-calibration-data-prepare/SKILL.md"
   },
   {
     "name": "x5-consistency-diagnostics",
@@ -736,7 +738,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-consistency-diagnostics/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-consistency-diagnostics/SKILL.md"
   },
   {
     "name": "x5-environment-install",
@@ -749,11 +751,11 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-install/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-environment-install/SKILL.md"
   },
   {
     "name": "x5-environment-probe",
-    "fingerprint": "faa903324258ecee4c18e12320972e5d8c458ea6a4d6e502a4b3c6159ed06f09",
+    "fingerprint": "9ae8a68aa3161671fdb6de38bb9741fed9e1396cf7ee23608f4ce2e491f29c78",
     "tasks": [
       "environment"
     ],
@@ -762,7 +764,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-probe/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-environment-probe/SKILL.md"
   },
   {
     "name": "x5-environment-setup",
@@ -775,7 +777,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-environment-setup/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-environment-setup/SKILL.md"
   },
   {
     "name": "x5-model-diagnostics",
@@ -788,7 +790,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-model-diagnostics/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-model-diagnostics/SKILL.md"
   },
   {
     "name": "x5-model-preflight",
@@ -803,7 +805,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-model-preflight/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-model-preflight/SKILL.md"
   },
   {
     "name": "x5-performance-diagnostics",
@@ -816,7 +818,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-performance-diagnostics/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-performance-diagnostics/SKILL.md"
   },
   {
     "name": "x5-ptq-compile",
@@ -832,7 +834,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-ptq-compile/SKILL.md"
   },
   {
     "name": "x5-ptq-config-authoring",
@@ -847,7 +849,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-config-authoring/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-ptq-config-authoring/SKILL.md"
   },
   {
     "name": "x5-ptq-deploy",
@@ -862,7 +864,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-ptq-deploy/SKILL.md"
   },
   {
     "name": "x5-qat-adaptation",
@@ -877,7 +879,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-adaptation/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-qat-adaptation/SKILL.md"
   },
   {
     "name": "x5-qat-compile",
@@ -893,7 +895,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-compile/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-qat-compile/SKILL.md"
   },
   {
     "name": "x5-qat-deploy",
@@ -908,7 +910,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-deploy/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-qat-deploy/SKILL.md"
   },
   {
     "name": "x5-qat-training",
@@ -923,11 +925,11 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-qat-training/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-qat-training/SKILL.md"
   },
   {
     "name": "x5-router",
-    "fingerprint": "8241560539f5048fe968c6e6bc43391a01e5eedff4854acecff07012ced10f10",
+    "fingerprint": "3041344e30462025cb39050347b5e88c4d0af4cd4317e17a858d65eb295796f6",
     "tasks": [
       "model_conversion"
     ],
@@ -936,7 +938,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-router/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-router/SKILL.md"
   },
   {
     "name": "x5-runtime-cpp-infer",
@@ -949,7 +951,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-runtime-cpp-infer/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-runtime-cpp-infer/SKILL.md"
   },
   {
     "name": "x5-runtime-deploy",
@@ -962,7 +964,7 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "workflow",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-runtime-deploy/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-runtime-deploy/SKILL.md"
   },
   {
     "name": "rdk-network-remote",
@@ -974,7 +976,7 @@ export const TAXONOMY_DATA = [
     "workflows": [],
     "platforms": null,
     "role": "entry",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/rdk-network-remote/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/rdk-network-remote/SKILL.md"
   },
   {
     "name": "x5-board-monitor",
@@ -987,11 +989,11 @@ export const TAXONOMY_DATA = [
       "x5"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-x5/skills/x5-board-monitor/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-x5/skills/x5-board-monitor/SKILL.md"
   },
   {
-    "name": "j6-board-monitor",
-    "fingerprint": "749f33b95e8366611926be13e2ff87f6785ac097a21ad0f97362554c9c0fcab7",
+    "name": "s-board-monitor",
+    "fingerprint": "754ed2d2a2ae9aa37f099522835225164cc4308543d48cc23796ec6e100bb72b",
     "tasks": [
       "diagnostics"
     ],
@@ -1002,6 +1004,6 @@ export const TAXONOMY_DATA = [
       "s600"
     ],
     "role": "step",
-    "source": "https://github.com/D-Robotics/rdk-skills/blob/08d0a466413f11bbc045ba5e51f626bdb0346373/skills/oe-skills-s/skills/ucp/j6-board-monitor/SKILL.md"
+    "source": "https://github.com/D-Robotics/rdk-skills/blob/f205371baee8731988c8857ead7ffe23b67c501c/skills/oe-skills-s/skills/ucp/s-board-monitor/SKILL.md"
   }
 ] as const;

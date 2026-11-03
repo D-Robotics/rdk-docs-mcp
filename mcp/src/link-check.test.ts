@@ -92,15 +92,22 @@ describe("page link check", () => {
         { manualId: "b", before: 50, after: 49 },
       ]),
     ).toBeUndefined();
-    const previous = process.env.HTTPS_PROXY;
-    delete process.env.HTTPS_PROXY;
-    expect(proxyFetchWarning()).toBeUndefined();
-    process.env.HTTPS_PROXY = "http://proxy.example:8080";
+    const proxyKeys = ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "https_proxy", "http_proxy", "all_proxy"] as const;
+    const previous = Object.fromEntries(proxyKeys.map((key) => [key, process.env[key]]));
     try {
+      for (const key of proxyKeys) delete process.env[key];
+      expect(proxyFetchWarning()).toBeUndefined();
+      process.env.HTTP_PROXY = "http://proxy.example:8080";
+      expect(proxyFetchWarning()).toMatch(/ignores/i);
+      delete process.env.HTTP_PROXY;
+      process.env.all_proxy = "http://proxy.example:8080";
       expect(proxyFetchWarning()).toMatch(/ignores/i);
     } finally {
-      if (previous === undefined) delete process.env.HTTPS_PROXY;
-      else process.env.HTTPS_PROXY = previous;
+      for (const key of proxyKeys) {
+        const value = previous[key];
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
     }
   });
 });

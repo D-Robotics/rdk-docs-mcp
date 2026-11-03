@@ -3,7 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchText } from "./http.js";
 import { getPage, listToc, searchDocs } from "./service.js";
-import { inspectPage, scoreCase, scoreForumToc, type EvalCase } from "./eval.js";
+import { scoreCase, type EvalCase } from "./eval.js";
+import { evaluateForumChecks } from "./eval-forum.js";
 import { runUsabilityChecks } from "./eval-usability.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -14,76 +15,50 @@ async function main() {
   const results = [];
 
   for (const evalCase of cases) {
-    const search = await searchDocs(
-      { query: evalCase.query, manual: evalCase.manual, limit: 5 },
-      fetchText,
-    );
-    const hit = evalCase.firstHitMustInclude?.length
-      ? search.hits[0]
-      : search.hits.find((item) =>
-          evalCase.urlMustInclude.some((needle) => item.url.includes(needle) || item.title.includes(needle)),
-        );
-    let markdown: string | undefined;
-    if (hit) {
-      const page = await getPage({ url: hit.url, maxChars: 8000, full: true }, fetchText);
-      markdown = page.markdown;
+    try {
+      const search = await searchDocs(
+        { query: evalCase.query, manual: evalCase.manual, limit: 5 },
+        fetchText,
+      );
+      const hit = evalCase.firstHitMustInclude?.length
+        ? search.hits[0]
+        : search.hits.find((item) =>
+            evalCase.urlMustInclude.some((needle) => item.url.includes(needle) || item.title.includes(needle)),
+          );
+      let markdown: string | undefined;
+      if (hit) {
+        const page = await getPage({ url: hit.url, maxChars: 8000, full: true }, fetchText);
+        markdown = page.markdown;
+      }
+      const score = scoreCase(evalCase, search.hits, markdown, search.warnings);
+      results.push({
+        ...score,
+        topHits: search.hits.slice(0, 3).map((item) => item.title),
+      });
+      const mark = score.pass ? "PASS" : "FAIL";
+      console.log(`${mark}  ${evalCase.id}  ${score.reason}${score.hitUrl ? `  ${score.hitUrl}` : ""}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.log(`FAIL  ${evalCase.id}  ${reason}`);
+      results.push({
+        id: evalCase.id,
+        question: evalCase.question,
+        searchPass: false,
+        pagePass: false,
+        pass: false,
+        reason,
+      });
     }
-    const score = scoreCase(evalCase, search.hits, markdown);
-    results.push({
-      ...score,
-      topHits: search.hits.slice(0, 3).map((item) => item.title),
-    });
-    const mark = score.pass ? "PASS" : "FAIL";
-    console.log(`${mark}  ${evalCase.id}  ${score.reason}${score.hitUrl ? `  ${score.hitUrl}` : ""}`);
   }
 
-  const toc = await listToc({ manual: "forum" }, fetchText);
-  const tocScore = scoreForumToc(toc.pages);
-  console.log(`${tocScore.pass ? "PASS" : "FAIL"}  forum-list-toc  ${tocScore.reason}`);
-  results.push({
-    id: "forum-list-toc",
-    question: "列出开发与问题和通用最近帖",
-    searchPass: tocScore.pass,
-    pagePass: tocScore.pass,
-    pass: tocScore.pass,
-    reason: tocScore.reason,
+  const forumChecks = await evaluateForumChecks({
+    listToc: (input) => listToc(input, fetchText),
+    getPage: (url) => getPage({ url, maxChars: 4000, full: true }, fetchText),
   });
-
-  if (toc.pages[0]) {
-    const topic = await getPage({ url: toc.pages[0].url, maxChars: 4000, full: true }, fetchText);
-    const pageOk = inspectPage(topic.markdown).valid && topic.url.includes("forum.d-robotics.cc");
-    const reason = pageOk
-      ? `opened ${topic.title}`
-      : `empty or invalid topic page: ${toc.pages[0].url}`;
-    console.log(`${pageOk ? "PASS" : "FAIL"}  forum-list-toc-page  ${reason}  ${topic.url}`);
-    results.push({
-      id: "forum-list-toc-page",
-      question: "打开板块最近帖正文",
-      searchPass: true,
-      pagePass: pageOk,
-      pass: pageOk,
-      hitUrl: topic.url,
-      hitTitle: topic.title,
-      reason,
-    });
+  for (const item of forumChecks) {
+    console.log(`${item.pass ? "PASS" : "FAIL"}  ${item.id}  ${item.reason}${item.hitUrl ? `  ${item.hitUrl}` : ""}`);
+    results.push(item);
   }
-
-  const filtered = await listToc({ manual: "forum", query: "开发与问题" }, fetchText);
-  const filterOk =
-    filtered.pages.length > 0 &&
-    filtered.pages.every((page) => page.breadcrumbs?.[0] === "开发与问题");
-  const filterReason = filterOk
-    ? `filtered to ${filtered.pages.length} topics on 开发与问题`
-    : "forum toc query=开发与问题 did not stay on that board";
-  console.log(`${filterOk ? "PASS" : "FAIL"}  forum-list-toc-filter  ${filterReason}`);
-  results.push({
-    id: "forum-list-toc-filter",
-    question: "按板块过滤论坛最近帖",
-    searchPass: filterOk,
-    pagePass: filterOk,
-    pass: filterOk,
-    reason: filterReason,
-  });
 
   const usability = await runUsabilityChecks(fetchText);
   for (const item of usability) {

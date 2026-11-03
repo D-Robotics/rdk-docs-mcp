@@ -86,7 +86,7 @@ GET https://forum.d-robotics.cc/t/{id}.json
 
 旧 query-only 调用仅供候选发现，会返回 legacy_query 警告；不能将排名当成已确定的意图。结构化筛选无结果可能是分类尚未覆盖或已失效，报告限制并查官方文档，不静默放宽板卡/工作流约束。
 
-9. **展示名与精确名。** 结果带 `display_name`（如 `__SKILL_j6-plugin-__set-fake-quantize` 显示为 `j6-plugin-set-fake-quantize`），给用户看时用 display_name；`get_skill` 与安装命令一律用 `name` 字段的精确目录名，两个记录可能 display_name 相同但 `name` 不同，禁止用 display_name 查询或安装。
+9. **展示名与精确名。** 结果带 `display_name`。当前目录里的公开名（如 `s-plugin-set-fake-quantize`）与 `name` 相同。若记录仍是生成器格式 `__SKILL_<family>-__<slug>`，展示名是 `<family>-<slug>`。给用户看时用 display_name；`get_skill` 与安装命令一律用 `name` 字段的精确名，两个记录可能 display_name 相同但 `name` 不同，禁止用 display_name 查询或安装。
 10. 两个工具独立于文档工具：目录不可用时文档检索不受影响，反之亦然。
 
 ## 图片、长页与内容冲突（证据规则）

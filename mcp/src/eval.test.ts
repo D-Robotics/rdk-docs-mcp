@@ -19,6 +19,25 @@ describe("scoreCase", () => {
     expect(score.pass).toBe(true);
   });
 
+  it("reports an unavailable index instead of disguising it as a ranking miss", () => {
+    const score = scoreCase(
+      { ...evalCase, firstHitMustInclude: ["/POE"] },
+      [],
+      undefined,
+      ["Failed to load index for x5: ENOTFOUND"],
+    );
+    expect(score.pass).toBe(false);
+    expect(score.reason).toContain("ENOTFOUND");
+  });
+
+  it("does not pass live checks when a packaged snapshot hides an index failure", () => {
+    const hit = { title: "PoE 供电使用", url: "https://developer.d-robotics.cc/rdk_x_doc/POE", manual: "rdk-x", snippet: "", score: 10, source: "docs" as const };
+    const warning = "Live index for rdk-x failed; used the packaged snapshot (built 1 days ago): HTTP 503";
+    const score = scoreCase(evalCase, [hit], "# PoE 供电使用\n电压与功率因标准而异", [warning]);
+    expect(score.pass).toBe(false);
+    expect(score.reason).toContain("HTTP 503");
+  });
+
   it("fails when the first hit is not the official how-to page", () => {
     const score = scoreCase(
       { ...evalCase, firstHitMustInclude: ["/POE"] },
@@ -81,6 +100,14 @@ describe("scoreDocsFirstMix", () => {
       8,
     );
     expect(score.pass).toBe(true);
+  });
+
+  it("fails a mixed search when the forum source is unavailable", () => {
+    const docs = [hit("docs", "a"), hit("docs", "b"), hit("docs", "c")];
+    const score = scoreDocsFirstMix(docs, 8, ["Failed to search forum: HTTP 503"]);
+    expect(score.pass).toBe(false);
+    expect(score.reason).toContain("HTTP 503");
+    expect(scoreDocsFirstMix(docs, 8).pass).toBe(false);
   });
 
   it("fails when forum crowds the first slot or takes too many", () => {

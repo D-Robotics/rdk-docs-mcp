@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { chmodSync, statSync, unlinkSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, statSync, lstatSync, unlinkSync, copyFileSync, constants, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,6 +59,16 @@ function readJson(path: string): JsonObject {
   return parsed as JsonObject;
 }
 
+function pathEntryExists(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
 /**
  * Back up an existing config before the installer changes it. The first run
  * writes `<file>.bak`; an existing `.bak` (the user's own, or the pre-install
@@ -68,19 +78,26 @@ function readJson(path: string): JsonObject {
  */
 export function backupBeforeWrite(path: string, next: string): string | undefined {
   if (!existsSync(path)) return undefined;
-  const current = readFileSync(path, "utf8");
-  if (current === next) return undefined;
+  const current = readFileSync(path);
+  if (current.equals(Buffer.from(next))) return undefined;
   const primary = `${path}.bak`;
-  if (!existsSync(primary)) {
-    copyFileSync(path, primary);
+  try {
+    copyFileSync(path, primary, constants.COPYFILE_EXCL);
     return primary;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
   }
-  if (readFileSync(primary, "utf8") === current) return primary;
+  if (lstatSync(primary).isFile() && readFileSync(primary).equals(current)) return primary;
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "");
-  let target = `${primary}.${stamp}`;
-  for (let n = 1; existsSync(target); n++) target = `${primary}.${stamp}-${n}`;
-  copyFileSync(path, target);
-  return target;
+  for (let n = 0; ; n++) {
+    const target = `${primary}.${stamp}${n ? `-${n}` : ""}`;
+    try {
+      copyFileSync(path, target, constants.COPYFILE_EXCL);
+      return target;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+  }
 }
 
 function writeJson(path: string, value: JsonObject): void {
@@ -400,6 +417,36 @@ export function ensureCodexMcpServer(path: string): CodexMcpEnsureResult {
     : { registered: true, detail: `Appended [mcp_servers.rdk-docs] to ${path}.` };
 }
 
+function writeSkillSafely(path: string, body: string, warn: (message: string) => void): "updated" | "unchanged" | "skipped" {
+  try {
+    const existing = pathEntryExists(path) ? lstatSync(path) : undefined;
+    if (existing?.isSymbolicLink()) {
+      warn(`Skipped ${path}: SKILL.md is a symbolic link; left unchanged.`);
+      return "skipped";
+    }
+    const original = existing ? readFileSync(path) : undefined;
+    if (original?.equals(Buffer.from(body))) return "unchanged";
+    const backup = backupBeforeWrite(path, body);
+    if (original && lstatSync(path).isSymbolicLink()) throw new Error("Skill became a symbolic link during backup.");
+    if (original && (!backup || !readFileSync(backup).equals(original) || !readFileSync(path).equals(original))) {
+      throw new Error("Skill changed during backup.");
+    }
+    if (!original && pathEntryExists(path)) throw new Error("Skill appeared during backup.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warn(`Skipped ${path}: backup failed (${message}).`);
+    return "skipped";
+  }
+  try {
+    writeText(path, body);
+    return "updated";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warn(`Skipped ${path}: write failed (${message}).`);
+    return "skipped";
+  }
+}
+
 /**
  * Overwrite installed copies of every bundled skill on disk. A skill only lands
  * where it already exists (refresh updates, never installs fresh on startup).
@@ -411,8 +458,9 @@ export function refreshInstalledSkills(options: InstallOptions = {}): string[] {
   for (const skill of skills) {
     for (const path of skillInstallPaths(home, skill.name)) {
       if (!existsSync(path) && !existsSync(dirname(path))) continue;  // update only
-      writeText(path, skill.body);
-      updated.push(path);
+      if (writeSkillSafely(path, skill.body, (message) => console.error(`rdk-docs-mcp skill refresh: ${message}`)) === "updated") {
+        updated.push(path);
+      }
     }
   }
   return updated;
@@ -434,13 +482,17 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
   const home = options.home ?? homedir();
   const skills = resolveSkills(options);
   const result: InstallResult = { mcp: [], skills: [], warnings: [] };
+  const attemptedSkills = new Set<string>();
 
   /** write every bundled skill into a client's skills dir. */
   const writeSkills = (baseDir: string) => {
     for (const skill of skills) {
       const skillPath = join(baseDir, skill.name, "SKILL.md");
-      writeText(skillPath, skill.body);
-      result.skills.push(skillPath);
+      if (attemptedSkills.has(skillPath)) continue;
+      attemptedSkills.add(skillPath);
+      if (writeSkillSafely(skillPath, skill.body, (message) => result.warnings.push(message)) !== "skipped") {
+        result.skills.push(skillPath);
+      }
     }
   };
 
@@ -497,21 +549,14 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
     ensureDshMcpPatch(patchPath);
     result.mcp.push(patchPath);
     writeSkills(join(dsh, "skills"));
-    const agentsBase = join(home, ".agents", "skills");
-    for (const skill of skills) {
-      const p = join(agentsBase, skill.name, "SKILL.md");
-      if (!result.skills.includes(p)) {
-        writeText(p, skill.body);
-        result.skills.push(p);
-      }
-    }
+    writeSkills(join(home, ".agents", "skills"));
   }
 
   for (const client of SKILL_ONLY_CLIENTS) {
     if (existsSync(join(home, ...client.root))) writeSkills(join(home, ...client.skills));
   }
 
-  if (result.mcp.length === 0 && result.skills.length === 0) {
+  if (result.mcp.length === 0 && result.skills.length === 0 && result.warnings.length === 0) {
     result.warnings.push(
       "No Cursor / Claude / ZCode / Codex / DeepSeek Harness directory found. Create one, or merge the MCP snippet from install.md yourself.",
     );
@@ -528,14 +573,14 @@ export function installRdkDocs(options: InstallOptions = {}): InstallResult {
 }
 
 export function formatInstallReport(result: InstallResult): string {
-  const lines = ["# RDK Docs installed", ""];
+  const lines = [result.mcp.length || result.skills.length ? "# RDK Docs installed" : "# RDK Docs installation incomplete", ""];
   if (result.mcp.length) {
     lines.push("MCP written:");
     for (const path of result.mcp) lines.push(`- ${path}`);
     lines.push("");
   }
   if (result.skills.length) {
-    lines.push("Skill written:");
+    lines.push("Skills installed or unchanged:");
     for (const path of result.skills) lines.push(`- ${path}`);
     lines.push("");
   }

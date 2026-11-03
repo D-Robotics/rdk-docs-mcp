@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -10,14 +11,37 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 const root = fileURLToPath(new URL("../", import.meta.url));
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error("Run via npm run verify:package so npm's portable CLI path is available");
+const args = process.argv.slice(2);
+if (args.length !== 0 && (args.length !== 2 || args[0] !== "--tarball" || !args[1])) {
+  throw new Error("Usage: npm run verify:package -- [--tarball <path>]");
+}
 const sandbox = mkdtempSync(join(tmpdir(),"rdk-package-verification-"));
-const runNpm = args => execFileSync(process.execPath,[npmCli,...args],{cwd:root,encoding:"utf8",timeout:120000,stdio:["ignore","pipe","pipe"]});
-const packed = JSON.parse(runNpm(["pack","--json","--pack-destination",sandbox]));
-// npm versions expose either an array or a package-name map.
-const artifact = Array.isArray(packed) ? packed[0] : packed["rdk-docs-mcp"];
-assert.equal(typeof artifact?.filename,"string","npm pack must identify its tarball");
+const runNpm = (args, cwd = root) => execFileSync(process.execPath,[npmCli,...args],{cwd,encoding:"utf8",timeout:120000,stdio:["ignore","pipe","pipe"]});
+let archive;
+if (args.length) {
+  archive = resolve(root, args[1]);
+} else {
+  const source = join(sandbox,"source");
+  const packageCopy = join(source,"mcp");
+  const excluded = new Set(["node_modules","dist","skills","SKILL.md",".git",".npmrc"]);
+  cpSync(root,packageCopy,{recursive:true,filter:path => {
+    const first = relative(root,path).split(sep)[0];
+    return !excluded.has(first) && first !== ".env" && !first.startsWith(".env.") && !first.endsWith(".tgz");
+  }});
+  cpSync(join(root,"..","skills"),join(source,"skills"),{recursive:true});
+  symlinkSync(join(root,"node_modules"),join(packageCopy,"node_modules"),process.platform === "win32" ? "junction" : "dir");
+  runNpm(["run","build"],packageCopy);
+  const packed = JSON.parse(runNpm(["pack","--json","--pack-destination",sandbox],packageCopy));
+  // npm versions expose either an array or a package-name map.
+  const artifact = Array.isArray(packed) ? packed[0] : packed["rdk-docs-mcp"];
+  assert.equal(typeof artifact?.filename,"string","npm pack must identify its tarball");
+  archive = join(sandbox,artifact.filename);
+}
+const sha256 = createHash("sha256").update(readFileSync(archive)).digest("hex");
 const installation = join(sandbox,"consumer");
-runNpm(["install","--prefix",installation,"--ignore-scripts","--no-audit","--no-fund",join(sandbox,artifact.filename)]);
+runNpm(["install","--prefix",installation,"--ignore-scripts","--no-audit","--no-fund",archive]);
+const audit = JSON.parse(runNpm(["audit","--omit=dev","--json"],installation));
+assert.equal(audit.metadata?.vulnerabilities?.total,0,"installed production dependencies must pass npm audit");
 const packageRoot = join(installation,"node_modules","rdk-docs-mcp");
 const entry = join(packageRoot,"dist","index.js");
 const isolatedHome = join(sandbox,"home");
@@ -45,7 +69,18 @@ try {
   }
   const bad = await client.callTool({name:"search_skills",arguments:{query:"camera",task:"camera",unknown_constraint:true}});
   assert.equal(bad.isError,true);
+  const backup = `${sentinel}.bak`;
+  const refreshed = () => {
+    try { return existsSync(backup) && readFileSync(sentinel,"utf8") === guide; }
+    catch { return false; }
+  };
+  const deadline = Date.now() + 5_000;
+  while (!refreshed() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve,25));
+  assert(existsSync(backup),"MCP startup must back up an existing Skill before refreshing it");
+  assert.equal(readFileSync(backup,"utf8"),"user-owned sentinel","startup must preserve the original Skill in its backup");
+  assert.equal(readFileSync(sentinel,"utf8"),guide,"startup must refresh the installed Skill after its backup");
 } finally { await client.close(); }
-const evidence = {package:artifact.filename,version:doctor.version,display_name:doctor.display_name,tools:tools.map(t=>t.name),doctor_preserved_user_skill:true,bundled_guide_matches:true,unknown_arguments_rejected:true,sandbox};
+assert.equal(createHash("sha256").update(readFileSync(archive)).digest("hex"),sha256,"tarball changed during verification");
+const evidence = {package:basename(archive),archive,sha256,version:doctor.version,display_name:doctor.display_name,production_audit:0,tools:tools.map(t=>t.name),doctor_preserved_user_skill:true,startup_backed_up_user_skill:true,bundled_guide_matches:true,unknown_arguments_rejected:true,sandbox};
 writeFileSync(join(sandbox,"result.json"),JSON.stringify(evidence,null,2));
 console.log(JSON.stringify(evidence,null,2));

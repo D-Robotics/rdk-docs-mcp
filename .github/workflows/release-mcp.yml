@@ -31,15 +31,26 @@ jobs:
           assert.equal(process.env.RELEASE_TAG, `mcp-v${version}`);
           NODE
       - run: npm ci
+      - name: Audit dependencies
+        run: npm audit --audit-level=moderate
       - run: npm test
       - name: Build and evaluate without network access
         run: npm run eval:offline
         env:
           RDK_DOCS_OFFLINE: '1'
+      - name: Verify live documentation and Skill catalog
+        run: npm run verify:live
+        env:
+          RDK_DOCS_CACHE_DIR: ${{ runner.temp }}/rdk-docs-release-cache
+          RDK_DOCS_FAIL_ON_STALE: '1'
       - name: Pack the verified source
         run: |
           mkdir -p ../release
           npm pack --pack-destination ../release
+      - name: Verify the exact release tarball
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm run verify:package -- --tarball "../release/rdk-docs-mcp-${RELEASE_TAG#mcp-v}.tgz"
       - name: Bind the artifact to its source revision
         env:
           SOURCE_REPOSITORY: ${{ github.repository }}

@@ -137,8 +137,8 @@
     "question": "S600 OE LLM 怎么用 Whisper？",
     "query": "Whisper",
     "manual": "oe-llm-s600",
-    "urlMustInclude": ["/oe_llm_s600_doc/"],
-    "firstHitMustInclude": ["whisper"],
+    "urlMustInclude": ["/oe_llm_doc/"],
+    "firstHitMustInclude": ["/model_infer_sample/asr"],
     "pageMustInclude": ["Whisper", "whisper"]
   },
   {

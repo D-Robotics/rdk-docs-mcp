@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyOfficialPath, matchOfficialPath } from "./routes.js";
+import { searchDocs } from "./service.js";
 import type { SearchHit } from "./types.js";
 
 describe("matchOfficialPath", () => {
@@ -39,9 +40,34 @@ describe("matchOfficialPath", () => {
     expect(matchOfficialPath("交叉编译", "tros")?.url).toContain("cross_compile");
     expect(matchOfficialPath("Moss", "studio")?.url).toContain("product-intro/architecture");
     expect(matchOfficialPath("量化", "oe-x5")?.url).toContain("ptq_qat_overview");
+    expect(matchOfficialPath("Whisper", "oe-llm-s600")?.url).toContain("/model_infer_sample/asr");
     expect(matchOfficialPath("BMI088")?.url).toContain("/introduction");
     expect(matchOfficialPath("风扇", "x5")?.url).toContain("frequency_management");
     expect(matchOfficialPath("电源", "x5")).toBeUndefined();
+  });
+
+  it("keeps a specific QAT API ahead of the general quantization overview", async () => {
+    const index = `Search.setIndex(${JSON.stringify({
+      docnames: [
+        "oe_mapper/source/faststart/ptq_qat_overview",
+        "plugin/source/api_reference/apis/fake_quantize",
+      ],
+      titles: ["5.1. PTQ、QAT 简介", "7.6.3. set_fake_quantize"],
+      terms: { set_fake_quantize: [1] },
+    })})`;
+    const http = async (url: string) => {
+      if (url.endsWith("/oe_x5_doc/cn/searchindex.js")) return index;
+      throw new Error(`unexpected url ${url}`);
+    };
+
+    const overview = await searchDocs({ query: "量化", manual: "oe-x5", limit: 5 }, http);
+    expect(overview.hits[0]?.url).toContain("ptq_qat_overview");
+
+    const api = await searchDocs({ query: "QAT set_fake_quantize", manual: "oe-x5", limit: 5 }, http);
+    expect(api.hits[0]?.url).toContain("/apis/fake_quantize.html");
+    expect(matchOfficialPath("QAT horizon_plugin_pytorch.set_fake_quantize", "oe-x5")).toBeUndefined();
+    expect(matchOfficialPath("PTQ hb_mapper 量化", "oe-x5")).toBeUndefined();
+    expect(matchOfficialPath("怎么做 PTQ 量化", "oe-x5")?.url).toContain("ptq_qat_overview");
   });
 
   it("pins the case handbook for a case survey", () => {

@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolveManual } from "./catalog.js";
 import { getPage, listToc, loadIndexFromOrigin, searchDocs } from "./service.js";
-import type { HttpGet } from "./http.js";
+import { fetchText, type HttpGet } from "./http.js";
 
 const docusaurusIndex = JSON.stringify([
   {
@@ -116,12 +116,93 @@ const http: HttpGet = async (url: string) => {
 };
 
 describe("searchDocs", () => {
+  it("returns the current S600 Whisper page from the packaged offline index", async () => {
+    vi.stubEnv("RDK_DOCS_OFFLINE", "1");
+    vi.stubEnv("RDK_DOCS_PREBUILT", "1");
+    try {
+      const result = await searchDocs({ query: "S600 Whisper", manual: "oe-llm-s600", limit: 5 }, fetchText);
+      expect(result.hits[0]?.url).toContain("/model_deployment/model_infer_sample/asr");
+      expect(result.warnings.join(" ")).toContain("packaged snapshot");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("searches a docusaurus manual", async () => {
     const result = await searchDocs({ query: "PoE", manual: "x5", limit: 5 }, http);
     expect(result.hits[0]?.title).toMatch(/PoE/);
     expect(result.hits[0]?.url).toContain("developer.d-robotics.cc");
-    expect(result.hits[0]?.role).toBeUndefined();
+    expect(result.hits[0]?.role).toBe("official-start");
+    expect(result.hits[0]?.url).toContain("/rdk_x5/POE");
     expect(result.warnings).toEqual([]);
+  });
+
+  it("promotes an official page only when that page is already indexed", async () => {
+    const index = JSON.stringify([
+      {
+        documents: [
+          { t: "5.1.3 源码安装", u: "/tros_doc/quick_start/cross_compile" },
+          { t: "5.1.2 apt 安装与升级", u: "/tros_doc/quick_start/install_tros" },
+        ],
+      },
+    ]);
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/tros_doc/search-index.json")) return index;
+      throw new Error(`unexpected url ${url}`);
+    };
+    const result = await searchDocs({ query: "安装 tros", manual: "tros", limit: 5 }, mock);
+    expect(result.hits[0]?.role).toBe("official-start");
+    expect(result.hits[0]?.url).toBe("https://developer.d-robotics.cc/tros_doc/quick_start/install_tros");
+    expect(result.hits.some((hit) => hit.url.includes("cross_compile"))).toBe(true);
+  });
+
+  it("does not open an X5-only page first when the question names X3", async () => {
+    const index = JSON.stringify([
+      {
+        documents: [
+          {
+            t: "PoE 供电使用",
+            u: "/rdk_x_doc/Advanced_development/hardware_development/rdk_x5/POE",
+          },
+          {
+            t: "RDK X3 硬件简介",
+            u: "/rdk_x_doc/Quick_start/hardware_introduction/rdk_x3",
+          },
+        ],
+      },
+    ]);
+    const mock: HttpGet = async (url) => {
+      if (url.endsWith("/rdk_x_doc/search-index.json")) return index;
+      throw new Error(`unexpected url ${url}`);
+    };
+    const result = await searchDocs({ query: "RDK X3 是否支持 PoE", manual: "rdk-x", limit: 5 }, mock);
+    expect(result.hits[0]?.url).toContain("rdk_x3");
+    expect(result.hits[0]?.url.toLowerCase()).not.toContain("/poe");
+    expect(result.hits.some((hit) => hit.url.includes("/rdk_x5/POE"))).toBe(true);
+  });
+
+  it("returns the whole page when a full read lands on an empty anchor", async () => {
+    const memory = `
+      <article class="theme-doc-markdown">
+        <h1>Linux 系统内存使用情况</h1>
+        <p>DDR 内存范围如下，可以调整。</p>
+        <h2>ION 内存</h2>
+        <h2>其他</h2>
+        <p>其他说明。</p>
+      </article>
+    `;
+    const mock: HttpGet = async (url) => {
+      if (url.includes("/memory")) return memory;
+      throw new Error(`unexpected url ${url}`);
+    };
+    const page = await getPage(
+      {
+        url: "https://developer.d-robotics.cc/rdk_x_doc/Advanced_development/linux_development/driver_development_x5/memory#ion-内存",
+        full: true,
+      },
+      mock,
+    );
+    expect(page.markdown).toContain("DDR 内存范围如下");
   });
 
   it("ranks the indexed page that contains the query terms", async () => {

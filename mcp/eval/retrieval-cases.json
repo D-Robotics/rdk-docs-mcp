@@ -330,7 +330,7 @@
       "id": "s600-whisper",
       "query": "S600 Whisper",
       "manual": "oe-llm-s600",
-      "expectUrlIncludes": ["whisper"]
+      "expectUrlIncludes": ["/model_deployment/model_infer_sample/asr"]
     },
     {
       "id": "x5-poe",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { origin, resolveManual } from "./catalog.js";
 import {
   compactRspressIndex,
+  currentRspressGroups,
   loadRspressDocs,
   dedupeLanguageCopies,
   normalizeDocPath,
@@ -74,6 +75,89 @@ describe("Rspress index discovery", () => {
     const docs = await loadRspressDocs(manual, http);
     expect(docs[0]?.text).toBe("S600 LLM 接口说明");
     expect(requests.at(-1)).toBe(`${origin()}/oe_llm_doc/static/search_index.v1_0.5.zh.2ea47cf2.json`);
+  });
+
+  it("keeps one version, and drops a retired numbered version when a newer one is published", () => {
+    expect(currentRspressGroups([{ version: "v1.0.5", lang: "zh", hash: "2ea47cf2" }])).toHaveLength(1);
+    expect(
+      currentRspressGroups([
+        { version: "", lang: "zh", hash: "a" },
+        { version: "", lang: "en", hash: "b" },
+      ]),
+    ).toHaveLength(2);
+    expect(
+      currentRspressGroups([
+        { version: "", lang: "zh", hash: "a" },
+        { version: "latest", lang: "zh", hash: "b" },
+      ]),
+    ).toHaveLength(2);
+    expect(
+      currentRspressGroups([
+        { version: "v1.0.5", lang: "zh", hash: "2ea47cf2" },
+        { version: "v1.0.5", lang: "en", hash: "6495b737" },
+        { version: "v2.0.0", lang: "zh", hash: "0c4d6b47" },
+        { version: "v2.0.0", lang: "en", hash: "752b12cb" },
+      ]).map((group) => `${group.version}:${group.lang}`),
+    ).toEqual(["v2.0.0:zh", "v2.0.0:en"]);
+  });
+
+  it("keeps latest, numbered, and unversioned candidates when their default is unknown", async () => {
+    const manual = resolveManual("oe-llm-s600")!;
+    const requests: string[] = [];
+    const indexes = new Map([
+      ["search_index.latest.zh.aaaaaaaa.json", "/oe_llm_doc/guide/latest-only"],
+      ["search_index.v1_0.5.zh.bbbbbbbb.json", "/oe_llm_doc/v1.0.5/guide/numbered-only"],
+      ["search_index.zh.cccccccc.json", "/oe_llm_doc/guide/unversioned-only"],
+      ["search_index.v2_0.0.zh.dddddddd.json", "/oe_llm_doc/v2.0.0/guide/numbered-only"],
+    ]);
+    const http = async (url: string) => {
+      requests.push(url);
+      if (url === manual.homeUrl) return '<script src="/oe_llm_doc/static/js/app.12345678.js"></script>';
+      if (url.endsWith("/app.12345678.js")) {
+        return 'map={"latest###zh":"aaaaaaaa","v1.0.5###zh":"bbbbbbbb","###zh":"cccccccc","v2.0.0###zh":"dddddddd"}';
+      }
+      const path = indexes.get(url.split("/").at(-1)!);
+      if (path) return JSON.stringify([{ title: path, routePath: path, content: "Indexed text", lang: "zh" }]);
+      throw new Error(`Unexpected index request: ${url}`);
+    };
+
+    const docs = await loadRspressDocs(manual, http);
+    expect(docs.map((doc) => doc.url).sort()).toEqual(
+      [...indexes.values()].map((path) => `${origin()}${path}`).sort(),
+    );
+    expect(requests.filter((url) => url.includes("search_index")).map((url) => url.split("/").at(-1)).sort())
+      .toEqual([...indexes.keys()].sort());
+  });
+
+  it("does not fetch a retired Rspress version whose pages no longer exist", async () => {
+    const manual = resolveManual("oe-llm-s600")!;
+    const requests: string[] = [];
+    const http = async (url: string) => {
+      requests.push(url);
+      if (url === manual.homeUrl) return '<script src="/oe_llm_doc/static/js/app.12345678.js"></script>';
+      if (url.endsWith("/app.12345678.js")) {
+        return 'map={"v1.0.5###zh":"2ea47cf2","v1.0.5###en":"6495b737","v2.0.0###zh":"0c4d6b47","v2.0.0###en":"752b12cb"}';
+      }
+      if (url.endsWith("/search_index.v2_0.0.zh.0c4d6b47.json")) {
+        return JSON.stringify([
+          {
+            title: "ASR 推理示例",
+            routePath: "/oe_llm_doc/guide/model_deployment/model_infer_sample/asr",
+            content: "whisper 模型的音频处理窗口为 30s",
+            lang: "zh",
+          },
+        ]);
+      }
+      if (url.endsWith("/search_index.v2_0.0.en.752b12cb.json")) return "[]";
+      throw new Error(`Unexpected index request: ${url}`);
+    };
+    const docs = await loadRspressDocs(manual, http);
+    expect(docs.some((doc) => doc.url.includes("/model_infer_sample/asr"))).toBe(true);
+    expect(requests.some((url) => url.includes("v1_0.5"))).toBe(false);
+    expect(requests.filter((url) => url.includes("search_index"))).toEqual([
+      `${origin()}/oe_llm_doc/static/search_index.v2_0.0.zh.0c4d6b47.json`,
+      `${origin()}/oe_llm_doc/static/search_index.v2_0.0.en.752b12cb.json`,
+    ]);
   });
 });
 

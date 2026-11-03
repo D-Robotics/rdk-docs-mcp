@@ -94,8 +94,8 @@ export const fetchText: HttpGet = async (url: string) => {
     }
     return text;
   } catch (error) {
-    // stale-while-revalidate：拿不到线上内容时先用旧缓存，别让一次抖动变成没结果。
-    if (cached !== undefined) {
+    // Normal reads tolerate stale data; release verification can require a live response.
+    if (cached !== undefined && process.env.RDK_DOCS_FAIL_ON_STALE !== "1") {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`rdk-docs-mcp: live fetch failed for ${url}; serving cached copy (${message})`);
       return cached.body;

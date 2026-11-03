@@ -20,8 +20,9 @@ export class CommunityClient implements PublishingBackend {
     const response = await fetch((forum ? this.forum : this.community) + path, {
       method: body === undefined ? "GET" : "POST", headers, body: body === undefined ? undefined : form ? body : JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(30_000),
     });
-    let result: any; try { result = await response.json(); } catch { throw new CommunityError("invalid_response", "The community returned an unreadable response."); }
     if (response.status === 401 || response.status === 403) throw new CommunityError("login_required", "This account is not signed in or lacks permission for this operation. Sign in with your own account.");
+    if (forum && path === "/session/current.json" && response.status === 404) throw new CommunityError("forum_login_required", "The forum session could not be verified. Sign in to the forum again.");
+    let result: any; try { result = await response.json(); } catch { throw new CommunityError("invalid_response", "The community returned an unreadable response."); }
     if (!response.ok || (!forum && !result.success) || (forum && result.errors)) {
       let message = forum ? result.errors?.join("; ") : result.error?.message;
       if (typeof message !== "string") message = `Community request failed (HTTP ${response.status}).`;
@@ -112,8 +113,11 @@ export class CommunityClient implements PublishingBackend {
       raw = raw.includes(marker) ? raw.split(marker).join(markdown) : `${raw}\n\n${markdown}`;
     }
     const result = await this.request("/posts.json", session, { title: content.title, raw, category: content.category_id, tags: content.tags }, true, csrf);
-    if (result.action === "enqueued" || result.pending_post) return { kind: "forum_post", id: null, status: "pending_review", url: `${this.forum}/u/${encodeURIComponent(author.username)}/activity` };
-    if (!Number.isSafeInteger(result.topic_id)) throw new CommunityError("invalid_response", "The forum did not confirm a topic id. Check your forum activity before retrying.");
+    if (result.action === "enqueued" || result.pending_post) return {
+      kind: "forum_post", id: null, status: "pending_review", url: `${this.forum}/u/${encodeURIComponent(author.username)}/activity`,
+      details: { message: "This pending submission has no confirmed topic ID for status lookup. Check your forum activity page for updates." },
+    };
+    if (!Number.isSafeInteger(result.topic_id) || result.topic_id <= 0) throw new CommunityError("invalid_response", "The forum did not confirm a topic id. Check your forum activity before retrying.");
     return { kind: "forum_post", id: result.topic_id, status: "published", url: `${this.forum}/t/topic/${result.topic_id}` };
   }
   private async afterSubmission(kind: "case" | "skill", id: number, session: AuthSession) {
@@ -123,7 +127,9 @@ export class CommunityClient implements PublishingBackend {
   private async readStatus(kind: PublicationKind, id: number, session: AuthSession): Promise<PublicationResult> {
     if (kind === "forum_post") {
       const topic = await this.request(`/t/${id}.json`, session, undefined, true);
-      return { kind, id, status: topic.visible === false ? "unlisted" : "published", url: `${this.forum}/t/topic/${id}` };
+      if (topic.id !== id) throw new CommunityError("invalid_response", "The forum response did not match the requested topic.");
+      const status = topic.deleted_at ? "deleted" : topic.visible === true ? "published" : topic.visible === false ? "unlisted" : "unknown";
+      return { kind, id, status, url: `${this.forum}/t/topic/${id}` };
     }
     const data = await this.request(`/api/users/me/${kind === "case" ? "cases" : "skills"}/${id}`, session);
     if (kind === "case") {
@@ -131,8 +137,16 @@ export class CommunityClient implements PublishingBackend {
       return { kind, id, status, url: status === "published" ? `${this.community}/cases/${id}` : `${this.community}/personal-center?section=cases`, details: { status_code: data.statusCode } };
     }
     const review = data.latestVersion?.reviewStatus;
-    const status = ({ APPROVED: "published", PENDING_REVIEW: "pending_review", REVIEWING: "reviewing", REJECTED: "rejected", REVIEW_FAILED: "review_failed" } as Record<string, string>)[review] ?? "unknown";
-    return { kind, id, status, url: `${this.community}/${status === "published" ? "skills" : "personal-center/skills"}/${id}`, details: { review_status: review, availability_status: data.availabilityStatus } };
+    const authorReview = data.latestVersion?.authorReviewStatus;
+    const authorStatuses = new Map([["PUBLISHED", "published"], ["IN_REVIEW", "pending_review"], ["REJECTED", "rejected"]]);
+    const reviewStatuses = new Map([["APPROVED", "published"], ["PENDING_REVIEW", "pending_review"], ["REVIEWING", "reviewing"], ["REJECTED", "rejected"], ["REVIEW_FAILED", "review_failed"]]);
+    const authorStatus = authorStatuses.get(authorReview);
+    const reviewStatus = reviewStatuses.get(review);
+    // The author-facing state groups REVIEWING and REVIEW_FAILED into broader states.
+    const consistent = authorStatus === reviewStatus || (authorStatus === "pending_review" && reviewStatus === "reviewing") || (authorStatus === "rejected" && reviewStatus === "review_failed");
+    let status = authorStatus && reviewStatus ? (consistent ? reviewStatus : "unknown") : authorStatus ?? reviewStatus ?? "unknown";
+    if (status === "published") status = data.availabilityStatus === "ACTIVE" ? "published" : data.availabilityStatus === "SUSPENDED" ? "suspended" : "unknown";
+    return { kind, id, status, url: `${this.community}/${status === "published" ? "skills" : "personal-center/skills"}/${id}`, details: { review_status: review, author_review_status: authorReview, availability_status: data.availabilityStatus } };
   }
   async status(kind: PublicationKind, id: number) { return this.readStatus(kind, id, await this.session()); }
 }

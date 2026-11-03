@@ -279,7 +279,7 @@ node -e "const p=require('child_process').spawn('npx',['-y','rdk-docs-mcp@latest
 ## 八、更新与卸载
 
 - **更新 MCP**：配置固定为 `@latest`，发布新版本后，客户端下次启动 MCP 就会用新版本，不用重装。
-- **更新 Skill**：MCP 每次启动时，会把下列目录里**已经存在**的 `rdk-docs`、`forum-post`、`article-writer` 覆盖为当前包里的版本：`~/.cursor/skills`、`~/.claude/skills`、`~/.codex/skills`、`~/.zcode/skills`、`~/.dsh/skills`、`~/.agents/skills`，以及第二节表格里安装器会写的其他 skills 目录（`~/.gemini/skills`、`~/.gemini/config/skills`、`~/.qoderwork/skills` 等）。注意两点：用户对这 3 个 `SKILL.md` 的手工修改会被覆盖且不备份，想保留修改就把 Skill 改名另存；不在这些目录里的副本（如项目级 `.windsurf/skills/`、OpenClaw 变体各自的目录）不会自动更新，需要重跑第四节。新增客户端时再跑一次第二节。
+- **更新 Skill**：MCP 每次启动时，会把下列目录里**已经存在**的 `rdk-docs`、`forum-post`、`article-writer` 更新为当前包里的版本：`~/.cursor/skills`、`~/.claude/skills`、`~/.codex/skills`、`~/.zcode/skills`、`~/.dsh/skills`、`~/.agents/skills`，以及第二节表格里安装器会写的其他 skills 目录（`~/.gemini/skills`、`~/.gemini/config/skills`、`~/.qoderwork/skills` 等）。内容发生变化时，安装和更新前都会保留旧文件的备份，且不会覆盖已有备份；如果无法备份，或 `SKILL.md` 本身是符号链接，则跳过该文件并提示。内容相同时不重复备份。不在这些目录里的副本（如项目级 `.windsurf/skills/`、OpenClaw 变体各自的目录）不会自动更新，需要重跑第四节。新增客户端时再跑一次第二节。
 - **卸载**：
   1. 删掉每个客户端里的 `rdk-docs` MCP：Claude Code `claude mcp remove rdk-docs`；Codex `codex mcp remove rdk-docs`；Gemini CLI `gemini mcp remove -s user rdk-docs`；其他客户端从配置文件里删掉 `rdk-docs` 这一项（DeepSeek Harness 删掉 `id: mcp-rdk-docs` 那段）。
   2. 删除所有 skills 目录下的 `rdk-docs`、`forum-post`、`article-writer` 三个文件夹，包括安装器写过的 `~/.agents/skills/`。

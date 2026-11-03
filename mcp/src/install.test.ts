@@ -1,13 +1,18 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseToml } from "smol-toml";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { backupBeforeWrite, ensureCodexMcpServer, installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
+import { backupBeforeWrite, ensureCodexMcpServer, formatInstallReport, installRdkDocs, MCP_SERVER, refreshInstalledSkills } from "./install.js";
 
 const atomicFailure = vi.hoisted(() => ({
   renameTarget: undefined as string | undefined,
+  tempWriteTarget: undefined as string | undefined,
+  copyTarget: undefined as string | undefined,
+  collisionTarget: undefined as string | undefined,
+  mutateAfterCopySource: undefined as string | undefined,
+  linkAfterCopy: undefined as { source: string; target: string } | undefined,
   inspectTarget: undefined as string | undefined,
   sourceMode: undefined as number | undefined,
 }));
@@ -18,6 +23,30 @@ vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
   return {
     ...actual,
+    writeFileSync(...args: Parameters<typeof actual.writeFileSync>) {
+      const path = args[0];
+      if (typeof path === "string" && atomicFailure.tempWriteTarget && path.startsWith(`${atomicFailure.tempWriteTarget}.`) && path.endsWith(".rdk-tmp")) {
+        throw new Error("simulated temporary write failure");
+      }
+      return actual.writeFileSync(...args);
+    },
+    copyFileSync(source: string, destination: string, mode?: number) {
+      if (destination === atomicFailure.copyTarget) throw new Error("simulated backup failure");
+      if (destination === atomicFailure.collisionTarget) {
+        actual.writeFileSync(destination, "# concurrent backup\n", { flag: "wx" });
+        atomicFailure.collisionTarget = undefined;
+      }
+      actual.copyFileSync(source, destination, mode);
+      if (source === atomicFailure.mutateAfterCopySource) {
+        actual.writeFileSync(source, "# concurrent edit\n");
+        atomicFailure.mutateAfterCopySource = undefined;
+      }
+      if (source === atomicFailure.linkAfterCopy?.source) {
+        actual.unlinkSync(source);
+        actual.symlinkSync(atomicFailure.linkAfterCopy.target, source);
+        atomicFailure.linkAfterCopy = undefined;
+      }
+    },
     renameSync(source: string, destination: string) {
       if (destination === atomicFailure.inspectTarget) {
         atomicFailure.sourceMode = actual.statSync(source).mode & 0o777;
@@ -30,6 +59,11 @@ vi.mock("node:fs", async (importOriginal) => {
 
 afterEach(() => {
   atomicFailure.renameTarget = undefined;
+  atomicFailure.tempWriteTarget = undefined;
+  atomicFailure.copyTarget = undefined;
+  atomicFailure.collisionTarget = undefined;
+  atomicFailure.mutateAfterCopySource = undefined;
+  atomicFailure.linkAfterCopy = undefined;
   atomicFailure.inspectTarget = undefined;
   atomicFailure.sourceMode = undefined;
 });
@@ -57,6 +91,45 @@ describe("installRdkDocs", () => {
     expect(result.skills).toContain(join(root, ".cursor", "skills", "rdk-docs", "SKILL.md"));
   });
 
+  it("backs up a changed Skill during explicit installation without overwriting an existing backup", () => {
+    const root = home();
+    const skillPath = join(root, ".claude", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# custom\n");
+    writeFileSync(`${skillPath}.bak`, "# older backup\n");
+
+    const result = installRdkDocs({ home: root, skillSource: "# current\n" });
+
+    expect(result.skills).toContain(skillPath);
+    expect(readFileSync(skillPath, "utf8")).toBe("# current\n");
+    expect(readFileSync(`${skillPath}.bak`, "utf8")).toBe("# older backup\n");
+    const backup = readdirSync(dirname(skillPath)).find((name) => name.startsWith("SKILL.md.bak."));
+    expect(backup).toBeDefined();
+    expect(readFileSync(join(dirname(skillPath), backup!), "utf8")).toBe("# custom\n");
+    installRdkDocs({ home: root, skillSource: "# current\n" });
+    expect(readdirSync(dirname(skillPath)).filter((name) => name.startsWith("SKILL.md.bak"))).toHaveLength(2);
+  });
+
+  it("skips a failed Skill backup during installation while installing other clients", () => {
+    const root = home();
+    const failed = join(root, ".claude", "skills", "rdk-docs", "SKILL.md");
+    const healthy = join(root, ".qoderwork", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(failed), { recursive: true });
+    mkdirSync(dirname(healthy), { recursive: true });
+    writeFileSync(failed, "# keep\n");
+    writeFileSync(healthy, "# old\n");
+    atomicFailure.copyTarget = `${failed}.bak`;
+
+    const result = installRdkDocs({ home: root, skillSource: "# new\n" });
+
+    expect(result.skills).not.toContain(failed);
+    expect(result.skills).toContain(healthy);
+    expect(result.warnings.join("\n")).toContain("simulated backup failure");
+    expect(readFileSync(failed, "utf8")).toBe("# keep\n");
+    expect(readFileSync(healthy, "utf8")).toBe("# new\n");
+    expect(readFileSync(`${healthy}.bak`, "utf8")).toBe("# old\n");
+  });
+
   it("merges ZCode mcp.servers without dropping other servers", () => {
     const root = home();
     mkdirSync(join(root, ".zcode", "cli"), { recursive: true });
@@ -82,6 +155,23 @@ describe("installRdkDocs", () => {
     expect(result.mcp).toContain(join(root, ".dsh", "cordis.patch.yml"));
     expect(readFileSync(join(root, ".dsh", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
     expect(readFileSync(join(root, ".agents", "skills", "rdk-docs", "SKILL.md"), "utf8")).toContain("# test");
+  });
+
+  it("protects the shared agents Skill when ZCode and DSH both install it", () => {
+    const root = home();
+    mkdirSync(join(root, ".zcode", "cli"), { recursive: true });
+    mkdirSync(join(root, ".dsh"));
+    const shared = join(root, ".agents", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(shared), { recursive: true });
+    writeFileSync(shared, "# keep\n");
+    atomicFailure.copyTarget = `${shared}.bak`;
+
+    const result = installRdkDocs({ home: root, skillSource: "# new\n" });
+
+    expect(readFileSync(shared, "utf8")).toBe("# keep\n");
+    expect(result.skills).not.toContain(shared);
+    expect(result.warnings.filter((message) => message.includes("simulated backup failure"))).toHaveLength(1);
+    expect(readFileSync(join(root, ".dsh", "skills", "rdk-docs", "SKILL.md"), "utf8")).toBe("# new\n");
   });
 
   it("does not duplicate the DeepSeek Harness MCP insert", () => {
@@ -227,6 +317,7 @@ describe("refreshInstalledSkills", () => {
 
     expect(updated).toEqual([join(root, ".cursor", "skills", "rdk-docs", "SKILL.md")]);
     expect(readFileSync(join(root, ".cursor", "skills", "rdk-docs", "SKILL.md"), "utf8")).toBe("# fresh\n");
+    expect(readFileSync(join(root, ".cursor", "skills", "rdk-docs", "SKILL.md.bak"), "utf8")).toBe("# stale\n");
     expect(existsSync(join(root, ".claude", "skills", "rdk-docs", "SKILL.md"))).toBe(false);
   });
 
@@ -238,6 +329,258 @@ describe("refreshInstalledSkills", () => {
     expect(existsSync(join(root, ".cursor", "mcp.json"))).toBe(false);
   });
 
+  it("leaves an unchanged Skill and existing backups untouched", () => {
+    const root = home();
+    const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# same\n");
+    writeFileSync(`${skillPath}.bak`, "# older\n");
+    atomicFailure.renameTarget = skillPath;
+
+    expect(refreshInstalledSkills({ home: root, skillSource: "# same\n" })).toEqual([]);
+    expect(readFileSync(skillPath, "utf8")).toBe("# same\n");
+    expect(readFileSync(`${skillPath}.bak`, "utf8")).toBe("# older\n");
+    expect(readdirSync(dirname(skillPath))).toEqual(["SKILL.md", "SKILL.md.bak"]);
+  });
+
+  it("skips a Skill whose backup fails while refreshing other installed copies", () => {
+    const root = home();
+    const failed = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    const healthy = join(root, ".claude", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(failed), { recursive: true });
+    mkdirSync(dirname(healthy), { recursive: true });
+    writeFileSync(failed, "# keep\n");
+    writeFileSync(healthy, "# old\n");
+    atomicFailure.copyTarget = `${failed}.bak`;
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(refreshInstalledSkills({ home: root, skillSource: "# new\n" })).toEqual([healthy]);
+      expect(readFileSync(failed, "utf8")).toBe("# keep\n");
+      expect(readFileSync(healthy, "utf8")).toBe("# new\n");
+      expect(readFileSync(`${healthy}.bak`, "utf8")).toBe("# old\n");
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining("simulated backup failure"));
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it.each(["primary", "timestamped"])("never overwrites a concurrently created %s backup", (kind) => {
+    const root = home();
+    const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# original\n");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-03T12:00:00Z"));
+    const collision = kind === "primary" ? `${skillPath}.bak` : `${skillPath}.bak.20261103T120000`;
+    if (kind === "timestamped") writeFileSync(`${skillPath}.bak`, "# older backup\n");
+    atomicFailure.collisionTarget = collision;
+    try {
+      expect(refreshInstalledSkills({ home: root, skillSource: "# new\n" })).toEqual([skillPath]);
+      expect(readFileSync(collision, "utf8")).toBe("# concurrent backup\n");
+      const backups = readdirSync(dirname(skillPath)).filter((name) => name.startsWith("SKILL.md.bak"));
+      expect(backups.some((name) => readFileSync(join(dirname(skillPath), name), "utf8") === "# original\n")).toBe(true);
+      expect(readFileSync(skillPath, "utf8")).toBe("# new\n");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retains successive backups without collisions and creates none for an unchanged Skill", () => {
+    const root = home();
+    const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# v1\n");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-03T12:00:00Z"));
+    try {
+      for (const version of ["# v2\n", "# v3\n", "# v4\n"]) {
+        expect(refreshInstalledSkills({ home: root, skillSource: version })).toEqual([skillPath]);
+      }
+      expect(refreshInstalledSkills({ home: root, skillSource: "# v4\n" })).toEqual([]);
+      expect(readFileSync(`${skillPath}.bak`, "utf8")).toBe("# v1\n");
+      expect(readFileSync(`${skillPath}.bak.20261103T120000`, "utf8")).toBe("# v2\n");
+      expect(readFileSync(`${skillPath}.bak.20261103T120000-1`, "utf8")).toBe("# v3\n");
+      expect(readdirSync(dirname(skillPath))).toHaveLength(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  itPosix("does not treat a backup symlink to the Skill as a preserved copy", () => {
+    const root = home();
+    const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# original\n");
+    symlinkSync("SKILL.md", `${skillPath}.bak`);
+
+    expect(refreshInstalledSkills({ home: root, skillSource: "# new\n" })).toEqual([skillPath]);
+    expect(lstatSync(`${skillPath}.bak`).isSymbolicLink()).toBe(true);
+    const backup = readdirSync(dirname(skillPath)).find((name) => name.startsWith("SKILL.md.bak."));
+    expect(backup).toBeDefined();
+    expect(readFileSync(join(dirname(skillPath), backup!), "utf8")).toBe("# original\n");
+  });
+
+  itPosix("retains restrictive permissions and exact bytes in the backup", () => {
+    const root = home();
+    const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    const original = Buffer.from([0xff, 0x00, 0x61]);
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, original);
+    chmodSync(skillPath, 0o600);
+
+    expect(refreshInstalledSkills({ home: root, skillSource: "# new\n" })).toEqual([skillPath]);
+    expect(readFileSync(`${skillPath}.bak`)).toEqual(original);
+    expect(statSync(`${skillPath}.bak`).mode & 0o777).toBe(0o600);
+  });
+
+  itPosix.each([
+    { mode: "startup", target: "different" },
+    { mode: "startup", target: "same" },
+    { mode: "startup", target: "missing" },
+    { mode: "install", target: "different" },
+    { mode: "install", target: "same" },
+    { mode: "install", target: "missing" },
+  ])("preserves a $mode Skill symlink with $target target content", ({ mode, target }) => {
+    const root = home();
+    const skillPath = join(root, ".claude", "skills", "rdk-docs", "SKILL.md");
+    const targetPath = join(root, "user-skill.md");
+    const targetContent = target === "same" ? "# replacement\n" : "# user content\n";
+    mkdirSync(dirname(skillPath), { recursive: true });
+    if (target !== "missing") writeFileSync(targetPath, targetContent);
+    symlinkSync(targetPath, skillPath);
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      if (mode === "startup") {
+        expect(refreshInstalledSkills({ home: root, skillSource: "# replacement\n" })).toEqual([]);
+        expect(warning).toHaveBeenCalledWith(expect.stringMatching(/symbolic link/i));
+      } else {
+        const result = installRdkDocs({ home: root, skillSource: "# replacement\n" });
+        expect(result.skills).not.toContain(skillPath);
+        expect(result.warnings.join("\n")).toMatch(/symbolic link/i);
+        expect(result.warnings.join("\n")).not.toMatch(/No Cursor \/ Claude/);
+        expect(formatInstallReport(result)).toContain("# RDK Docs installation incomplete");
+      }
+      expect(lstatSync(skillPath).isSymbolicLink()).toBe(true);
+      expect(existsSync(`${skillPath}.bak`)).toBe(false);
+      expect(existsSync(targetPath)).toBe(target !== "missing");
+      if (target !== "missing") expect(readFileSync(targetPath, "utf8")).toBe(targetContent);
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  itPosix.each(["startup", "install"])("does not replace a Skill that becomes a symbolic link during %s", (mode) => {
+    const root = home();
+    const skillPath = join(root, ".claude", "skills", "rdk-docs", "SKILL.md");
+    const targetPath = join(root, "user-skill.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# original\n");
+    writeFileSync(targetPath, "# user content\n");
+    atomicFailure.linkAfterCopy = { source: skillPath, target: targetPath };
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      if (mode === "startup") {
+        expect(refreshInstalledSkills({ home: root, skillSource: "# replacement\n" })).toEqual([]);
+        expect(warning).toHaveBeenCalledWith(expect.stringMatching(/symbolic link/i));
+      } else {
+        const result = installRdkDocs({ home: root, skillSource: "# replacement\n" });
+        expect(result.skills).not.toContain(skillPath);
+        expect(result.warnings.join("\n")).toMatch(/symbolic link/i);
+        expect(result.warnings.join("\n")).not.toMatch(/No Cursor \/ Claude/);
+        expect(formatInstallReport(result)).toContain("# RDK Docs installation incomplete");
+      }
+      expect(lstatSync(skillPath).isSymbolicLink()).toBe(true);
+      expect(readFileSync(targetPath, "utf8")).toBe("# user content\n");
+      expect(readFileSync(`${skillPath}.bak`, "utf8")).toBe("# original\n");
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("does not overwrite a Skill changed during backup", () => {
+    const root = home();
+    const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, "# original\n");
+    atomicFailure.mutateAfterCopySource = skillPath;
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(refreshInstalledSkills({ home: root, skillSource: "# replacement\n" })).toEqual([]);
+      expect(readFileSync(skillPath, "utf8")).toBe("# concurrent edit\n");
+      expect(readFileSync(`${skillPath}.bak`, "utf8")).toBe("# original\n");
+      expect(warning).toHaveBeenCalledWith(expect.stringMatching(/changed.*backup/i));
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it.each([
+    { mode: "startup", existing: true },
+    { mode: "startup", existing: false },
+    { mode: "install", existing: true },
+    { mode: "install", existing: false },
+  ])("continues $mode after atomic replacement fails for an existing=$existing Skill", ({ mode, existing }) => {
+    const root = home();
+    const failed = join(root, ".claude", "skills", "rdk-docs", "SKILL.md");
+    const healthy = join(root, ".qoderwork", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(failed), { recursive: true });
+    mkdirSync(dirname(healthy), { recursive: true });
+    if (existing) writeFileSync(failed, "# keep\n");
+    writeFileSync(healthy, "# old\n");
+    atomicFailure.renameTarget = failed;
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      if (mode === "startup") {
+        expect(refreshInstalledSkills({ home: root, skillSource: "# new\n" })).toEqual([healthy]);
+        expect(warning).toHaveBeenCalledWith(expect.stringMatching(/write failed.*simulated replacement failure/i));
+      } else {
+        const result = installRdkDocs({ home: root, skillSource: "# new\n" });
+        expect(result.skills).not.toContain(failed);
+        expect(result.skills).toContain(healthy);
+        expect(result.warnings.join("\n")).toMatch(/write failed.*simulated replacement failure/i);
+      }
+      expect(existsSync(failed)).toBe(existing);
+      if (existing) {
+        expect(readFileSync(failed, "utf8")).toBe("# keep\n");
+        expect(readFileSync(`${failed}.bak`, "utf8")).toBe("# keep\n");
+      } else {
+        expect(existsSync(`${failed}.bak`)).toBe(false);
+      }
+      expect(readdirSync(dirname(failed)).some((name) => name.endsWith(".rdk-tmp"))).toBe(false);
+      expect(readFileSync(healthy, "utf8")).toBe("# new\n");
+      expect(readFileSync(`${healthy}.bak`, "utf8")).toBe("# old\n");
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it.each(["startup", "install"])("continues %s when writing a new Skill's temporary file fails", (mode) => {
+    const root = home();
+    const failed = join(root, ".claude", "skills", "rdk-docs", "SKILL.md");
+    const healthy = join(root, ".qoderwork", "skills", "rdk-docs", "SKILL.md");
+    mkdirSync(dirname(failed), { recursive: true });
+    mkdirSync(dirname(healthy), { recursive: true });
+    writeFileSync(healthy, "# old\n");
+    atomicFailure.tempWriteTarget = failed;
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      if (mode === "startup") {
+        expect(refreshInstalledSkills({ home: root, skillSource: "# new\n" })).toEqual([healthy]);
+        expect(warning).toHaveBeenCalledWith(expect.stringContaining("simulated temporary write failure"));
+      } else {
+        const result = installRdkDocs({ home: root, skillSource: "# new\n" });
+        expect(result.skills).not.toContain(failed);
+        expect(result.skills).toContain(healthy);
+        expect(result.warnings.join("\n")).toContain("simulated temporary write failure");
+      }
+      expect(existsSync(failed)).toBe(false);
+      expect(readdirSync(dirname(failed)).some((name) => name.endsWith(".rdk-tmp"))).toBe(false);
+      expect(readFileSync(healthy, "utf8")).toBe("# new\n");
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
   it("preserves the original Skill when atomic replacement fails", () => {
     const root = home();
     const skillPath = join(root, ".cursor", "skills", "rdk-docs", "SKILL.md");
@@ -245,10 +588,14 @@ describe("refreshInstalledSkills", () => {
     writeFileSync(skillPath, "# original\n");
     atomicFailure.renameTarget = skillPath;
 
-    expect(() => refreshInstalledSkills({ home: root, skillSource: "# replacement\n" })).toThrow(
-      /simulated replacement failure/,
-    );
-    expect(readFileSync(skillPath, "utf8")).toBe("# original\n");
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(refreshInstalledSkills({ home: root, skillSource: "# replacement\n" })).toEqual([]);
+      expect(warning).toHaveBeenCalledWith(expect.stringMatching(/write failed.*simulated replacement failure/i));
+      expect(readFileSync(skillPath, "utf8")).toBe("# original\n");
+    } finally {
+      warning.mockRestore();
+    }
   });
 });
 
