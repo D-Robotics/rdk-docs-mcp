@@ -51,10 +51,19 @@ export function scoreForumToc(pages: ForumTocPage[]): { pass: boolean; reason: s
   return { pass: true, reason: `${pages.length} topics from ${boards.join(" + ")}`, boards };
 }
 
+function sourceFailureWarnings(warnings: readonly string[]): string[] {
+  return warnings.filter((warning) =>
+    /^(?:Live index for .+ failed; used the packaged snapshot|Failed to load index for |Warm index for .+ failed:|Failed to search forum:)/.test(warning),
+  );
+}
+
 export function scoreDocsFirstMix(
   hits: SearchHit[],
   limit: number,
+  warnings: readonly string[] = [],
 ): { pass: boolean; reason: string } {
+  const failures = sourceFailureWarnings(warnings);
+  if (failures.length > 0) return { pass: false, reason: `search source unavailable: ${failures.join("; ")}` };
   if (hits.length === 0) {
     return { pass: false, reason: "mixed search returned no hits" };
   }
@@ -63,6 +72,9 @@ export function scoreDocsFirstMix(
   const forumCap = Math.max(1, Math.floor(limit * 0.25));
   if (docs.length === 0) {
     return { pass: false, reason: "mixed search returned only forum hits" };
+  }
+  if (forum.length === 0) {
+    return { pass: false, reason: "mixed search returned no forum hits" };
   }
   if (hits[0]?.source !== "docs") {
     return { pass: false, reason: `first hit was ${hits[0]?.source}: ${hits[0]?.title}` };
@@ -89,7 +101,19 @@ export function scoreCase(
   evalCase: EvalCase,
   hits: SearchHit[],
   pageMarkdown?: string,
+  warnings: readonly string[] = [],
 ): CaseScore {
+  const sourceFailures = sourceFailureWarnings(warnings);
+  if (sourceFailures.length > 0 || (hits.length === 0 && warnings.length > 0)) {
+    return {
+      id: evalCase.id,
+      question: evalCase.question,
+      searchPass: false,
+      pagePass: false,
+      pass: false,
+      reason: `search source unavailable: ${(sourceFailures.length ? sourceFailures : warnings).join("; ")}`,
+    };
+  }
   if (evalCase.firstHitMustInclude?.length) {
     const first = hits[0];
     if (!matchesNeedles(first, evalCase.firstHitMustInclude)) {

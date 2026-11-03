@@ -80,7 +80,7 @@ jsDelivr 不可用时，同一文件在：
 - 优先读取同一目录版本的可选 discovery v1 元数据；缺失时使用带来源、指纹校验的本地分类表。`metadata_health` 区分 missing/stale/invalid/unknown_platform，`category_only` 表示只匹配大类，不能直接当作需求已满足。生产者格式见 [分类合同](docs/skill-discovery-metadata.md)。
 - 平台明确时使用分类表已审核的系列范围，缺失则 platform_scope=unknown；范围匹配不是电气/型号兼容保证。平台支持 x3/x5/s100/s100p/s600/ultra，比较请求拆分。目标与显式排除冲突才报 platform_conflict，正文不会覆盖结构化条件。
 - 旧 query-only 接口保留原有候选检索行为，并返回 legacy_query 警告；不再承诺理解复杂自然语言。新流程不能回退到旧接口绕过明确约束。
-- 展示层用 `display_name`（清理生成器的 `__SKILL_<family>-__<slug>` 内部格式），`get_skill` 与安装命令仍用 `name` 精确名；同 display_name 的不同记录靠 `name` 区分。
+- 展示层用 `display_name`。生成器格式 `__SKILL_<family>-__<slug>` 显示为 `<family>-<slug>`；当前目录里的公开名（例如 `s-plugin-set-fake-quantize`）两者相同。`get_skill` 与安装命令仍用 `name` 精确名。
 - 目录数据来自 rdk-skills 的生成索引（`skill-index.json` + `pack-registry.json`），本 MCP 不维护第二份清单；pack 板卡家族映射取自该仓库 README 的 Supported Boards / Installation layers 表（快照 revision 溯源）。上游 canonical name 归一化（去掉 `__SKILL_` 前缀）需在 rdk-skills 侧规范，本 MCP 仅做展示层清理。
 
 ---
@@ -159,4 +159,4 @@ MIT。文档与帖子版权归 [D-Robotics 资料中心](https://developer.d-rob
 
 `get_page` 默认保持按章节读取。需要完整长页时显式传 `offset=0`，再用返回的 `next_offset` 和 `content_hash` 继续；内容变化会拒绝拼接。默认章节响应的 `next_offset=null`，不会把非连续的章节误当成全文前缀。
 
-`npm run verify` 执行单元／协议测试与构建，`npm run eval:offline` 检查现有离线检索基准，`npm run verify:package` 验证实际 tarball 的安装和 MCP 协议。文档和 Skill 目录联网检查单独运行 `npm run verify:live`。
+`npm run verify` 执行单元／协议测试与构建，`npm run eval:offline` 检查现有离线检索基准，`npm run verify:package` 验证实际 tarball 的安装和 MCP 协议。文档和 Skill 目录联网检查单独运行 `npm run verify:live`。维护者发布到 GitHub 与 npm 的步骤见 [发布说明](docs/release-mcp.md)。

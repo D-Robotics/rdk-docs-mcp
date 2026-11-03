@@ -6,9 +6,10 @@ import { canonicalizeDocUrl } from "./doc-urls.js";
 import { htmlToMarkdown, isDocusaurusShell, resolveDocUrl } from "./fetch-page.js";
 import { FORUM_ID, getForumTopic, isForumRef, listForumTopics, searchForum } from "./forum.js";
 import { fetchText, type HttpGet } from "./http.js";
+import { pageUrl } from "./link-check.js";
 import { findRspressPage, isRspressShell, loadRspressDocs, normalizeDocPath } from "./rspress.js";
 import { contextBoards, manualMatchesBoards, markPackagedIndex, primeIndex } from "./bm25.js";
-import { searchGuidance } from "./routes.js";
+import { applyOfficialPath, matchOfficialPath, searchGuidance } from "./routes.js";
 import { fusePageHits, groupHits, matchQuality, normalizeAltQueries, searchManuals } from "./search.js";
 import { formatOmittedSections, imageNotes, packRelevantSections, RELEVANT_SECTION_CAP, selectSection } from "./sections.js";
 
@@ -140,6 +141,41 @@ function mergeHits(docs: SearchHit[], forum: SearchHit[], limit: number): Search
   take(forum, picked.length + forumCap);
   take(docs, limit);
   return picked;
+}
+
+const NAMED_BOARDS = ["x3", "x5", "s100", "s600"] as const satisfies readonly BoardId[];
+
+/**
+ * When the question names one board, pages that name a different board go
+ * behind pages for this board and pages that name no board. The other board
+ * stays in the list; it just does not open the answer.
+ */
+function preferQueryBoard(hits: SearchHit[], query: string): SearchHit[] {
+  const named = mentionedBoards(query);
+  if (named.length !== 1) return hits;
+  const board = named[0]!;
+  const fits = (hit: SearchHit) => {
+    const on = NAMED_BOARDS.filter((id) => urlLooksLikeBoard(hit.url, id) || urlLooksLikeBoard(hit.title, id));
+    return on.length === 0 || on.includes(board);
+  };
+  const compatible = hits.filter(fits);
+  if (compatible.length === 0 || compatible.length === hits.length) return hits;
+  return [...compatible, ...hits.filter((hit) => !fits(hit))];
+}
+
+function hasProse(markdown: string): boolean {
+  return markdown
+    .replace(/^\s*#{1,6}\s+.*$/gm, "")
+    .replace(/!?\[[^\]]*\]\([^)]*\)/g, "")
+    .trim().length > 0;
+}
+
+/** Promote a reviewed page only when the loaded index already contains it. */
+function indexedOfficialPath(query: string, manual: string | undefined, corpora: IndexedDoc[][]) {
+  const path = matchOfficialPath(query, manual);
+  if (!path) return undefined;
+  const wanted = pageUrl(path.url);
+  return corpora.some((docs) => docs.some((doc) => pageUrl(doc.url) === wanted)) ? path : undefined;
 }
 
 function extraManualsForQuery(manual: Manual, query: string): Manual[] {
@@ -321,6 +357,7 @@ export async function searchDocs(
       );
       docHits = fusePageHits(lists, limit);
     }
+    docHits = preferQueryBoard(docHits, query);
   }
 
   let forumHits: SearchHit[] = [];
@@ -337,9 +374,11 @@ export async function searchDocs(
     if (missing.length > 0)
       warnings.push(`No retrieved hit is explicitly scoped to: ${missing.join(", ")}. Treat the comparison as incomplete.`);
   }
-  const hits = mergeHits(docHits, forumHits, limit).map((hit) =>
+  const merged = mergeHits(docHits, forumHits, limit).map((hit) =>
     hit.source === "forum" ? { ...hit, role: "forum-supplement" as const } : hit,
   );
+  const official = includeDocs ? indexedOfficialPath(query, input.manual, searched) : undefined;
+  const hits = official ? applyOfficialPath(merged, official, limit) : merged;
   const groups = groupHits(hits);
   const boardGroups = groups.filter((group) => group.board !== "agnostic" && group.board !== "multiple");
   const ambiguousBoard = mentioned.length === 0 && !boardConstraint && boardGroups.length > 1;
@@ -361,7 +400,7 @@ export async function searchDocs(
     warnings,
     guidance: quality.noGoodMatch
       ? "noGoodMatch: the query has no RDK-specific term in the searched manuals. Generic words such as install, login, or docker do not count. Read the snippets; if they do not answer, reformulate into a short query and pass board when you know it. Try 2 reformulations before concluding nothing is documented, or set source=forum."
-      : `${searchGuidance()} Read the top snippets and decide whether they answer the question. noGoodMatch=false is not proof of relevance. confidence is advisory. Prefer a short query (error text, command, or a few keywords) and pass board when you know it. If the snippets do not answer, reformulate and search again; try 2 reformulations before concluding nothing is documented, or set source=forum.`,
+      : `${searchGuidance(official)} Read the top snippets and decide whether they answer the question. noGoodMatch=false is not proof of relevance. confidence is advisory. Prefer a short query (error text, command, or a few keywords) and pass board when you know it. If the snippets do not answer, reformulate and search again; try 2 reformulations before concluding nothing is documented, or set source=forum.`,
     noGoodMatch: quality.noGoodMatch,
     matchQuality: quality.matchQuality,
     confidence: quality.confidence,
@@ -467,7 +506,7 @@ function finishPage(
     hash = "";
   }
   const explicit = Boolean(hash || input.section?.trim());
-  if (input.full && !explicit) {
+  const fullPage = () => {
     const maxChars = honoredChars(input, 16_000);
     const notes = imageNotes(page.markdown);
     const body = notes.imageOnly ? `${notes.contentNotes[0]}\n\n${page.markdown}` : page.markdown;
@@ -480,7 +519,8 @@ function finishPage(
       imageOnly: notes.imageOnly,
       contentNotes: notes.contentNotes.length > 0 ? notes.contentNotes : undefined,
     };
-  }
+  };
+  if (input.full && !explicit) return fullPage();
 
   if (explicit) {
     const picked = selectSection(page.markdown, {
@@ -488,19 +528,24 @@ function finishPage(
       query: input.query,
       anchor: hash || undefined,
     });
-    const maxChars = sectionBudget(input, true);
-    const clipped = clipMarkdown(picked.markdown, maxChars);
-    return {
-      title: page.title,
-      url: page.url,
-      markdown: clipped.markdown,
-      truncated: clipped.truncated,
-      section: picked.section,
-      anchor: picked.anchor,
-      sectionMatched: picked.matched,
-      imageOnly: picked.imageOnly,
-      contentNotes: picked.contentNotes.length > 0 ? picked.contentNotes : undefined,
-    };
+    // full=true asked for the page. An anchor whose section is only a heading
+    // would hide the body the caller needs.
+    if (!(input.full && !hasProse(picked.markdown))) {
+      const maxChars = sectionBudget(input, true);
+      const clipped = clipMarkdown(picked.markdown, maxChars);
+      return {
+        title: page.title,
+        url: page.url,
+        markdown: clipped.markdown,
+        truncated: clipped.truncated,
+        section: picked.section,
+        anchor: picked.anchor,
+        sectionMatched: picked.matched,
+        imageOnly: picked.imageOnly,
+        contentNotes: picked.contentNotes.length > 0 ? picked.contentNotes : undefined,
+      };
+    }
+    return fullPage();
   }
 
   const packed = packRelevantSections(page.markdown, {

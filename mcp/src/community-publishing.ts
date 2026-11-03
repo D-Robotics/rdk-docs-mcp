@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { basename, extname, resolve } from "node:path";
+import { inspectSkillArchive, type SkillArchivePreview } from "./community-archive.js";
 import { CommunityError, COMMUNITY_ORIGIN, FORUM_ORIGIN, publicationSchema,
   type CommunityAccount, type PublicationContent, type PublicationInput, type PublicationKind,
   type PublicationFile, type VerifiedFile, type PublicationResult } from "./community-types.js";
@@ -14,9 +15,37 @@ export interface PublishingBackend {
   status(kind: PublicationKind, id: number): Promise<PublicationResult>;
 }
 type Preview = { confirmation_id: string; kind: PublicationKind; author: CommunityAccount; destination: string;
-  content: PublicationContent; files: PublicationFile[]; agreements: string[]; source?: Record<string, unknown> };
+  content: PublicationContent; files: PublicationFile[]; agreements: string[]; source?: Record<string, unknown>; skill_archive?: SkillArchivePreview; notices?: string[] };
 type Pending = { preview: Preview; attempted: boolean; result?: PublicationResult };
 const digest = (data: Buffer) => createHash("sha256").update(data).digest("hex");
+
+function validImage(data: Buffer, extension: string): boolean {
+  if (extension === ".png") return data.length >= 8 && data.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"));
+  if (extension === ".jpg" || extension === ".jpeg") return data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  return extension === ".webp" && data.length >= 12 && data.readUInt32LE(0) === 0x46464952 && data.readUInt32LE(8) === 0x50424557;
+}
+
+async function readLocalFile(path: string, max: number, expectedBytes?: number): Promise<Buffer> {
+  const changed = expectedBytes !== undefined;
+  const reject = () => { throw new CommunityError(changed ? "file_changed" : "invalid_file",
+    changed ? `${basename(path)} changed after preview. Prepare it again.` : `Invalid file size: ${basename(path)}`); };
+  const file = await open(path, "r");
+  try {
+    const info = await file.stat();
+    if (!info.isFile() || !Number.isSafeInteger(info.size) || info.size < 1 || info.size > max ||
+        (changed && info.size !== expectedBytes)) reject();
+    // Read one extra byte so a file growing after stat cannot bypass the bound.
+    const buffer = Buffer.allocUnsafe(info.size + 1);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const { bytesRead } = await file.read(buffer, offset, buffer.length - offset, offset);
+      if (!bytesRead) break;
+      offset += bytesRead;
+    }
+    if (offset !== info.size) reject();
+    return buffer.subarray(0, offset);
+  } finally { await file.close(); }
+}
 
 function fileInputs(input: PublicationContent): Array<{ field: string; path: string; max: number; extensions?: string[] }> {
   const image = [".png", ".jpg", ".jpeg", ".webp"];
@@ -37,12 +66,16 @@ export class CommunityPublisher {
     const author = await this.backend.account(content.kind);
     if (this.backend.normalize) content = publicationSchema.parse(await this.backend.normalize(content));
     const files: PublicationFile[] = [];
+    let skillArchive: SkillArchivePreview | undefined;
     for (const file of fileInputs(content)) {
       if (file.extensions && !file.extensions.includes(extname(file.path).toLowerCase())) {
         throw new CommunityError("invalid_file", `Unsupported file type: ${basename(file.path)}`);
       }
-      const path = resolve(file.path); const data = await readFile(path);
-      if (!data.length || data.length > file.max) throw new CommunityError("invalid_file", `Invalid file size: ${basename(path)}`);
+      const path = resolve(file.path); const data = await readLocalFile(path, file.max);
+      if (content.kind === "skill" && file.field === "package") skillArchive = inspectSkillArchive(data);
+      if ((file.field === "cover" && content.kind === "case") || (file.field === "icon" && content.kind === "skill")) {
+        if (!validImage(data, extname(path).toLowerCase())) throw new CommunityError("invalid_file", `Image signature does not match its extension: ${basename(path)}`);
+      }
       files.push({ field: file.field, path, name: basename(path), bytes: data.length, sha256: digest(data) });
     }
     if (content.kind === "forum_post") {
@@ -50,10 +83,15 @@ export class CommunityPublisher {
         if (Number(match[1]) >= files.length) throw new CommunityError("invalid_file", `Attachment ${match[1]} does not exist.`);
       }
     }
+    const notices = [
+      ...(skillArchive ? ["Only SKILL.md content is shown; other archive members have not been reviewed."] : []),
+      ...(content.kind === "case" || (content.kind === "skill" && content.icon_path)
+        ? ["Image signatures are checked; images are not decoded or reviewed for content safety."] : []),
+    ];
     const preview: Preview = {
       confirmation_id: randomUUID(), kind: content.kind, author,
       destination: content.kind === "forum_post" ? `${FORUM_ORIGIN}/c/${content.category_id}` : `${COMMUNITY_ORIGIN}/${content.kind === "case" ? "cases" : "marketplace"}`,
-      content, files, agreements: content.kind === "forum_post" ? [] : [
+      content, files, ...(skillArchive ? { skill_archive: skillArchive } : {}), ...(notices.length ? { notices } : {}), agreements: content.kind === "forum_post" ? [] : [
         "我同意将本内容以开源方式发布，并授权社区分发与展示。",
         ...(content.kind === "case" ? ["本项目为本人原创，或已获得授权／遵守相关开源协议。"] : []),
       ],
@@ -74,7 +112,7 @@ export class CommunityPublisher {
     if (author.id !== pending.preview.author.id) throw new CommunityError("account_changed", "The signed-in account changed. Prepare a new preview for the current user.");
     const files: VerifiedFile[] = [];
     for (const file of pending.preview.files) {
-      const data = await readFile(file.path);
+      const data = await readLocalFile(file.path, file.bytes, file.bytes);
       if (digest(data) !== file.sha256) throw new CommunityError("file_changed", `${file.name} changed after preview. Prepare it again.`);
       files.push({ ...file, data });
     }

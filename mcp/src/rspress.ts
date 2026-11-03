@@ -35,6 +35,40 @@ export function parseRspressIndexGroups(js: string): RspressIndexGroup[] {
   return groups;
 }
 
+function versionParts(version: string): number[] | undefined {
+  const cleaned = version.trim().replace(/^v/i, "");
+  if (!/^\d+(?:\.\d+)*$/.test(cleaned)) return undefined;
+  return cleaned.split(".").map((part) => Number(part));
+}
+
+function compareVersions(left: string, right: string): number {
+  const a = versionParts(left);
+  const b = versionParts(right);
+  if (!a && !b) return 0;
+  if (!a) return -1;
+  if (!b) return 1;
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    const diff = (a[index] ?? 0) - (b[index] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+/**
+ * Keep every language of the newest numbered version when all versions are
+ * numbered. Named or unversioned groups cannot be ordered reliably against
+ * numbered versions, so keep all candidates when they occur together.
+ */
+export function currentRspressGroups(groups: RspressIndexGroup[]): RspressIndexGroup[] {
+  const versions = new Set(groups.map((group) => group.version));
+  if (versions.size <= 1) return groups;
+  const numbered = [...versions].filter((version) => versionParts(version));
+  if (numbered.length !== versions.size) return groups;
+  const newest = numbered.reduce((best, version) => (compareVersions(version, best) > 0 ? version : best));
+  return groups.filter((group) => group.version === newest);
+}
+
 export function searchIndexFilename(group: RspressIndexGroup): string {
   // Rspress v1 replaces the first dot only (v1.0.5 -> v1_0.5).
   const version = group.version ? `.${group.version.replace(".", "_")}` : "";
@@ -115,18 +149,28 @@ export async function loadRspressDocs(manual: Manual, http: HttpGet): Promise<In
     throw new Error(`No Rspress app bundles at ${manual.homeUrl}`);
   }
 
-  const seen = new Set<string>();
-  const indexUrls: string[] = [];
+  const discovered: Array<{ group: RspressIndexGroup; indexUrl: string }> = [];
   for (const bundleUrl of bundles) {
     const js = await http(bundleUrl);
     for (const group of parseRspressIndexGroups(js)) {
       // A retired manual URL can redirect to a new site prefix. Use the
       // discovered app bundle's location, rather than the catalog's old path.
       const indexUrl = new URL(`../${searchIndexFilename(group)}`, bundleUrl).href;
-      if (seen.has(indexUrl)) continue;
-      seen.add(indexUrl);
-      indexUrls.push(indexUrl);
+      discovered.push({ group, indexUrl });
     }
+  }
+  const current = new Set(
+    currentRspressGroups(discovered.map((item) => item.group)).map(
+      (group) => `${group.version}\0${group.lang}\0${group.hash}`,
+    ),
+  );
+  const seen = new Set<string>();
+  const indexUrls: string[] = [];
+  for (const item of discovered) {
+    const key = `${item.group.version}\0${item.group.lang}\0${item.group.hash}`;
+    if (!current.has(key) || seen.has(item.indexUrl)) continue;
+    seen.add(item.indexUrl);
+    indexUrls.push(item.indexUrl);
   }
   if (indexUrls.length === 0) {
     throw new Error(`No search_index hashes in Rspress bundles for ${manual.id}`);

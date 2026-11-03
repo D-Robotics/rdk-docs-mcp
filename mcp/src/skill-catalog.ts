@@ -1,9 +1,10 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { z } from "zod";
 import { cacheDir, cacheTtlMs } from "./http.js";
 import { mentionedBoards, type BoardId } from "./products.js";
+import { TAXONOMY_DATA } from "./skill-taxonomy-data.js";
 
 /**
  * Read-only skill-catalog access for the D-Robotics/rdk-skills hub (issue #4).
@@ -27,6 +28,9 @@ const MAX_JSON_BYTES = 5 * 1024 * 1024;
 /** Exported for tests only, so the size-limit case does not build a 5 MiB string. */
 export const MAX_JSON_BYTES_FOR_TESTS = MAX_JSON_BYTES;
 const SNAPSHOT_FILENAME = "skill-catalog-snapshot.json";
+// A cache fetched under a different reviewed overlay may no longer classify its
+// records after an upgrade. Refresh it instead of silently losing search results.
+const OVERLAY_FINGERPRINT = createHash("sha256").update(JSON.stringify(TAXONOMY_DATA)).digest("hex");
 const USER_AGENT = "rdk-docs-mcp/0.1 (+https://developer.d-robotics.cc/rdk_doc_center/)";
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 
@@ -378,10 +382,12 @@ async function readCachedSnapshot(): Promise<{ snapshot: SkillCatalogSnapshot; f
     return undefined;
   }
   try {
-    const parsed = snapshotSchema.parse(JSON.parse(raw)) as SkillCatalogSnapshot;
-    crossValidate(parsed.skills, parsed.packs, parsed.revision);
-    const fetchedAtMs = Date.parse(parsed.fetched_at);
-    return { snapshot: parsed, fetchedAtMs };
+    const parsed = snapshotSchema.parse(JSON.parse(raw)) as SkillCatalogSnapshot & { reviewed_overlay_fingerprint?: string };
+    if (parsed.reviewed_overlay_fingerprint !== OVERLAY_FINGERPRINT) return undefined;
+    const { reviewed_overlay_fingerprint: _, ...snapshot } = parsed;
+    crossValidate(snapshot.skills, snapshot.packs, snapshot.revision);
+    const fetchedAtMs = Date.parse(snapshot.fetched_at);
+    return { snapshot, fetchedAtMs };
   } catch {
     return undefined; // corrupt cache is a miss, never an error for the caller
   }
@@ -391,7 +397,7 @@ async function writeSnapshotCache(snapshot: SkillCatalogSnapshot): Promise<void>
   const path = snapshotCachePath();
   const tmp = join(dirname(path), `${SNAPSHOT_FILENAME}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(tmp, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+  await writeFile(tmp, `${JSON.stringify({ ...snapshot, reviewed_overlay_fingerprint: OVERLAY_FINGERPRINT }, null, 2)}\n`, "utf8");
   await rename(tmp, path);
 }
 

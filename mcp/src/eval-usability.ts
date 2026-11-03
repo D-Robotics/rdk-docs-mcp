@@ -60,7 +60,7 @@ export async function runUsabilityChecks(http: HttpGet): Promise<UsabilityResult
   results.push(
     await check("mixed-search-docs-first", async () => {
       const search = await searchDocs({ query: "WiFi", source: "all", limit: 8 }, http);
-      const score = scoreDocsFirstMix(search.hits, 8);
+      const score = scoreDocsFirstMix(search.hits, 8, search.warnings);
       const first = search.hits[0];
       return {
         pass: score.pass,

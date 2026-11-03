@@ -53,7 +53,9 @@
 }
 ```
 
-ZIP 包须包含 `SKILL.md`，不超过 50 MiB；稳定三段式版本号与社区规则一致。可指定 `icon_path`（JPG/PNG/WebP，2 MiB）或 `icon_asset_key`；省略时使用第一个社区预置图标，其 key 会在预览中显示。分类支持 CODING、TESTING、DOCUMENTATION、DESIGN、DATA_ANALYSIS、PRODUCTIVITY、DEVOPS、SECURITY、OTHER。
+ZIP 包须包含且仅包含一份 UTF-8 `SKILL.md`，压缩包不超过 50 MiB；预览会展示该文件全文和成员清单，其余成员尚未审核。为保证本地校验有界，支持单卷、stored/deflate、UTF-8 路径，最多 1000 个成员，单成员解压后不超过 10 MiB、总解压后不超过 50 MiB；加密、ZIP64、特殊文件和不安全或重复路径会被拒绝。封面及图标只检查文件标识与扩展名是否一致，不解码图片或审核内容。
+
+稳定三段式版本号与社区规则一致。可指定 `icon_path`（JPG/PNG/WebP，2 MiB）或 `icon_asset_key`；省略时使用第一个社区预置图标，其 key 会在预览中显示。分类支持 CODING、TESTING、DOCUMENTATION、DESIGN、DATA_ANALYSIS、PRODUCTIVITY、DEVOPS、SECURITY、OTHER。
 
 用户接受开源分发声明后调用 `publish_skill({confirmation_id:"UUID",confirmed:true,accepted_open_source_license:true})`。这是向社区技能中心提交审核，不是向 GitHub 官方 Skill 目录提 PR，也不代表立即公开可安装。
 
@@ -76,7 +78,9 @@ ZIP 包须包含 `SKILL.md`，不超过 50 MiB；稳定三段式版本号与社�
 
 ## 结果与重试
 
-发布结果返回 id、真实状态和链接。`pending_review`／`reviewing` 是审核中；`submitted` 表示提交已有回执但状态读取失败；只有 `published` 才能说已经发布。用 `get_publication_status({kind:"skill",id:123})` 等查询后续状态。
+发布结果返回 id、状态和链接。`pending_review`／`reviewing` 是审核中；`submitted` 表示提交已有回执但状态读取失败；只有 `published` 才能说已经发布。Skill 审核通过且状态为 `ACTIVE` 才报告 `published`，下架返回 `suspended`，无法确认时返回 `unknown`；审核和可用性的原始字段保留在 `details`。用 `get_publication_status({kind:"skill",id:123})` 等查询后续状态。
+
+论坛帖子进入审核队列时可能尚无话题 ID，结果会返回 `id: null` 和本人活动页；此时不能用状态工具查询，需通过活动页查看。取得正式话题 ID 后，才可用它查询话题状态；未列出、已删除或可见性未知时分别报告 `unlisted`、`deleted` 或 `unknown`。
 
 确认编号仅在当前 MCP 进程内有效。文件、内容或登录账号变化时重新预览。成功的同一编号重复调用返回原结果，不重复创建；网络中断或部分提交失败后，先检查本人工作台及返回的草稿 id，再决定下一步，工具不会自动重发。
 

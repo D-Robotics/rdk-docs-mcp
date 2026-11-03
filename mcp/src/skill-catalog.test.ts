@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { searchSkills } from "./skill-service.js";
 import {
   MAX_JSON_BYTES_FOR_TESTS,
   PACK_REGISTRY_PATH,
@@ -435,6 +436,49 @@ describe("skill catalog: snapshot cache", () => {
     expect(log).toHaveLength(3); // disk cache hit, still no new fetches
     expect(fromDisk.from_cache).toBe(true);
     expect(fromDisk.snapshot.revision).toBe(SHA);
+  });
+
+  it("refreshes a pre-upgrade snapshot before structured search uses the new classifications", async () => {
+    // This record is from catalog revision 08d0a46, before its public rename.
+    const oldAdaptation = {
+      ...S_SERIES_SKILL,
+      description: "为用户的浮点 PyTorch 模型适配地平线机器人公司的 QAT 工具 `horizon_plugin_pytorch`。这是一个编排型 skill，必须按固定顺序依次调用：`__SKILL_j6-plugin-__set-march` → `__SKILL_j6-plugin-__insert-quant-dequant` → `__SKILL_j6-plugin-__dynamic-block` → `__SKILL_j6-plugin-__prepare` → `__SKILL_j6-plugin-__set-fake-quantize`。",
+    };
+    const previousSnapshot = {
+      schema: 1,
+      revision: SHA,
+      fetched_at: new Date(nowMs).toISOString(),
+      skills: [FLAT_SKILL, INSTALLER_SKILL, oldAdaptation, X5_WORKSPACE_SKILL],
+      packs: PACKS,
+    };
+    writeFileSync(join(cacheDirPath, SNAPSHOT_NAME), JSON.stringify(previousSnapshot), "utf8");
+    const reviewedSkills = JSON.parse(readFileSync(new URL("./fixtures/skills-reviewed.json", import.meta.url), "utf8")) as SkillRecord[];
+    const current = reviewedSkills.find(skill => skill.name === "s-plugin-adaptation")!;
+    const log: string[] = [];
+
+    const result = await searchSkills(
+      { query: "s-plugin-adaptation", task: "model_conversion", workflow: "qat", platform: "s100" },
+      { loadCatalog: () => load({ indexBody: indexFile([current]) }, log) },
+    );
+
+    expect(log).toHaveLength(3);
+    expect(result.matches[0]?.name).toBe("s-plugin-adaptation");
+    expect(result.matches[0]?.classification?.workflows).toContain("qat");
+  });
+
+  it("reports a refresh failure instead of serving a snapshot from another overlay", async () => {
+    await load();
+    const path = join(cacheDirPath, SNAPSHOT_NAME);
+    const cached = JSON.parse(readFileSync(path, "utf8"));
+    cached.reviewed_overlay_fingerprint = "0".repeat(64);
+    const oldContent = JSON.stringify(cached);
+    writeFileSync(path, oldContent, "utf8");
+    resetSkillCatalogState();
+
+    await expectSkillError(load({ revisionStatus: 503 }), "catalog_unavailable");
+    expect(readFileSync(path, "utf8")).toBe(oldContent);
+    const recovered = await load();
+    expect(recovered.from_cache).toBe(false);
   });
 
   it("refetches after the TTL expires", async () => {

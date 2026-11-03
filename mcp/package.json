@@ -1,6 +1,6 @@
 {
   "name": "rdk-docs-mcp",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "description": "Search RDK documentation and Skills, and publish cases, Skills and forum posts as the signed-in user.",
   "bin": {
@@ -32,21 +32,21 @@
     "prepack": "node scripts/prepack.mjs",
     "prepublishOnly": "npm test && npm run build && npm run prepack",
     "verify:live": "npm run eval:live && npm run eval:skills",
-    "verify:package": "npm run build && node scripts/verify-package.mjs"
+    "verify:package": "node scripts/verify-package.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "node-html-parser": "^7.0.1",
-    "smol-toml": "^1.8.0",
-    "zod": "^3.25.0"
+    "smol-toml": "^1.9.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.2.0"
+    "vitest": "^4.1.12"
   },
   "repository": {
     "type": "git",

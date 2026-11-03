@@ -175,6 +175,16 @@ describe("fetchText cache", () => {
     expect(get).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects stale cached data during strict live verification", async () => {
+    vi.stubEnv("RDK_DOCS_FAIL_ON_STALE", "1");
+    const get = vi.fn<typeof fetch>().mockResolvedValueOnce(response("cached body")).mockRejectedValueOnce(new Error("connect ECONNREFUSED"));
+    vi.stubGlobal("fetch", get);
+    const url = "https://example.test/site/searchindex.js";
+    expect(await fetchText(url)).toBe("cached body");
+    ageCache(20 * 60 * 1000);
+    await expect(fetchText(url)).rejects.toThrow("ECONNREFUSED");
+  });
+
   it("still throws when the network fails and nothing was cached", async () => {
     const get = vi.fn<typeof fetch>().mockRejectedValue(new Error("connect ECONNREFUSED"));
     vi.stubGlobal("fetch", get);

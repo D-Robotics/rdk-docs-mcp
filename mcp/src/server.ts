@@ -232,7 +232,7 @@ export function createServer(options: { skillDeps?: SkillServiceDeps; publishing
         max_chars: z.number().int().min(1000).max(40000).optional(),
         offset: z.number().int().min(0).optional(),
         expected_content_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-        name: z.string().describe("Exact skill name from the catalog, e.g. 'rdk-gpio-40pin' or '__SKILL_j6-plugin-__set-fake-quantize' (no fuzzy matching, no display names)"),
+        name: z.string().describe("Exact skill name from the catalog, e.g. 'rdk-gpio-40pin' or 's-plugin-set-fake-quantize' (no fuzzy matching, no display names)"),
       }).strict(),
     },
     async (input) => {

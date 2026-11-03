@@ -450,10 +450,10 @@ export const OFFICIAL_PATHS: OfficialPath[] = [
   },
   {
     id: "oe-llm-whisper",
-    title: "Whisper On-Device Execution",
-    url: `${ORIGIN}/oe_llm_s600_doc/en/guide/quickstart/asr_model/whisper`,
+    title: "ASR 推理示例",
+    url: `${ORIGIN}/oe_llm_doc/guide/model_deployment/model_infer_sample/asr`,
     manual: "oe-llm-s600",
-    why: "S600 OE LLM 跑 Whisper 的官方页。",
+    why: "S600 Whisper 在现行 v2 ASR 推理示例。v1.0.5 的 whisper 快速上手页已经 404。",
     query: /whisper/i,
     manuals: ["oe-llm-s600"],
     scope: "named-manual",
@@ -478,6 +478,11 @@ export function matchOfficialPath(query: string, manual?: string): OfficialPath 
   const resolved = manual ? resolveManual(manual)?.id : undefined;
   for (const path of OFFICIAL_PATHS) {
     if (!path.query.test(query)) continue;
+    // A named API, package, or command needs its own search result, not the overview.
+    if (path.id === "oe-x5-quant" && /\b[a-z][a-z\d]*(?:[._][a-z\d_]+)+\b/i.test(query)) continue;
+    // Generic install entries are listed first. Leave source builds and XBurn setup to their own pages.
+    if (path.id === "tros-install" && /交叉编译|源码安装|cross[-_ ]?compile/i.test(query)) continue;
+    if (path.id === "xburn-overview" && /安装|install/i.test(query)) continue;
     if (resolved) {
       if (!path.manuals.includes(resolved)) continue;
       if (path.scope === "product" && !mentionsProduct(path, query, manual)) continue;
