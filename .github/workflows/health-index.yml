@@ -1,0 +1,36 @@
+name: Index health check
+
+# 每日检查 MCP 依赖的线上索引（对应 metric H5）。
+# 失败条件：索引加载失败、记录数为 0、记录数跌破包内快照基线，
+# 或索引比站点最近一次部署旧半天以上（说明索引步骤没跑成）。
+on:
+  schedule:
+    - cron: "0 1 * * *" # 09:00 CST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Check every manual's live index
+        run: node scripts/check-index-health.mjs
+        env:
+          INDEX_STALE_DAYS: "14"
+          INDEX_MIN_RATIO: "0.8"
