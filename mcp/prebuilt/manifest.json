@@ -1,7 +1,8 @@
 {
-  "builtAt": "2026-10-10T04:35:09.172Z",
+  "builtAt": "2026-11-03T08:47:26.042Z",
   "maxAgeDays": 14,
   "manuals": [
+    "audio-kit",
     "bmi088",
     "case-s600",
     "magicbox",
@@ -17,6 +18,7 @@
     "rdk-x",
     "stereo-camera",
     "tros",
+    "x5-cases",
     "x5-sdk",
     "xburn"
   ],
